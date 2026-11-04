@@ -1,0 +1,43 @@
+{
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/sb/:path*",
+      "destination": "https://ovthmjsyjxjlimcxgqmo.supabase.co/:path*"
+    },
+    {
+      "source": "/fipe/:path*",
+      "destination": "https://parallelum.com.br/fipe/api/v1/:path*"
+    },
+    {
+      "source": "/fx/:path*",
+      "destination": "https://api.frankfurter.dev/v1/:path*"
+    }
+  ]
+}

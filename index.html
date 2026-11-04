@@ -1,0 +1,2033 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#121314">
+<title>Minha Garagem</title>
+<link rel="icon" href="/favicon.ico?v=1" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png?v=1">
+<link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16.png?v=1">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png?v=1">
+<link rel="manifest" href="/site.webmanifest?v=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Garagem">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="/vendor/supabase-2.45.4.js"></script>
+<script>window.supabase || document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"><\/script>');</script>
+<style>
+:root{
+  --bg:#121314; --s1:#18191b; --s2:#1f2023; --s3:#26282b;
+  --line:#2b2d30; --line2:#3a3c40;
+  --fg:#f5f5f6; --fg2:#a9abb0; --fg3:#74767c;
+  --danger:#f2786f; --ok:#9ad0a6; --warn:#e6c27a;
+  --r:12px; --r-sm:8px;
+  --sans:'Geist',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --ease:cubic-bezier(.2,.8,.2,1);
+  --t-fast:120ms; --t-med:220ms;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg)}
+body{font-family:var(--sans);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;min-height:100vh;overflow-x:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:inherit}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.vh{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+:focus-visible{outline:2px solid var(--fg);outline-offset:2px;border-radius:6px}
+#view:focus,#view:focus-visible{outline:none}
+
+/* header */
+.top{position:sticky;top:0;z-index:20;background:rgba(18,19,20,.96);border-bottom:1px solid var(--line)}
+.top-in{max-width:1240px;margin:0 auto;display:flex;align-items:center;gap:24px;padding:0 24px;height:64px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;flex-shrink:0}
+.brand img{width:28px;height:28px;border-radius:7px}
+.brand b{font-weight:600;font-size:16px;letter-spacing:-.02em}
+.brand-g{color:var(--fg3);font-size:14px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.brand-g:not(:empty)::before{content:"/";margin-right:10px;color:var(--line2)}
+.start{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:8px}
+.start button{all:unset;box-sizing:border-box;cursor:pointer;border:1px solid var(--line);border-radius:var(--r);background:var(--s1);padding:20px;display:flex;flex-direction:column;gap:6px;transition:border-color var(--t-fast),background var(--t-fast)}
+.start button:hover{border-color:var(--line2);background:var(--s2)}
+.start button:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+.start b{font-size:16px;font-weight:600}
+.start span{color:var(--fg2);font-size:14px;line-height:1.5}
+.start .n{font-family:'Geist Mono',monospace;color:var(--fg3);font-size:12px}
+.tabs{display:flex;gap:4px;flex:1;min-width:0}
+.tab{padding:8px 14px;border-radius:999px;text-decoration:none;color:var(--fg2);font-weight:500;font-size:14px;white-space:nowrap;transition:color var(--t-fast),background var(--t-fast)}
+.tab:hover{color:var(--fg)}
+.tab[aria-current="page"]{background:var(--fg);color:var(--bg)}
+.tab .n{font-family:var(--mono);font-size:12px;opacity:.6;margin-left:6px}
+.acct{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--fg3)}
+.live i{width:6px;height:6px;border-radius:50%;background:var(--fg3)}
+.live[data-s="live"] i{background:var(--ok)}
+.live[data-s="offline"] i{background:var(--warn)}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:38px;padding:0 16px;border-radius:999px;border:1px solid var(--line2);background:transparent;cursor:pointer;font-weight:500;font-size:14px;white-space:nowrap;transition:background var(--t-fast),border-color var(--t-fast)}
+.btn:hover{background:var(--s3)}
+.btn.primary{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.btn.primary:hover{background:#dcdcde}
+.btn.danger{border-color:#5a2f2c;color:var(--danger)}
+.btn.danger.solid{background:var(--danger);color:#1a0d0c;border-color:var(--danger)}
+.btn.sm{height:32px;padding:0 12px;font-size:13px}
+.btn[disabled]{opacity:.5;cursor:default}
+.btn svg{width:16px;height:16px}
+.iconbtn{width:38px;height:38px;border-radius:999px;border:1px solid var(--line2);background:transparent;display:inline-grid;place-items:center;cursor:pointer}
+.iconbtn:hover{background:var(--s3)}
+.iconbtn svg{width:18px;height:18px}
+
+/* layout */
+main{max-width:1240px;margin:0 auto;padding:40px 24px 96px}
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:28px;flex-wrap:wrap}
+.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg3);font-weight:500;margin:0 0 6px}
+h1{font-size:40px;line-height:1.05;letter-spacing:-.035em;font-weight:600;margin:0}
+h2{font-size:18px;letter-spacing:-.015em;font-weight:600;margin:0 0 14px}
+.sub{color:var(--fg2);margin:8px 0 0}
+.hint{color:var(--fg3);font-size:13px}
+
+/* vehicle grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
+.card{display:block;text-decoration:none;background:var(--s1);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;transition:border-color var(--t-med),transform var(--t-med) var(--ease)}
+.card:hover{border-color:var(--line2);transform:translateY(-2px)}
+.ph{aspect-ratio:16/10;background:var(--s2);position:relative;overflow:hidden}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph .mk{position:absolute;inset:0;display:grid;place-items:center;color:var(--line2);font-weight:700;font-size:56px;letter-spacing:-.05em;user-select:none}
+.ph .st{position:absolute;top:12px;left:12px}
+.card .body{padding:16px 18px 18px}
+.card .yr{font-family:var(--mono);font-size:12px;color:var(--fg3)}
+.card .nm{font-size:19px;font-weight:600;letter-spacing:-.02em;line-height:1.25;margin:2px 0 0}
+.card .nick{color:var(--fg2);font-size:14px}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.facts dt{font-size:11px;color:var(--fg3);text-transform:uppercase;letter-spacing:.08em}
+.facts dd{margin:2px 0 0;font-family:var(--mono);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip{display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:999px;font-size:11.5px;font-weight:500;background:var(--s3);color:var(--fg2);border:1px solid var(--line2);white-space:nowrap}
+.chip.light{background:rgba(18,19,20,.8);color:var(--fg);border-color:rgba(255,255,255,.12)}
+
+/* empty */
+.empty{border:1px dashed var(--line2);border-radius:var(--r);padding:56px 24px;text-align:center}
+.empty h2{margin:0 0 6px}
+.empty p{color:var(--fg2);margin:0 0 20px}
+
+/* detail */
+.back{display:inline-flex;align-items:center;gap:6px;color:var(--fg2);text-decoration:none;font-size:14px;margin-bottom:20px}
+.back:hover{color:var(--fg)}
+.hero{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:32px;align-items:start}
+.hero .ph{border-radius:var(--r);border:1px solid var(--line)}
+.hero h1{font-size:44px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-top:24px}
+.stats div{background:var(--s1);padding:14px 16px}
+.stats dt{font-size:11px;color:var(--fg3);text-transform:uppercase;letter-spacing:.08em}
+.stats dd{margin:4px 0 0;font-family:var(--mono);font-size:18px;letter-spacing:-.02em}
+.stats dd small{font-size:12px;color:var(--fg3)}
+.section{margin-top:48px}
+.section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
+.section-head h2{margin:0}
+.spec{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0;border-top:1px solid var(--line)}
+.spec div{padding:12px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:16px;margin-right:24px}
+.spec dt{color:var(--fg3);font-size:14px}
+.spec dd{margin:0;text-align:right;font-size:14px;overflow-wrap:anywhere}
+.notes{color:var(--fg2);white-space:pre-wrap;margin:0;max-width:72ch}
+
+/* ledger */
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.filters .fld{margin:0;min-width:150px;flex:1 1 150px}
+.filters .fld.grow{flex:2 1 220px}
+.summary{display:flex;gap:24px;flex-wrap:wrap;color:var(--fg2);font-size:14px;margin:0 0 12px}
+.summary b{color:var(--fg);font-family:var(--mono);font-weight:500}
+.rows{border-top:1px solid var(--line)}
+.row{display:grid;grid-template-columns:104px minmax(0,1fr) 110px 120px;gap:16px;align-items:center;padding:14px 8px;border-bottom:1px solid var(--line);cursor:pointer;width:100%;text-align:left;background:none;border-left:0;border-right:0;border-top:0;border-radius:0}
+.row:hover{background:var(--s1)}
+.row .d{font-family:var(--mono);font-size:13px;color:var(--fg2)}
+.row .t{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .m{font-size:13px;color:var(--fg3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .mi{font-family:var(--mono);font-size:13px;color:var(--fg2);text-align:right}
+.row .a{font-family:var(--mono);text-align:right}
+
+/* costs table */
+.tbl-wrap{position:relative;overflow-x:auto;border:1px solid var(--line);border-radius:var(--r)}
+table{width:100%;border-collapse:collapse;min-width:640px}
+th,td{padding:12px 16px;border-bottom:1px solid var(--line);text-align:left;font-size:14px}
+th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg3);font-weight:500;background:var(--s1)}
+td.n,th.n{text-align:right;font-family:var(--mono)}
+tfoot td{font-weight:600;background:var(--s1);border-bottom:0}
+tbody tr:hover td{background:var(--s1)}
+td a{text-decoration:none}
+td a:hover{text-decoration:underline}
+
+/* panel */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:opacity var(--t-med);z-index:40}
+.scrim.on{opacity:1;pointer-events:auto}
+.panel{position:fixed;top:0;right:0;bottom:0;width:min(520px,100vw);background:var(--s1);border-left:1px solid var(--line);z-index:50;transform:translateX(100%);transition:transform var(--t-med) var(--ease);display:flex;flex-direction:column;visibility:hidden}
+.panel.on{transform:none;visibility:visible}
+.panel-h{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 22px;border-bottom:1px solid var(--line)}
+.panel-h h2{margin:0;font-size:18px}
+.panel-b{padding:22px;overflow-y:auto;flex:1}
+.panel-f{padding:16px 22px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.panel-f .sp{flex:1}
+
+/* forms */
+fieldset{border:0;padding:0;margin:0 0 24px}
+legend{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--fg3);font-weight:500;margin-bottom:12px;padding:0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.fld{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.fld label{font-size:13px;color:var(--fg2);font-weight:500}
+.fld input,.fld select,.fld textarea{background:var(--bg);border:1px solid var(--line2);border-radius:var(--r-sm);padding:9px 12px;min-height:40px;width:100%;transition:border-color var(--t-fast)}
+.fld textarea{min-height:88px;resize:vertical}
+.fld input:hover,.fld select:hover,.fld textarea:hover{border-color:#4a4c51}
+.fld input:focus,.fld select:focus,.fld textarea:focus{outline:none;border-color:var(--fg)}
+.fld.bad input,.fld.bad select,.fld.bad textarea{border-color:var(--danger)}
+.fld .err{color:var(--danger);font-size:12.5px;min-height:0}
+.fld .help{color:var(--fg3);font-size:12.5px}
+.check{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--fg2);margin:-4px 0 14px}
+.check input{width:16px;height:16px;accent-color:var(--fg)}
+.form-err{background:#2a1716;border:1px solid #5a2f2c;color:#f4c1bc;border-radius:var(--r-sm);padding:10px 12px;font-size:13.5px;margin-bottom:16px}
+.seg{display:flex;background:var(--bg);border:1px solid var(--line2);border-radius:999px;padding:3px;margin-bottom:20px}
+.seg button{flex:1;height:32px;border:0;background:none;border-radius:999px;cursor:pointer;color:var(--fg2);font-weight:500;font-size:13.5px}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.thumb{width:100%;aspect-ratio:16/10;border-radius:var(--r-sm);background:var(--s2);object-fit:cover;display:block;margin-bottom:8px;border:1px solid var(--line)}
+.kv{display:grid;grid-template-columns:120px 1fr;gap:10px 16px;margin:0 0 20px}
+.kv dt{color:var(--fg3);font-size:14px}
+.kv dd{margin:0;font-size:14px;overflow-wrap:anywhere}
+.confirm{background:#231514;border:1px solid #5a2f2c;border-radius:var(--r-sm);padding:14px;margin-top:8px}
+.confirm p{margin:0 0 12px;font-size:14px}
+
+.lock{display:inline-flex;align-items:center;gap:6px;color:var(--fg3);font-size:13px}
+.banner{background:#2a2414;border:1px solid #574a26;color:#eedcae;border-radius:var(--r-sm);padding:10px 14px;font-size:13.5px;margin-bottom:24px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,16px);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;font-weight:500;opacity:0;pointer-events:none;transition:opacity var(--t-med),transform var(--t-med) var(--ease);z-index:60;max-width:calc(100vw - 32px)}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.toast.bad{background:var(--danger);color:#1a0d0c}
+.skel{background:linear-gradient(90deg,var(--s1),var(--s2),var(--s1));background-size:200% 100%;animation:sk 1.2s linear infinite;border-radius:var(--r)}
+@keyframes sk{to{background-position:-200% 0}}
+
+/* login gate */
+body.locked .top, body.locked main, body.locked .panel, body.locked .scrim{display:none}
+.login{display:none;min-height:100vh;min-height:100dvh;place-items:center;padding:24px 16px}
+body.locked .login{display:grid}
+.login-card{width:min(400px,100%);background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:32px 28px 28px}
+.login-ic{width:64px;height:64px;border-radius:15px;display:block;margin:0 0 20px}
+.login-card h1{font-size:30px}
+.login-card .sub{margin:6px 0 24px}
+.linkbtn{background:none;border:0;padding:4px;color:var(--fg2);text-decoration:underline;text-underline-offset:3px;cursor:pointer;font-size:13.5px}
+.linkbtn:hover{color:var(--fg)}
+.wm{border:1px solid var(--line);border-radius:var(--r);padding:16px;background:var(--s1)}
+/* service to-do */
+.todo-wrap{margin:0 0 48px}
+.todo-list{border-top:1px solid var(--line)}
+.todo{display:grid;grid-template-columns:110px minmax(0,1fr) auto;gap:16px;align-items:start;padding:14px 4px;border-bottom:1px solid var(--line)}
+.todo-st{padding-top:1px}
+.todo-v{font-weight:500;text-decoration:none}.todo-v:hover{text-decoration:underline}
+.todo .m{font-size:12.5px;color:var(--fg3);margin-top:2px}
+.todo-task{margin-top:8px;font-size:13.5px;color:var(--fg2)}
+.todo-task ul{margin:4px 0 0;padding-left:18px}.todo-task li{margin:1px 0}
+.todo-act{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.todo-nohist{margin-top:16px}
+.todo-nohist summary{cursor:pointer;color:var(--fg2);font-size:13.5px;padding:6px 0}
+.stc{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid var(--c);background:color-mix(in srgb,var(--c) 14%,transparent);white-space:nowrap}
+.stc i{width:7px;height:7px;border-radius:50%;background:var(--c)}
+@media (max-width:720px){.todo{grid-template-columns:minmax(0,1fr) auto;gap:8px 12px}.todo-st{grid-column:1/-1}.todo-act{grid-column:1/-1;justify-content:flex-start}}
+/* dashboard */
+:root{--bar:#c4c5c9}
+.dvr{display:grid;grid-template-columns:minmax(0,170px) minmax(0,1fr) 56px;gap:12px;align-items:center;padding:6px 0;text-decoration:none}
+.dvr .l{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg2)}
+.dvr:hover .l{color:var(--fg)}
+.dvr .tr{display:grid;grid-template-columns:1fr 1px 1fr;align-items:center;height:14px}
+.dvr .half{display:flex;height:12px}.dvr .neg{justify-content:flex-end}
+.dvr .neg .b{border-radius:4px 0 0 4px}.dvr .pos .b{border-radius:0 4px 4px 0}
+.dvr .b{display:block;height:100%;min-width:2px}
+.dvr .axis{height:20px;background:var(--line2)}
+.dvr .v{font-family:var(--mono);font-size:12.5px;text-align:right}
+@media (max-width:720px){.dvr{grid-template-columns:minmax(0,96px) minmax(0,1fr) 48px;gap:8px}}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin:0 0 44px}
+.kpis>div{background:var(--s1);padding:18px 20px 20px;min-width:0}
+.kpis dt{font-size:11px;color:var(--fg3);text-transform:uppercase;letter-spacing:.08em}
+.kpis dd{margin:8px 0 0;font-family:var(--mono);font-size:26px;letter-spacing:-.03em;line-height:1.2;overflow-wrap:anywhere}
+.kpis dd.sm{font-size:20px}
+.kpis small{display:block;font-family:var(--sans);font-size:12.5px;color:var(--fg3);margin-top:8px;letter-spacing:0;line-height:1.4}
+.garage-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+.garage-head h2{margin:0}
+.seg.sm{margin:0;padding:2px;display:inline-flex}
+.seg.sm button{height:28px;padding:0 12px;font-size:12.5px;flex:none}
+.seg.sm{max-width:100%;overflow-x:auto;scrollbar-width:none}.seg.sm::-webkit-scrollbar{display:none}
+.garage{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:24px 18px;margin-bottom:52px}
+.app{display:flex;flex-direction:column;align-items:center;gap:8px;text-decoration:none;min-width:0}
+.app .ic{width:100%;aspect-ratio:1;border-radius:24%;overflow:hidden;background:var(--s2);border:1px solid var(--line);position:relative;transition:transform var(--t-med) var(--ease),border-color var(--t-med)}
+.app .ic img{width:100%;height:100%;object-fit:cover;display:block}
+.app .ic .mk{position:absolute;inset:0;display:grid;place-items:center;color:var(--line2);font-weight:700;font-size:30px;letter-spacing:-.04em}
+.app:hover .ic{transform:translateY(-2px);border-color:#4a4c51}
+.app .lb{font-size:12.5px;font-weight:500;text-align:center;line-height:1.25;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.app .lb2{font-size:11px;color:var(--fg3);font-family:var(--mono);margin-top:-6px}
+.charts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.cc{background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px 20px;min-width:0}
+.cc-h{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:18px}
+.cc-h h3{font-size:15px;font-weight:600;margin:0;letter-spacing:-.01em}
+.cc-h p{margin:3px 0 0;font-size:12.5px;color:var(--fg3)}
+.cc .tools{display:flex;gap:6px;flex-shrink:0;align-items:center}
+.cc .tbl{display:none}
+.cc.as-table .tbl{display:block}
+.cc.as-table .viz{display:none}
+.cc .tbl table{min-width:0}
+.cc .tbl td,.cc .tbl th{padding:8px 10px;font-size:13px}
+.cc .none{color:var(--fg3);font-size:13.5px;margin:8px 0}
+.hb{display:grid;grid-template-columns:minmax(0,150px) minmax(0,1fr) auto;gap:12px;align-items:center;padding:6px 0;text-decoration:none}
+.hb .l{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg2)}
+.hb .tr{height:12px;display:block}
+.hb .b{display:block;height:100%;background:var(--bar);border-radius:0 4px 4px 0;min-width:2px;transition:background var(--t-fast)}
+.hb .v{font-family:var(--mono);font-size:12.5px}
+.hb:hover .b{background:var(--fg)}
+.hb:hover .l{color:var(--fg)}
+.vb{position:relative;height:170px;display:flex;align-items:flex-end;gap:2px;margin-left:48px}
+.vb .g{position:absolute;left:0;right:0;border-top:1px solid var(--line);height:0}
+.vb .g span{position:absolute;right:calc(100% + 8px);top:-8px;white-space:nowrap;font-size:11px;color:var(--fg3);font-family:var(--mono)}
+.vb .col{flex:1;height:100%;display:flex;align-items:flex-end;justify-content:center;position:relative;z-index:1;cursor:default}
+.vb .bar{width:min(70%,34px);background:var(--bar);border-radius:4px 4px 0 0;transition:background var(--t-fast)}
+.vb .col:hover .bar{background:var(--fg)}
+.vx{display:flex;gap:2px;margin:8px 0 0 48px}
+.vx span{flex:1;text-align:center;font-size:11px;color:var(--fg3);font-family:var(--mono);overflow:hidden;white-space:nowrap}
+.lc{position:relative;height:210px;margin-left:56px}
+.lc svg{position:absolute;inset:0 0 24px 0;width:100%;height:calc(100% - 24px);overflow:visible}
+.lc .g{position:absolute;left:0;right:0;border-top:1px solid var(--line);height:0}
+.lc .g span{position:absolute;right:calc(100% + 8px);top:-8px;white-space:nowrap;font-size:11px;color:var(--fg3);font-family:var(--mono)}
+.lc .xl{position:absolute;bottom:0;font-size:11px;color:var(--fg3);font-family:var(--mono);transform:translateX(-50%);white-space:nowrap}
+.lc .xl.first{transform:none}.lc .xl.last{transform:translateX(-100%)}
+.lc .xh{position:absolute;top:0;bottom:24px;width:1px;background:var(--line2);display:none;pointer-events:none}
+.lc .dot{position:absolute;width:10px;height:10px;border-radius:50%;background:var(--fg);box-shadow:0 0 0 2px var(--s1);transform:translate(-50%,-50%);display:none;pointer-events:none}
+.lc .hit{position:absolute;inset:0 0 24px 0;cursor:crosshair}
+.list{border-top:1px solid var(--line)}
+.li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);text-decoration:none;align-items:center}
+.li:hover .t{text-decoration:underline}
+.li .t{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.li .m{font-size:12.5px;color:var(--fg3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.li .r{font-family:var(--mono);font-size:12.5px;color:var(--fg2);text-align:right}
+#tip{position:fixed;z-index:70;background:var(--s3);border:1px solid var(--line2);color:var(--fg);padding:8px 10px;border-radius:var(--r-sm);font-size:12.5px;line-height:1.4;pointer-events:none;opacity:0;transition:opacity var(--t-fast);max-width:260px;white-space:pre-line;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+#tip.on{opacity:1}
+.vcharts{margin-top:48px}
+.rowbtn{cursor:pointer}
+@media (max-width:860px){
+  .hero{grid-template-columns:1fr;gap:24px}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .charts{grid-template-columns:1fr}
+}
+@media (max-width:720px){
+  .kpis dd{font-size:20px}.kpis dd.sm{font-size:16px}
+  .kpis>div{padding:14px 14px 16px}
+  .garage{grid-template-columns:repeat(4,minmax(0,1fr));gap:18px 12px}
+  .app .ic .mk{font-size:20px}
+  .app .lb{font-size:11.5px}
+  .hb{grid-template-columns:minmax(0,104px) minmax(0,1fr) auto;gap:8px}
+  .cc{padding:16px}
+  .top-in{height:auto;flex-wrap:wrap;padding:12px 16px 0;gap:10px}
+  .brand{flex:1;min-width:0}
+  .brand-g{max-width:40vw}
+  .live span{display:none}
+  .tabs{order:3;flex-basis:100%;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:4px 16px 10px;scroll-snap-type:x proximity}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{scroll-snap-align:start}
+  main{padding:28px 16px 80px}
+  h1{font-size:32px}
+  .hero h1{font-size:34px}
+  .grid{grid-template-columns:1fr;gap:16px}
+  .row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"t a" "m d";gap:2px 12px;padding:12px 4px}
+  .row .d{grid-area:d;text-align:right;font-size:12px}
+  .row .tm{grid-area:t;min-width:0}
+  .row .a{grid-area:a}
+  .row .mi{display:none}
+  .two{grid-template-columns:1fr}
+  .kv{grid-template-columns:100px 1fr}
+  .spec div{margin-right:0}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition-duration:0ms!important;animation:none!important}
+  .card:hover{transform:none}
+}
+</style>
+</head>
+<body class="locked">
+<header class="top">
+  <div class="top-in">
+    <a class="brand" href="#/dashboard" aria-label="Minha Garagem — Dashboard"><img src="/icons/icon-192.png?v=1" alt=""><b>Minha Garagem</b><span class="brand-g" id="brand-g"></span></a>
+    <nav class="tabs" aria-label="Sections">
+      <a class="tab" href="#/dashboard" data-r="dashboard">Dashboard</a>
+      <a class="tab" href="#/cars" data-r="cars">Cars<span class="n" id="n-cars"></span></a>
+      <a class="tab" href="#/bikes" data-r="bikes">Bikes<span class="n" id="n-bikes"></span></a>
+      <a class="tab" href="#/ledger" data-r="ledger">Service</a>
+      <a class="tab" href="#/portfolio" data-r="portfolio">Portfolio</a>
+    </nav>
+    <div class="acct">
+      <span class="live" id="live" data-s="loading" title="Database connection"><i></i><span id="live-t">Connecting</span></span>
+      <button class="btn sm" id="acct-btn" type="button">Sign in</button>
+    </div>
+  </div>
+</header>
+
+<section id="login" class="login" aria-label="Sign in"><div class="login-card"><img class="login-ic" src="/icons/icon-192.png?v=1" alt=""><h1>Minha Garagem</h1></div></section>
+<main id="view" tabindex="-1"></main>
+
+<div class="scrim" id="scrim"></div>
+<aside class="panel" id="panel" role="dialog" aria-modal="true" aria-labelledby="panel-title">
+  <div class="panel-h"><h2 id="panel-title"></h2>
+    <button class="iconbtn" id="panel-x" type="button" aria-label="Close panel" title="Close (Esc)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <div class="panel-b" id="panel-b"></div>
+  <div class="panel-f" id="panel-f"></div>
+</aside>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div id="tip" role="tooltip"></div>
+
+<script>
+/* ---------- config ---------- */
+// The database is reached through this site's own address (/sb, a Vercel rewrite), so networks or
+// browser extensions that block supabase.co don't stop the page. Local previews talk to it directly.
+const SUPA_DIRECT = 'https://ovthmjsyjxjlimcxgqmo.supabase.co';
+const SUPA_URL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) || location.protocol === 'file:' ? SUPA_DIRECT : location.origin + '/sb';
+const SUPA_KEY = 'sb_publishable_er9iB2nm-wn6XdEFPcpkog_diC_LDzE';
+
+const CATEGORIES = {
+  maintenance:'Maintenance', repair:'Repair', restoration:'Restoration', modification:'Modification', parts:'Parts',
+  tyres:'Tyres', detailing:'Detailing', inspection:'Inspection', registration:'Registration',
+  insurance:'Insurance', other:'Other'
+};
+const CONFIDENCE = { printed:'Printed invoice', hand:'Handwritten (best read)', est:'Estimated', report:'Report only, no invoice', cf:'Carfax', log:"Owner's records" };
+const CURRENCIES = { USD:'US dollars (US$)', BRL:'Brazilian reais (R$)' };
+const METERS = { distance:'Odometer', hours:'Hour meter', both:'Odometer and hour meter' };
+const STATUS = { owned:'Owned', project:'Project', stored:'Stored', sold:'Sold' };
+
+/* ---------- state ---------- */
+let db = null;
+try { db = window.supabase.createClient(SUPA_URL, SUPA_KEY); } catch (e) { db = null; }
+const S = { vehicles: [], records: [], readings: [], comps: [], tasks: [], fx: null, user: null, editor: false, garages: [], garage: null, role: null };
+const GID = () => S.garage?.id;
+const ROLES = { owner: 'Owner', editor: 'Editor', viewer: 'Viewer' };
+const ROLE_HELP = { owner: 'Manages the garage and its people', editor: 'Adds and changes vehicles and records', viewer: 'Can look, can\'t change anything' };
+window.live = { state: 'loading', counts: {} };
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const FMT = {};
+const fmtFor = (cur, d) => FMT[cur + d] || (FMT[cur + d] = new Intl.NumberFormat('en-US', { style:'currency', currency:cur, currencyDisplay:'symbol', minimumFractionDigits: d ? 2 : 0, maximumFractionDigits: d ? 2 : 0 }));
+const money = (v, d, cur = 'USD') => v == null || v === '' ? '—' : fmtFor(cur || 'USD', !!d).format(+v).replace(/^\$/, 'US$');
+// sums kept per currency, never converted
+const sumBy = (rows, amt = r => r.amount, cur = r => r.currency) => rows.reduce((m, r) => { const a = +amt(r) || 0; if (a) m[cur(r) || 'USD'] = (m[cur(r) || 'USD'] || 0) + a; return m; }, {});
+const addSums = (...ms) => ms.reduce((o, m) => { for (const k in m) o[k] = (o[k] || 0) + m[k]; return o; }, {});
+const msum = (m, d) => { const ks = ['BRL', 'USD'].filter(k => m[k]); return ks.length ? ks.map(k => money(m[k], d, k)).join(' + ') : '—'; };
+const num = v => v == null || v === '' ? '—' : (+v).toLocaleString('en-US');
+const fdate = d => { if (!d) return '—'; const [y,m,dd] = d.split('-'); return `${m}/${dd}/${y}`; };
+const vname = v => v ? [v.year, v.make, v.model, v.colour && S.vehicles.filter(x => x.make === v.make && x.model === v.model).length > 1 ? '(' + v.colour + ')' : ''].filter(Boolean).join(' ') : 'Unknown vehicle';
+const vshort = v => v ? [v.make, v.model].filter(Boolean).join(' ') : '—';
+const readingStr = (odo, unit, hrs) => [odo != null ? num(odo) + ' ' + unit : '', hrs != null ? (+hrs).toLocaleString('en-US') + ' h' : ''].filter(Boolean).join(' · ') || '—';
+const byDateDesc = (a, b) => (b.date || '').localeCompare(a.date || '') || (a.date ? 0 : 0);
+const sortRecs = list => list.sort((a, b) => (!a.date) - (!b.date) || (b.date || '').localeCompare(a.date || ''));
+const vById = id => S.vehicles.find(v => v.id === id);
+const recsFor = id => S.records.filter(r => r.vehicle_id === id);
+const spent = id => sumBy(recsFor(id));
+const paid = v => v.purchase_price ? { [v.currency || 'USD']: +v.purchase_price } : {};
+const readsFor = id => S.readings.filter(r => r.vehicle_id === id);
+const ICON = {
+  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  lock:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>',
+  back:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg>',
+  file:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5"/></svg>'
+};
+const lockNote = () => `<span class="lock">${ICON.lock}View only</span>`;
+
+function toast(msg, bad) {
+  const t = $('#toast'); t.textContent = msg; t.classList.toggle('bad', !!bad); t.classList.add('on');
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('on'), 2800);
+}
+
+/* ---------- private photos & invoices (signed links) ---------- */
+const SIGNED = {};
+const mediaPath = u => { const m = /\/object\/(?:public|sign|authenticated)\/media\/([^?]+)/.exec(u || ''); return m ? decodeURIComponent(m[1]) : null; };
+const media = u => { if (!u) return ''; const p = mediaPath(u); return p ? (SIGNED[p] || '') : u; };
+async function signMedia() {
+  if (!db) return;
+  const paths = [...new Set([...S.vehicles.map(v => v.photo_url), ...S.records.map(r => r.invoice_url)].map(mediaPath).filter(p => p && !SIGNED[p]))];
+  for (let i = 0; i < paths.length; i += 100) {
+    const { data, error } = await db.storage.from('media').createSignedUrls(paths.slice(i, i + 100), 7 * 24 * 3600);
+    if (error) { console.warn('Couldn\'t sign media links', error); return; }
+    (data || []).forEach(d => { if (d.signedUrl && d.path) SIGNED[d.path] = d.signedUrl; });
+  }
+}
+
+/* ---------- data (everything is scoped to the garage that's open) ---------- */
+const cacheKey = () => 'mg-cache-' + GID();
+const isJwtErr = err => err && /jwt|token|401|PGRST30/i.test((err.code || '') + ' ' + (err.message || ''));
+async function load() {
+  if (!db) { await useSnapshot('the database library didn\'t load'); return; }
+  try {
+    const g = GID(); if (!g) return;
+    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timed out')), 10000));
+    const fx = Promise.race([loadFx(), new Promise(r => setTimeout(r, 4000))]);
+    const [v, r, o, mc, tk] = await Promise.race([timeout, Promise.all([
+      db.from('vehicles').select('*').eq('garage_id', g).order('sort_order').order('year', { ascending: false }),
+      db.from('service_records').select('*').eq('garage_id', g).order('date', { ascending: false, nullsFirst: false }),
+      db.from('odometer_readings').select('*').eq('garage_id', g).order('date', { ascending: false, nullsFirst: false }),
+      db.from('market_comps').select('*').eq('garage_id', g).order('date', { ascending: false }),
+      db.from('service_tasks').select('*').eq('garage_id', g).order('created_at', { ascending: false })
+    ])]);
+    await fx;
+    const err = v.error || r.error || o.error || mc.error || tk.error;
+    if (err && !load.retried && isJwtErr(err)) {
+      load.retried = true; console.warn('Stored sign-in rejected; signing out on this device', err);
+      await db.auth.signOut({ scope: 'local' }).catch(() => {}); toast('Your sign-in expired. Please sign in again.', true); return load();
+    }
+    if (err) throw err;
+    S.vehicles = v.data; S.records = sortRecs(r.data); S.readings = o.data; S.comps = mc.data || []; S.tasks = tk.data || []; S.offline = null;
+    await signMedia();
+    try { localStorage.setItem(cacheKey(), JSON.stringify({ saved: new Date().toISOString().slice(0, 10), vehicles: v.data, records: r.data, readings: o.data, comps: mc.data || [], tasks: tk.data || [] })); } catch (e) {}
+    setLive('live');
+    setTimeout(() => refreshFipe(), 50);
+  } catch (e) { console.warn('Database unreachable, showing saved copy', e); await useSnapshot(/timed out/.test(e.message || '') ? 'the database didn\'t answer' : 'the database couldn\'t be reached'); return; }
+  render();
+}
+async function useSnapshot(reason) {
+  let snap = null;
+  try { snap = JSON.parse(localStorage.getItem(cacheKey()) || 'null'); } catch (e) {}
+  snap = snap || { vehicles: [], records: [], readings: [] };
+  S.vehicles = snap.vehicles || []; S.records = sortRecs(snap.records || []); S.readings = snap.readings || []; S.comps = snap.comps || []; S.tasks = snap.tasks || [];
+  if (!S.fx) await loadFx().catch(() => {});
+  S.offline = { reason, saved: snap.saved };
+  await signMedia().catch(() => {});
+  setLive('offline'); render();
+}
+function setLive(s) {
+  window.live.state = s;
+  window.live.counts = { vehicles: S.vehicles.length, records: S.records.length, readings: S.readings.length };
+  $('#live').dataset.s = s;
+  $('#live-t').textContent = s === 'live' ? 'Live' : s === 'offline' ? 'Offline copy' : 'Connecting';
+}
+
+/* ---------- auth & garages ---------- */
+// The whole app sits behind sign-in: no session -> login page, and nothing is fetched.
+// Anyone can create an account; what they can see is decided by garage membership in the database.
+async function refreshAuth(session) {
+  if (!db) { showLogin('The app couldn\'t start. Check your connection and reload the page.'); return; }
+  if (session === undefined) session = (await db.auth.getSession()).data.session;
+  const prev = S.user?.id;
+  S.user = session?.user || null;
+  if (!S.user) {
+    S.editor = false; S.role = null; S.garage = null; S.garages = [];
+    S.vehicles = []; S.records = []; S.readings = []; S.comps = []; S.tasks = [];
+    window.live.state = 'loading'; Object.keys(SIGNED).forEach(k => delete SIGNED[k]);
+    clearCaches();
+    showLogin(pendingLoginMsg); pendingLoginMsg = null; return;
+  }
+  $('#acct-btn').textContent = 'Account';
+  if (prev !== S.user.id || !S.garage) {
+    await db.rpc('accept_invites').then(r => { if (r.data > 0) pendingToast = r.data === 1 ? 'You joined a garage you were invited to' : `You joined ${r.data} garages you were invited to`; }, () => {});
+    if (!(await loadGarages())) return;
+  }
+  if (!S.garage) { showOnboarding(); return; }
+  enterApp();
+  if (prev !== S.user.id || window.live.state === 'loading') await load(); else render();
+  if (pendingToast) { toast(pendingToast); pendingToast = null; }
+}
+let pendingToast = null;
+function clearCaches() {
+  try { Object.keys(localStorage).filter(k => /^mg-(cache|garages)/.test(k)).forEach(k => localStorage.removeItem(k)); } catch (e) {}
+}
+async function loadGarages() {
+  const { data, error } = await db.from('garage_members').select('role, garage:garages(*)').eq('user_id', S.user.id);
+  if (error) {
+    if (isJwtErr(error) && !loadGarages.retried) { loadGarages.retried = true; pendingLoginMsg = 'Your sign-in expired. Please sign in again.'; await db.auth.signOut({ scope: 'local' }).catch(() => {}); return false; }
+    let cached = null; try { cached = JSON.parse(localStorage.getItem('mg-garages-' + S.user.id) || 'null'); } catch (e) {}
+    if (!cached || !cached.length) { showLogin('Couldn\'t reach the database. Check your connection and try again.'); return false; }
+    S.garages = cached;
+  } else {
+    S.garages = (data || []).filter(m => m.garage).map(m => ({ ...m.garage, role: m.role })).sort((a, b) => a.name.localeCompare(b.name));
+    try { localStorage.setItem('mg-garages-' + S.user.id, JSON.stringify(S.garages)); } catch (e) {}
+  }
+  let want = null; try { want = localStorage.getItem('mg-garage'); } catch (e) {}
+  pickGarage(S.garages.find(g => g.id === want) || S.garages.find(g => g.role === 'owner') || S.garages[0] || null);
+  return true;
+}
+function pickGarage(g) {
+  S.garage = g; S.role = g?.role || null; S.editor = S.role === 'owner' || S.role === 'editor';
+  if (g) { try { localStorage.setItem('mg-garage', g.id); } catch (e) {} if (g.distance_unit) distUnit = g.distance_unit; }
+  $('#brand-g').textContent = g ? g.name : '';
+}
+async function switchGarage(id) {
+  const g = S.garages.find(x => x.id === id); if (!g || g.id === GID()) return;
+  closePanel(); pickGarage(g);
+  S.vehicles = []; S.records = []; S.readings = []; S.comps = []; S.tasks = []; window.live.state = 'loading';
+  location.hash = '#/dashboard'; render(); await load(); toast('Opened ' + g.name);
+}
+let loginMode = 'in', pendingLoginMsg = null;
+function showLogin(msg) {
+  document.body.classList.add('locked'); closePanel();
+  document.title = 'Sign in · Minha Garagem';
+  const up = loginMode === 'up';
+  $('#login').innerHTML = `<div class="login-card">
+    <img class="login-ic" src="/icons/icon-192.png?v=1" alt="">
+    <h1>Minha Garagem</h1>
+    <p class="sub">${up ? 'Create your account. Then set up your garage, or open one you were invited to.' : 'Your cars and bikes, their service history and what they\'re worth.'}</p>
+    <form id="auth-form" novalidate>
+      ${msg ? `<div class="form-err" role="alert">${esc(msg)}</div>` : ''}
+      ${field('email', 'Email', 'email', '', { required: true, ac: 'email' })}
+      ${field('pw', up ? 'Choose a password' : 'Password', 'password', '', { required: true, help: up ? 'At least 8 characters.' : '', ac: up ? 'new-password' : 'current-password' })}
+      <button class="btn primary" type="submit" style="width:100%;height:44px;margin-top:4px">${up ? 'Create account' : 'Sign in'}</button>
+    </form>
+    <p style="text-align:center;margin:18px 0 0"><button type="button" class="linkbtn" id="login-mode">${up ? 'Already have an account? Sign in' : 'New here? Create an account'}</button></p>
+  </div>`;
+  $('#login-mode').onclick = () => { loginMode = up ? 'in' : 'up'; showLogin(); };
+  setTimeout(() => $('#f-email')?.focus(), 30);
+  wireForm('#auth-form', {
+    email: v => !v ? 'Enter your email.' : !/^\S+@\S+\.\S+$/.test(v) ? 'Enter a full email, like name@example.com.' : '',
+    pw: v => !v ? 'Enter your password.' : (up && v.length < 8) ? 'Use at least 8 characters.' : ''
+  }, async vals => {
+    const btn = $('#auth-form button[type=submit]'); btn.disabled = true; btn.textContent = up ? 'Creating…' : 'Signing in…';
+    try {
+      const email = vals.email.trim().toLowerCase();
+      const res = up ? await db.auth.signUp({ email, password: vals.pw }) : await db.auth.signInWithPassword({ email, password: vals.pw });
+      if (res.error) throw new Error(authMsg(res.error));
+      if (up && !res.data.session) { loginMode = 'in'; showLogin('Check your inbox: we sent a link to confirm ' + email + '. Open it, then sign in here.'); return; }
+      loginMode = 'in'; // the auth listener opens the app
+    } finally { if (document.body.classList.contains('locked') && $('#auth-form button[type=submit]')) { const b = $('#auth-form button[type=submit]'); b.disabled = false; b.textContent = loginMode === 'up' ? 'Create account' : 'Sign in'; } }
+  });
+}
+// First visit: no garage yet. Create one (or wait for an invite).
+function showOnboarding(msg) {
+  document.body.classList.add('locked'); closePanel();
+  document.title = 'Set up your garage · Minha Garagem';
+  $('#login').innerHTML = `<div class="login-card" style="max-width:440px">
+    <img class="login-ic" src="/icons/icon-192.png?v=1" alt="">
+    <h1>Set up your garage</h1>
+    <p class="sub">Give it a name and pick how you count money and distance. You can change these later.</p>
+    <form id="ob-form" novalidate>
+      ${msg ? `<div class="form-err" role="alert">${esc(msg)}</div>` : ''}
+      ${garageFields({ name: '', currency: 'BRL', distance_unit: 'km' })}
+      <button class="btn primary" type="submit" style="width:100%;height:44px;margin-top:4px">Create garage</button>
+    </form>
+    <p class="hint" style="margin:18px 0 0;text-align:center">Joining someone else's garage? Ask them to invite <b style="color:var(--fg)">${esc(S.user.email)}</b>, then <button type="button" class="linkbtn" id="ob-reload">check again</button>.</p>
+    <p style="text-align:center;margin:10px 0 0"><button type="button" class="linkbtn" id="ob-out">Sign out</button></p>
+  </div>`;
+  $('#ob-out').onclick = () => db.auth.signOut();
+  $('#ob-reload').onclick = async () => { await db.rpc('accept_invites'); await loadGarages(); if (S.garage) refreshAuth(); else showOnboarding('No invite for ' + S.user.email + ' yet.'); };
+  setTimeout(() => $('#f-name')?.focus(), 30);
+  wireForm('#ob-form', garageRules, async f => {
+    const btn = $('#ob-form button[type=submit]'); btn.disabled = true; btn.textContent = 'Creating…';
+    try { await createGarage(f); } finally { if ($('#ob-form button[type=submit]')) { btn.disabled = false; btn.textContent = 'Create garage'; } }
+  });
+}
+const garageFields = g => `${field('name', 'Garage name', 'text', g.name, { required: true, ph: 'e.g. Garagem Rosset' })}
+  <div class="two">${field('currency', 'Main currency', 'select', g.currency, { required: true, options: Object.entries(CURRENCIES) })}${field('distance_unit', 'Distance', 'select', g.distance_unit, { required: true, options: [['km', 'Kilometres'], ['mi', 'Miles']] })}</div>`;
+const garageRules = { name: v => !v.trim() ? 'Give your garage a name.' : v.trim().length > 80 ? 'Keep the name under 80 characters.' : '' };
+async function createGarage(f) {
+  const { data: id, error } = await db.rpc('create_garage', { p_name: f.name.trim(), p_currency: f.currency, p_unit: f.distance_unit, p_lang: 'en' });
+  if (error) throw new Error(/5 garages/.test(error.message) ? 'You already own 5 garages, which is the limit for now.' : 'Couldn\'t create the garage: ' + error.message);
+  try { localStorage.setItem('mg-garage', id); } catch (e) {}
+  await loadGarages();
+  S.vehicles = []; S.records = []; S.readings = []; S.comps = []; S.tasks = []; window.live.state = 'loading';
+  location.hash = '#/dashboard';
+  enterApp(); await load(); closePanel(); toast('Garage created');
+}
+function enterApp() {
+  if (!document.body.classList.contains('locked')) return;
+  document.body.classList.remove('locked'); $('#login').innerHTML = '';
+  if (!location.hash || location.hash === '#/') location.hash = '#/dashboard';
+  render();
+}
+function authMsg(err) {
+  const m = (err && (err.message || err.error_description || String(err))) || '';
+  if (/invalid login credentials/i.test(m)) return 'That email and password don\'t match. Check both, or create an account if you\'re new.';
+  if (/signups? not allowed/i.test(m)) return 'New accounts are paused right now. Try again later.';
+  if (/rate limit/i.test(m)) return 'Too many attempts. Wait a few minutes and try again.';
+  if (/already registered/i.test(m)) return 'This email already has an account. Switch to Sign in.';
+  if (/email not confirmed/i.test(m)) return 'Confirm your email first: open the link we sent you, then sign in.';
+  if (/password should be at least/i.test(m)) return 'Use at least 8 characters for the password.';
+  if (/weak|pwned|leaked/i.test(m)) return 'That password appears in known data leaks. Choose a different one.';
+  if (/failed to fetch|network/i.test(m)) return 'Couldn\'t reach the database. Check your connection and try again.';
+  return m || 'Something went wrong. Try again.';
+}
+
+/* ---------- account, garage settings and people ---------- */
+async function openAccount() {
+  if (!S.user) return showLogin();
+  const g = S.garage, owner = S.role === 'owner';
+  let members = [], invites = [];
+  if (g) {
+    const [m, i] = await Promise.all([
+      db.from('garage_members').select('user_id,email,name,role,created_at').eq('garage_id', g.id).order('created_at'),
+      owner ? db.from('garage_invites').select('*').eq('garage_id', g.id).order('created_at') : Promise.resolve({ data: [] })
+    ]);
+    members = m.data || []; invites = i.data || [];
+  }
+  const others = S.garages.filter(x => x.id !== g?.id);
+  const person = m => `<div class="li"><span style="min-width:0"><span class="t" style="display:block">${esc(m.email)}${m.user_id === S.user.id ? ' <span class="hint">(you)</span>' : ''}</span><span class="m" style="display:block">${ROLES[m.role]} · ${esc(ROLE_HELP[m.role])}</span></span>
+    <span class="r">${owner && m.user_id !== S.user.id ? `<button class="btn sm" type="button" data-mrole="${m.user_id}" data-to="${m.role === 'viewer' ? 'editor' : 'viewer'}">Make ${m.role === 'viewer' ? 'editor' : 'viewer'}</button> <button class="btn sm danger" type="button" data-mrm="${m.user_id}" data-email="${esc(m.email)}">Remove</button>` : ''}</span></div>`;
+  openPanel('Account', `
+    ${g ? `<fieldset><legend>Garage</legend>
+      ${owner ? `<form id="g-form" novalidate>${garageFields(g)}<button class="btn" type="submit">Save garage</button></form>`
+        : `<dl class="kv"><dt>Garage</dt><dd>${esc(g.name)}</dd><dt>Your role</dt><dd>${ROLES[S.role]} · ${esc(ROLE_HELP[S.role])}</dd></dl>`}
+    </fieldset>
+    <fieldset><legend>People</legend>
+      <div class="rows" style="margin-bottom:14px">${members.map(person).join('')}</div>
+      ${invites.length ? `<p class="hint" style="margin:0 0 6px">Waiting to join</p><div class="rows" style="margin-bottom:14px">${invites.map(iv => `<div class="li"><span style="min-width:0"><span class="t" style="display:block">${esc(iv.email)}</span><span class="m" style="display:block">${ROLES[iv.role]} · invited ${fdate(iv.created_at.slice(0, 10))}</span></span><span class="r"><button class="btn sm" type="button" data-inv-x="${iv.id}">Cancel</button></span></div>`).join('')}</div>` : ''}
+      ${owner ? `<form id="inv-form" novalidate>
+        <div class="two">${field('email', 'Invite by email', 'email', '', { required: true, ac: 'off', ph: 'name@example.com' })}${field('role', 'Role', 'select', 'editor', { required: true, options: [['editor', 'Editor'], ['viewer', 'Viewer']] })}</div>
+        <button class="btn" type="submit">Invite</button>
+        <p class="hint" style="margin:10px 0 0">Then send them this site's link. When they create an account with that email, ${esc(g.name)} opens for them.</p>
+      </form>` : ''}
+    </fieldset>` : ''}
+    <fieldset><legend>Your garages</legend>
+      ${others.length ? `<div class="rows" style="margin-bottom:12px">${others.map(x => `<button class="row" type="button" data-gsw="${x.id}" style="grid-template-columns:1fr auto"><span class="t">${esc(x.name)}</span><span class="hint">${ROLES[x.role]}</span></button>`).join('')}</div>` : ''}
+      <div id="g-new"><button class="btn" type="button" id="g-new-btn">${ICON.plus}Create another garage</button></div>
+    </fieldset>
+    <dl class="kv"><dt>Signed in as</dt><dd>${esc(S.user.email)}</dd></dl>
+    <form id="pw-form" novalidate>
+      <fieldset><legend>Change password</legend>
+        ${field('pw', 'New password', 'password', '', { required: true, help: 'At least 8 characters.', ac: 'new-password' })}
+      </fieldset>
+      <button class="btn" type="submit">Save password</button>
+    </form>
+    ${g ? `<fieldset style="margin-top:22px"><legend>${owner ? 'Delete garage' : 'Leave garage'}</legend><div id="gdel-box"><button class="btn danger" type="button" id="gdel">${owner ? `Delete ${esc(g.name)}…` : `Leave ${esc(g.name)}…`}</button></div></fieldset>` : ''}`,
+    `<span class="sp"></span><button class="btn" type="button" id="so">Sign out</button>`);
+  $('#so').onclick = async () => { await db.auth.signOut(); clearCaches(); closePanel(); };
+  wireForm('#pw-form', { pw: v => v.length < 8 ? 'Use at least 8 characters.' : '' }, async vals => {
+    const { error } = await db.auth.updateUser({ password: vals.pw });
+    if (error) throw new Error(authMsg(error));
+    toast('Password saved'); closePanel();
+  });
+  document.querySelectorAll('[data-gsw]').forEach(b => b.onclick = () => switchGarage(b.dataset.gsw));
+  $('#g-new-btn').onclick = () => {
+    $('#g-new').innerHTML = `<form id="gn-form" novalidate>${garageFields({ name: '', currency: g?.currency || 'BRL', distance_unit: g?.distance_unit || 'km' })}<button class="btn primary" type="submit">Create garage</button> <button class="btn" type="button" id="gn-x">Cancel</button></form>`;
+    $('#gn-x').onclick = openAccount; $('#f-name').focus();
+    wireForm('#gn-form', garageRules, createGarage);
+  };
+  if (!g) return;
+  if (owner) {
+    wireForm('#g-form', garageRules, async f => {
+      const u = await db.from('garages').update({ name: f.name.trim(), currency: f.currency, distance_unit: f.distance_unit }).eq('id', g.id).select().single();
+      if (u.error) throw new Error('Couldn\'t save: ' + u.error.message);
+      const ng = { ...u.data, role: S.role }; S.garages = S.garages.map(x => x.id === g.id ? ng : x); pickGarage(ng);
+      toast('Garage saved'); render(); openAccount();
+    });
+    wireForm('#inv-form', { email: v => !v ? 'Enter their email.' : !/^\S+@\S+\.\S+$/.test(v.trim()) ? 'Enter a full email, like name@example.com.' : members.some(m => m.email === v.trim().toLowerCase()) ? 'They\'re already in this garage.' : '' }, async f => {
+      const { error } = await db.from('garage_invites').insert({ garage_id: g.id, email: f.email.trim().toLowerCase(), role: f.role, created_by: S.user.id });
+      if (error) throw new Error(/duplicate/.test(error.message) ? 'That email is already invited.' : 'Couldn\'t invite: ' + error.message);
+      toast('Invited ' + f.email.trim()); openAccount();
+    });
+    document.querySelectorAll('[data-inv-x]').forEach(b => b.onclick = async () => { const { error } = await db.from('garage_invites').delete().eq('id', b.dataset.invX); if (error) return toast('Couldn\'t cancel: ' + error.message, true); toast('Invite cancelled'); openAccount(); });
+    document.querySelectorAll('[data-mrole]').forEach(b => b.onclick = async () => { const { error } = await db.from('garage_members').update({ role: b.dataset.to }).eq('garage_id', g.id).eq('user_id', b.dataset.mrole); if (error) return toast('Couldn\'t change the role: ' + error.message, true); toast('Role changed'); openAccount(); });
+    document.querySelectorAll('[data-mrm]').forEach(b => b.onclick = () => {
+      b.closest('.li').insertAdjacentHTML('afterend', `<div class="confirm" style="margin:8px 0"><p>Remove <b>${esc(b.dataset.email)}</b> from ${esc(g.name)}? They lose access straight away. Their past changes stay.</p><button class="btn" type="button" data-mrm-no>Keep them</button> <button class="btn danger solid" type="button" data-mrm-yes>Remove ${esc(b.dataset.email)}</button></div>`);
+      b.disabled = true;
+      $('[data-mrm-no]').onclick = openAccount;
+      $('[data-mrm-yes]').onclick = async () => { const { error } = await db.from('garage_members').delete().eq('garage_id', g.id).eq('user_id', b.dataset.mrm); if (error) return toast('Couldn\'t remove: ' + error.message, true); toast('Removed ' + b.dataset.email); openAccount(); };
+    });
+  }
+  $('#gdel').onclick = () => {
+    $('#gdel-box').innerHTML = owner
+      ? `<div class="confirm"><p>Delete <b>${esc(g.name)}</b> with its ${S.vehicles.length} vehicle${S.vehicles.length === 1 ? '' : 's'}, ${S.records.length} service record${S.records.length === 1 ? '' : 's'} and everyone's access? This can't be undone.</p>${field('confirm', 'Type the garage name to confirm', 'text', '', { required: true, ac: 'off' })}<button class="btn" type="button" id="gdel-no">Keep it</button> <button class="btn danger solid" type="button" id="gdel-yes" disabled>Delete ${esc(g.name)}</button></div>`
+      : `<div class="confirm"><p>Leave <b>${esc(g.name)}</b>? You'll need a new invite to come back.</p><button class="btn" type="button" id="gdel-no">Stay</button> <button class="btn danger solid" type="button" id="gdel-yes">Leave ${esc(g.name)}</button></div>`;
+    $('#gdel-no').onclick = openAccount;
+    if (owner) $('#f-confirm').oninput = e => { $('#gdel-yes').disabled = e.target.value.trim() !== g.name; };
+    $('#gdel-yes').onclick = async () => {
+      $('#gdel-yes').disabled = true;
+      if (owner) { // photos and invoices go first, while the garage still exists to authorise it
+        const paths = [...S.vehicles.map(v => v.photo_url), ...S.records.map(r => r.invoice_url)].map(mediaPath).filter(Boolean);
+        for (let i = 0; i < paths.length; i += 100) await db.storage.from('media').remove(paths.slice(i, i + 100));
+      }
+      const { error } = owner ? await db.from('garages').delete().eq('id', g.id) : await db.from('garage_members').delete().eq('garage_id', g.id).eq('user_id', S.user.id);
+      if (error) { toast('Couldn\'t ' + (owner ? 'delete' : 'leave') + ': ' + error.message, true); $('#gdel-yes').disabled = false; return; }
+      try { localStorage.removeItem('mg-cache-' + g.id); localStorage.removeItem('mg-garage'); } catch (e) {}
+      toast(owner ? g.name + ' deleted' : 'You left ' + g.name);
+      S.garage = null; window.live.state = 'loading'; closePanel(); await loadGarages(); refreshAuth();
+    };
+  };
+}
+
+/* ---------- panel ---------- */
+let lastFocus = null;
+function openPanel(title, body, foot, opts = {}) {
+  if (!$('#panel').classList.contains('on')) lastFocus = document.activeElement;
+  $('#panel-title').textContent = title;
+  $('#panel-b').innerHTML = body;
+  $('#panel-f').innerHTML = foot || '';
+  $('#panel-f').style.display = foot ? '' : 'none';
+  $('#panel').classList.add('on'); $('#scrim').classList.add('on');
+  $('#panel-b').scrollTop = 0;
+  const first = $('#panel').querySelector('input:not([type=hidden]):not([type=checkbox]),select,textarea');
+  setTimeout(() => (first || $('#panel-x')).focus({ preventScroll: true }), 60);
+}
+function closePanel() {
+  $('#panel').classList.remove('on'); $('#scrim').classList.remove('on');
+  if (lastFocus && document.contains(lastFocus)) lastFocus.focus({ preventScroll: true });
+}
+$('#panel-x').onclick = closePanel; $('#scrim').onclick = closePanel;
+document.addEventListener('keydown', e => {
+  const open = $('#panel').classList.contains('on');
+  if (e.key === 'Escape' && open) { closePanel(); return; }
+  if (open && e.key === 'Tab') {
+    const f = [...$('#panel').querySelectorAll('button,input,select,textarea,a[href]')].filter(x => !x.disabled && x.offsetParent);
+    if (!f.length) return;
+    if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length-1].focus(); }
+    else if (!e.shiftKey && document.activeElement === f[f.length-1]) { e.preventDefault(); f[0].focus(); }
+  }
+  if (!open && !e.metaKey && !e.ctrlKey && !e.altKey && !/input|select|textarea/i.test(document.activeElement.tagName)) {
+    const map = { '1':'dashboard', '2':'cars', '3':'bikes', '4':'ledger', '5':'portfolio' };
+    if (map[e.key]) location.hash = '#/' + map[e.key];
+  }
+});
+
+/* ---------- forms ---------- */
+function field(name, label, type, value, o = {}) {
+  const id = 'f-' + name;
+  let input;
+  if (type === 'select') input = `<select id="${id}" name="${name}">${o.options.map(([v, t]) => `<option value="${esc(v)}"${String(v) === String(value ?? '') ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select>`;
+  else if (type === 'textarea') input = `<textarea id="${id}" name="${name}">${esc(value)}</textarea>`;
+  else input = `<input id="${id}" name="${name}" type="${type}" value="${esc(value)}"${o.ac ? ` autocomplete="${o.ac}"` : ''}${o.step ? ` step="${o.step}"` : ''}${o.inputmode ? ` inputmode="${o.inputmode}"` : ''}${o.accept ? ` accept="${o.accept}"` : ''}${o.ph ? ` placeholder="${esc(o.ph)}"` : ''}>`;
+  return `<div class="fld" data-f="${name}"><label for="${id}">${esc(label)}${o.required ? '' : ' <span class="hint">(optional)</span>'}</label>${input}${o.help ? `<span class="help">${esc(o.help)}</span>` : ''}<span class="err" id="${id}-err" aria-live="polite"></span></div>`;
+}
+function wireForm(sel, rules, onSubmit) {
+  const form = $(sel); if (!form) return;
+  const touched = new Set();
+  const check = (name, show) => {
+    const el = form.elements[name]; if (!el || !rules[name]) return '';
+    const msg = rules[name](el.type === 'file' ? el.files : el.value, form);
+    const box = form.querySelector(`[data-f="${name}"]`);
+    if (show) { box.classList.toggle('bad', !!msg); box.querySelector('.err').textContent = msg; el.setAttribute('aria-invalid', msg ? 'true' : 'false'); }
+    return msg;
+  };
+  form.addEventListener('input', e => { const n = e.target.name; if (!n) return; touched.add(n); const box = form.querySelector(`[data-f="${n}"]`); if (box && box.classList.contains('bad')) check(n, true); });
+  form.addEventListener('focusout', e => { const n = e.target.name; if (n && touched.has(n)) check(n, true); });
+  const submit = async e => {
+    e.preventDefault();
+    const bad = Object.keys(rules).filter(n => check(n, true));
+    form.querySelector('.form-err')?.remove();
+    if (bad.length) { form.elements[bad[0]].focus(); return; }
+    const btns = [...document.querySelectorAll('#panel button[type=submit], #panel [data-submit]')];
+    btns.forEach(b => b.disabled = true);
+    try {
+      const vals = Object.fromEntries([...form.elements].filter(x => x.name).map(x => [x.name, x.type === 'checkbox' ? x.checked : x.type === 'file' ? x.files : x.value]));
+      await onSubmit(vals);
+    } catch (err) {
+      form.insertAdjacentHTML('afterbegin', `<div class="form-err" role="alert">${esc(err.message || err)}</div>`);
+      $('#panel-b').scrollTop = 0;
+    } finally { btns.forEach(b => b.disabled = false); }
+  };
+  form.addEventListener('submit', submit);
+  document.querySelectorAll('#panel [data-submit]').forEach(b => b.onclick = () => form.requestSubmit());
+}
+const nz = v => (v === '' || v == null) ? null : v;
+const nInt = v => (v === '' || v == null) ? null : parseInt(String(v).replace(/[^\d]/g, ''), 10);
+const nMoney = v => (v === '' || v == null) ? null : parseFloat(String(v).replace(/[^\d.]/g, ''));
+const intRule = (label) => v => v && !/^[\d,]+$/.test(v.trim()) ? `${label} should be a whole number, like 45,200.` : '';
+const moneyRule = (label) => v => v && !/^\$?[\d,]*\.?\d{0,2}$/.test(v.trim()) ? `${label} should be an amount, like 1,250 or 1250.50.` : '';
+
+/* ---------- uploads ---------- */
+async function shrinkImage(file, max = 1800) {
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return file;
+  const img = await createImageBitmap(file);
+  const k = Math.min(1, max / Math.max(img.width, img.height));
+  const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.86));
+  return new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
+}
+async function upload(file, prefix) {
+  const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
+  const path = `${GID()}/${prefix}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
+  const { error } = await db.storage.from('media').upload(path, file, { contentType: file.type, upsert: false });
+  if (error) throw new Error('The file didn\'t upload: ' + error.message + '. Try again, or save without it.');
+  return db.storage.from('media').getPublicUrl(path).data.publicUrl;
+}
+
+/* ---------- views ---------- */
+function photo(v, eager) {
+  const mk = esc(((v.make || '?')[0] + ((v.model || '')[0] || '')).toUpperCase());
+  const src = media(v.photo_url);
+  return `<div class="ph">${src ? `<img src="${esc(src)}" alt="${esc(vname(v))}" ${eager ? '' : 'loading="lazy"'}>` : `<div class="mk" aria-hidden="true">${mk}</div>`}${v.status && v.status !== 'owned' ? `<span class="st chip light">${esc(STATUS[v.status])}</span>` : ''}</div>`;
+}
+function viewList(kind) {
+  const list = S.vehicles.filter(v => v.kind === kind);
+  const word = kind === 'car' ? 'car' : 'bike', Word = kind === 'car' ? 'Cars' : 'Bikes';
+  const add = S.editor ? `<button class="btn primary" type="button" data-add-v="${kind}">${ICON.plus}Add ${word}</button>` : (S.user ? '' : lockNote());
+  const totalPaid = addSums(...list.map(paid));
+  let html = `<div class="head"><div><p class="eyebrow">The collection</p><h1>${Word}</h1>
+    <p class="sub">${list.length ? `${list.length} ${list.length === 1 ? word : word + 's'}${Object.keys(totalPaid).length ? ` · ${msum(totalPaid)} purchase value` : ''}` : `No ${word}s yet`}</p></div>${add}</div>`;
+  if (window.live.state === 'loading') return html + `<div class="grid">${'<div class="skel" style="height:330px"></div>'.repeat(3)}</div>`;
+  if (!list.length) return html + `<div class="empty"><h2>Add your first ${word}</h2><p>Each ${word} gets a card with its photo and key facts, and its own page for specs, purchase details and service history.</p>${S.editor ? `<button class="btn primary" type="button" data-add-v="${kind}">${ICON.plus}Add ${word}</button>` : `<button class="btn" type="button" data-signin>Sign in to add ${word}s</button>`}</div>`;
+  return html + `<div class="grid">${list.map(v => `
+    <a class="card" href="#/vehicle/${v.id}">
+      ${photo(v)}
+      <div class="body">
+        <div class="yr">${esc(v.year || '')}${v.colour ? ' · ' + esc(v.colour) : ''}</div>
+        <div class="nm">${esc(vshort(v))}${v.trim_level ? ' ' + esc(v.trim_level) : ''}</div>
+        ${v.nickname ? `<div class="nick">${esc(v.nickname)}</div>` : ''}
+        <dl class="facts">
+          <div><dt>${v.meter === 'hours' ? 'Hours' : 'Odometer'}</dt><dd>${v.meter === 'hours' ? (v.hours != null ? (+v.hours).toLocaleString('en-US') + ' h' : '—') : v.odometer != null ? num(v.odometer) + ' ' + v.odometer_unit : '—'}</dd></div>
+          <div><dt>${v.status === 'sold' ? 'Sold' : 'Bought'}</dt><dd>${v.status === 'sold' ? fdate(v.sold_date) : (v.purchase_date ? fdate(v.purchase_date) : '—')}</dd></div>
+          <div><dt>Records</dt><dd>${recsFor(v.id).length}</dd></div>
+        </dl>
+      </div>
+    </a>`).join('')}</div>`;
+}
+function viewVehicle(id) {
+  const v = vById(id);
+  if (!v) return `<a class="back" href="#/cars">${ICON.back}Back to cars</a><div class="empty"><h2>This vehicle isn't here</h2><p>It may have been deleted, or the link is wrong.</p><a class="btn" href="#/cars">Go to cars</a></div>`;
+  const recs = recsFor(id), sp = spent(id), reads = readsFor(id), back = v.kind === 'car' ? 'cars' : 'bikes';
+  const owned = v.purchase_date ? Math.max(0, Math.round((new Date(v.sold_date || Date.now()) - new Date(v.purchase_date)) / 864e5)) : null;
+  const spec = [
+    ['Make', v.make], ['Model', v.model], ['Trim', v.trim_level], ['Year', v.year], ['Colour', v.colour], ['VIN', v.vin, 1],
+    ['Engine', v.engine], ['Transmission', v.transmission], ['Drivetrain', v.drivetrain], ['Power', v.power], ['Plate', v.plate], ['Kept at', v.location]
+  ].filter(x => x[1] != null && x[1] !== '');
+  const own = [
+    ['Purchased', fdate(v.purchase_date)], ['Price paid', money(v.purchase_price, 0, v.currency), 1], ['Estimated value', v.estimated_value != null ? money(v.estimated_value, 0, v.currency) + (v.value_date ? ' (' + fdate(v.value_date) + ')' : '') : null, 1], ['Currency', CURRENCIES[v.currency]], ['Bought from', v.purchased_from],
+    ['Co-owners', v.co_owners], ['Status', STATUS[v.status]],
+    ...(v.status === 'sold' ? [['Sold', fdate(v.sold_date)], ['Sale price', money(v.sold_price, 0, v.currency), 1]] : []),
+    ['Latest reading', (v.odometer != null || v.hours != null) ? readingStr(v.odometer, v.odometer_unit, v.hours) + (v.odometer_date ? ' (' + fdate(v.odometer_date) + ')' : '') : null, 1]
+  ].filter(x => x[1] != null && x[1] !== '' && x[1] !== '—');
+  const dl = rows => rows.length ? `<dl class="spec">${rows.map(([k, val, m]) => `<div><dt>${esc(k)}</dt><dd${m ? ' class="mono"' : ''}>${esc(val)}</dd></div>`).join('')}</dl>` : `<p class="hint">Nothing recorded yet.</p>`;
+  return `<a class="back" href="#/${back}">${ICON.back}${back === 'cars' ? 'Cars' : 'Bikes'}</a>
+    <div class="hero">
+      ${photo(v, true)}
+      <div>
+        <p class="eyebrow">${esc(v.year || '')} ${v.kind === 'car' ? 'Car' : 'Motorcycle'}</p>
+        <h1>${esc(vshort(v))}${v.trim_level ? ' ' + esc(v.trim_level) : ''}</h1>
+        ${v.nickname ? `<p class="sub">${esc(v.nickname)}</p>` : ''}
+        <dl class="stats">
+          <div><dt>${v.meter === 'hours' ? 'Hours' : 'Odometer'}</dt><dd>${v.meter === 'hours' ? (v.hours != null ? (+v.hours).toLocaleString('en-US') + ' <small>h</small>' : '—') : v.odometer != null ? num(v.odometer) + ` <small>${v.odometer_unit}</small>` + (v.meter === 'both' && v.hours != null ? ` <small>· ${(+v.hours).toLocaleString('en-US')} h</small>` : '') : '—'}</dd></div>
+          <div><dt>${v.meter === 'hours' ? 'Hours' : 'Driven'} in ${YEAR}</dt><dd>${v.meter === 'hours' ? yHours(v) : (d => d ? Math.round(d).toLocaleString('en-US') + ` <small>${v.odometer_unit}</small>` : '—')(drivenIn(v, YEAR, v.odometer_unit))}</dd></div>
+          ${S.user ? `<div><dt>Paid</dt><dd>${money(v.purchase_price, 0, v.currency)}</dd></div>
+          <div><dt>Market value</dt><dd>${(m => m != null ? money(m, 0, v.currency) : '—')(valuation(v).value)}</dd></div>
+          <div><dt>Service & parts</dt><dd>${msum(sp)}</dd></div>
+          <div><dt>Total in</dt><dd>${msum(addSums(paid(v), sp))}</dd></div>` : ''}
+          <div><dt>Owned</dt><dd>${owned != null ? (owned >= 365 ? (owned / 365).toFixed(1) + ' <small>yrs</small>' : owned + ' <small>days</small>') : '—'}</dd></div>
+          <div><dt>Records</dt><dd>${recs.length}</dd></div>
+        </dl>
+        <div class="actions">${S.editor ? `<button class="btn primary" type="button" data-scan="${v.id}">Scan invoice</button><button class="btn" type="button" data-add-r="${v.id}">${ICON.plus}Add service</button><button class="btn" type="button" data-log="${v.id}">${ICON.plus}Log reading</button><button class="btn" type="button" data-edit-v="${v.id}">Edit details</button>` : (S.user ? '' : lockNote())}</div>
+      </div>
+    </div>
+    ${vehicleCharts(v)}
+    ${S.user ? marketSection(v) : ''}
+    <div class="section"><h2>Specifications</h2>${dl(spec)}</div>
+    <div class="section"><h2>Ownership</h2>${dl(own)}</div>
+    ${v.notes ? `<div class="section"><h2>Notes</h2><p class="notes">${esc(v.notes)}</p></div>` : ''}
+    <div class="section">
+      <div class="section-head" style="flex-wrap:wrap"><h2>Service history</h2><span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${(st => stChip(st.key) + (S.editor ? `<button class="btn sm" type="button" data-task="${v.id}">${st.task ? 'Edit needs' : 'Add to To-Do'}</button><button class="btn sm primary" type="button" data-complete="${v.id}">Complete service</button>` : ''))(svcStatus(v))}${recs.length ? `<span class="hint">${recs.length} record${recs.length === 1 ? '' : 's'}${S.user ? ' · ' + msum(sp, 1) : ''}</span>` : ''}</span></div>
+      ${recs.length ? rowsHtml(recs, false) : `<div class="empty"><h2>No service records yet</h2><p>Add work as it happens, or send invoices and they'll be entered here.</p>${S.editor ? `<button class="btn primary" type="button" data-add-r="${v.id}">${ICON.plus}Add service</button>` : ''}</div>`}
+    </div>
+    ${reads.length || S.editor ? `<div class="section">
+      <div class="section-head"><h2>${v.meter === 'hours' ? 'Hour log' : 'Mileage log'}</h2><span class="hint">${reads.length} reading${reads.length === 1 ? '' : 's'}</span></div>
+      <div class="rows">${reads.slice(0, readLimit[id] || 8).map(r => S.editor
+        ? `<button class="row" type="button" data-read="${r.id}"><span class="d">${r.date ? fdate(r.date) : 'Undated'}</span><span class="tm"><span class="t" style="display:block">${readingStr(r.odometer, r.unit, r.hours)}</span><span class="m" style="display:block">${esc(r.notes || '')}</span></span><span class="mi"></span><span class="a hint">Edit</span></button>`
+        : `<div class="row" style="cursor:default"><span class="d">${r.date ? fdate(r.date) : 'Undated'}</span><span class="tm"><span class="t" style="display:block">${readingStr(r.odometer, r.unit, r.hours)}</span><span class="m" style="display:block">${esc(r.notes || '')}</span></span><span class="mi"></span><span class="a"></span></div>`).join('')}</div>
+      ${reads.length > (readLimit[id] || 8) ? `<button class="btn sm" type="button" data-more-reads="${id}" style="margin-top:12px">Show all ${reads.length}</button>` : ''}
+      ${!reads.length ? `<div class="empty"><h2>No readings yet</h2><p>Log the ${v.meter === 'hours' ? 'hour meter' : 'odometer'} whenever you check it to build a usage history.</p><button class="btn primary" type="button" data-log="${v.id}">${ICON.plus}Log reading</button></div>` : ''}
+    </div>` : ''}`;
+}
+const readLimit = {};
+function yHours(v) { const p = hourPoints(v), y = String(YEAR), b = p.filter(x => x.d < y), i = p.filter(x => x.d.startsWith(y)); if (!i.length) return '—'; const d = Math.max(...i.map(x => x.o)) - (b.length ? b[b.length - 1].o : i[0].o); return d > 0 ? d.toLocaleString('en-US', { maximumFractionDigits: 1 }) + ' <small>h</small>' : '—'; }
+function vehicleCharts(v) {
+  const hoursOnly = v.meter === 'hours';
+  const pts = hoursOnly ? hourPoints(v) : pointsFor(v).map(p => ({ d: p.d, o: Math.round(conv(p.o, p.u, v.odometer_unit)) }));
+  const ded = []; pts.forEach(p => { const last = ded[ded.length - 1]; if (last && last.d === p.d) last.o = Math.max(last.o, p.o); else ded.push({ ...p }); });
+  const unit = hoursOnly ? 'h' : v.odometer_unit;
+  const c1 = chartCard(hoursOnly ? 'Engine hours over time' : 'Odometer over time', `${ded.length} dated reading${ded.length === 1 ? '' : 's'} from the log and service history`,
+    lineChart(ded, n => short(n), unit), [['Date', hoursOnly ? 'Hours' : `Odometer (${unit})`], ...ded.slice().reverse().map(p => [fdate(p.d), (+p.o).toLocaleString('en-US')])]);
+  const recs = recsFor(v.id), cur = v.currency || 'USD';
+  const ys = recs.filter(r => r.date).map(r => +r.date.slice(0, 4));
+  const first = Math.max(ys.length ? Math.min(...ys) : YEAR, YEAR - 9), years = Array.from({ length: YEAR - first + 1 }, (_, i) => first + i);
+  const items = spendByYear(recs, cur, years), anySpend = items.some(i => i.value);
+  const other = recs.some(r => r.currency !== cur && +r.amount);
+  const c2 = chartCard(`Service spend by year (${SYM[cur]})`, other ? `Only ${SYM[cur]} amounts; see the history for others` : `${years[0]}–${YEAR}`,
+    anySpend ? vbars(items, n => SYM[cur] + short(n)) : '<p class="none">No service costs recorded yet.</p>', anySpend ? [['Year', `Spend (${SYM[cur]})`, 'Records'], ...items.map(i => [String(i.year), money(i.value, 0, cur), String(i.n)])] : null);
+  return S.user ? `<div class="charts vcharts">${c1}${c2}</div>` : `<div class="charts vcharts" style="grid-template-columns:1fr">${c1}</div>`;
+}
+function rowsHtml(recs, showVehicle) {
+  return `<div class="rows">${recs.map(r => {
+    const v = vById(r.vehicle_id);
+    const meta = [showVehicle ? vname(v) : null, r.shop, CATEGORIES[r.category]].filter(Boolean).join(' · ');
+    return `<button class="row" type="button" data-rec="${r.id}">
+      <span class="d">${r.date ? fdate(r.date) : 'Undated'}</span>
+      <span class="tm"><span class="t" style="display:block">${esc(r.title)}${r.invoice_url ? ' <span class="hint" title="Invoice attached">· invoice</span>' : ''}</span><span class="m" style="display:block">${esc(meta)}</span></span>
+      <span class="mi">${r.mileage != null ? (r.mileage_approx ? '≈' : '') + num(r.mileage) + ' ' + (v?.odometer_unit || '') : r.hours != null ? (+r.hours).toLocaleString('en-US') + ' h' : ''}</span>
+      <span class="a">${r.amount != null ? money(r.amount, 1, r.currency) : (S.user ? '—' : '')}${r.confidence === 'est' && S.user ? '*' : ''}</span>
+    </button>`; }).join('')}</div>`;
+}
+const LF = { v: '', c: '', y: '', q: '' };
+function viewLedger() {
+  const years = [...new Set(S.records.map(r => r.date ? r.date.slice(0, 4) : 'undated'))].sort().reverse();
+  const top = `<div class="head"><div><p class="eyebrow">What's coming up, and everything done</p><h1>Service</h1></div>
+    ${S.editor ? `<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" type="button" data-scan="">Scan invoice</button><button class="btn" type="button" data-add-r="">${ICON.plus}Add record</button></div>` : (S.user ? '' : lockNote())}</div>`;
+  if (window.live.state === 'loading') return top + '<div class="skel" style="height:240px"></div>';
+  const head = top + todoSection() + `<div class="section-head"><h2>History</h2></div>`;
+  if (!S.records.length) return head + `<div class="empty"><h2>No service records yet</h2><p>${S.vehicles.length ? 'Add work as it happens, or send invoices and they\'ll be entered here.' : 'Add a vehicle first, then its service records will appear here.'}</p>${S.editor ? (S.vehicles.length ? `<button class="btn primary" type="button" data-add-r="">${ICON.plus}Add service</button>` : `<a class="btn primary" href="#/cars">Go to cars</a>`) : `<button class="btn" type="button" data-signin>Sign in to add records</button>`}</div>`;
+  const q = LF.q.trim().toLowerCase();
+  const list = S.records.filter(r => (!LF.v || r.vehicle_id === LF.v) && (!LF.c || r.category === LF.c) && (!LF.y || (LF.y === 'undated' ? !r.date : (r.date || '').startsWith(LF.y))) &&
+    (!q || [r.title, r.items, r.shop, r.notes, vname(vById(r.vehicle_id))].join(' ').toLowerCase().includes(q)));
+  const total = sumBy(list);
+  return head + `<div class="filters">
+      <div class="fld grow"><label for="lf-q">Search</label><input id="lf-q" type="search" value="${esc(LF.q)}" placeholder="Oil, brakes, shop name…"></div>
+      <div class="fld"><label for="lf-v">Vehicle</label><select id="lf-v"><option value="">All vehicles</option>${S.vehicles.map(v => `<option value="${v.id}"${LF.v === v.id ? ' selected' : ''}>${esc(vname(v))}</option>`).join('')}</select></div>
+      <div class="fld"><label for="lf-c">Category</label><select id="lf-c"><option value="">All categories</option>${Object.entries(CATEGORIES).map(([k, t]) => `<option value="${k}"${LF.c === k ? ' selected' : ''}>${t}</option>`).join('')}</select></div>
+      <div class="fld"><label for="lf-y">Year</label><select id="lf-y"><option value="">All years</option>${years.map(y => `<option value="${y}"${LF.y === y ? ' selected' : ''}>${y === 'undated' ? 'Undated' : y}</option>`).join('')}</select></div>
+    </div>
+    <p class="summary"><span><b>${list.length}</b> record${list.length === 1 ? '' : 's'}</span>${S.user ? `<span>Total <b>${msum(total, 1)}</b></span><span class="hint">Reais and dollars are totalled separately, never converted.</span>` : `<span class="hint">Amounts are private. ${lockNote().replace('Sign in to edit', 'Sign in to see them')}</span>`}${list.some(r => r.confidence === 'est') ? '<span class="hint">* estimated, not from a receipt</span>' : ''}</p>
+    ${list.length ? rowsHtml(list, true) : `<div class="empty"><h2>No records match</h2><p>Try a different search or clear the filters.</p><button class="btn" type="button" id="lf-clear">Clear filters</button></div>`}`;
+}
+function costsBody() {
+  const head = '';
+  const rows = S.vehicles.map(v => ({ v, p: paid(v), s: spent(v.id), n: recsFor(v.id).length, last: recsFor(v.id).find(r => r.date)?.date }));
+  const T = { p: addSums(...rows.map(r => r.p)), s: addSums(...rows.map(r => r.s)), n: rows.reduce((a, r) => a + r.n, 0) };
+  const byCat = Object.keys(CATEGORIES).map(k => { const l = S.records.filter(r => r.category === k); return [k, sumBy(l), l.length]; }).filter(x => x[2]);
+  return head + `
+    <dl class="stats" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin:0 0 32px">
+      <div><dt>Purchase value</dt><dd>${msum(T.p).replace(' + ', '<br>')}</dd></div>
+      <div><dt>Service & parts</dt><dd>${msum(T.s).replace(' + ', '<br>')}</dd></div>
+      <div><dt>Total in</dt><dd>${msum(addSums(T.p, T.s)).replace(' + ', '<br>')}</dd></div>
+      <div><dt>Vehicles</dt><dd>${S.vehicles.length}</dd></div>
+    </dl>
+    <h2>By vehicle</h2>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th scope="col">Vehicle</th><th scope="col" class="n">Purchase</th><th scope="col" class="n">Service & parts</th><th scope="col" class="n">Total in</th><th scope="col" class="n">Records</th><th scope="col" class="n">Last service</th></tr></thead>
+      <tbody>${rows.map(r => `<tr><td><a href="#/vehicle/${r.v.id}">${esc(vname(r.v))}</a></td><td class="n">${msum(r.p)}</td><td class="n">${msum(r.s)}</td><td class="n">${msum(addSums(r.p, r.s))}</td><td class="n">${r.n}</td><td class="n">${fdate(r.last)}</td></tr>`).join('')}</tbody>
+      <tfoot><tr><td>All vehicles</td><td class="n">${msum(T.p)}</td><td class="n">${msum(T.s)}</td><td class="n">${msum(addSums(T.p, T.s))}</td><td class="n">${T.n}</td><td class="n"></td></tr></tfoot>
+    </table></div>
+    ${byCat.length ? `<div class="section"><h2>By category</h2><div class="tbl-wrap"><table>
+      <thead><tr><th scope="col">Category</th><th scope="col" class="n">Records</th><th scope="col" class="n">Spent (R$)</th><th scope="col" class="n">Spent (US$)</th></tr></thead>
+      <tbody>${byCat.sort((a, b) => (b[1].BRL || 0) - (a[1].BRL || 0) || (b[1].USD || 0) - (a[1].USD || 0)).map(([k, s, n]) => `<tr><td>${CATEGORIES[k]}</td><td class="n">${n}</td><td class="n">${s.BRL ? money(s.BRL, 1, 'BRL') : '—'}</td><td class="n">${s.USD ? money(s.USD, 1, 'USD') : '—'}</td></tr>`).join('')}</tbody>
+    </table></div></div>` : ''}`;
+}
+
+/* ---------- vehicle form ---------- */
+function openVehicleForm(v, kind) {
+  const isNew = !v; v = v || { kind, odometer_unit: S.garage?.distance_unit || 'km', status: 'owned', currency: S.garage?.currency || 'BRL', meter: 'distance' };
+  const word = v.kind === 'car' ? 'car' : 'bike';
+  openPanel(isNew ? `Add ${word}` : 'Edit details', `
+    <form id="v-form" novalidate>
+      <fieldset><legend>Photo</legend>
+        ${media(v.photo_url) ? `<img class="thumb" src="${esc(media(v.photo_url))}" alt="">` : ''}
+        ${field('photo', v.photo_url ? 'Replace photo' : 'Photo', 'file', '', { accept: 'image/*', help: 'A side or 3/4 view works best on the card.' })}
+      </fieldset>
+      <fieldset><legend>Basics</legend>
+        ${field('kind', 'Type', 'select', v.kind, { required: true, options: [['car', 'Car'], ['bike', 'Motorcycle']] })}
+        <div class="two">${field('year', 'Year', 'text', v.year, { inputmode: 'numeric' })}${field('make', 'Make', 'text', v.make, { required: true, ph: 'BMW' })}</div>
+        <div class="two">${field('model', 'Model', 'text', v.model, { ph: 'M3' })}${field('trim_level', 'Trim or version', 'text', v.trim_level)}</div>
+        <div class="two">${field('nickname', 'Nickname', 'text', v.nickname)}${field('colour', 'Colour', 'text', v.colour)}</div>
+      </fieldset>
+      <fieldset><legend>Specifications</legend>
+        ${field('vin', v.kind === 'bike' ? 'VIN / frame number' : 'VIN', 'text', v.vin, { help: '17 characters for most vehicles from 1981 on.' })}
+        <div class="two">${field('engine', 'Engine', 'text', v.engine)}${field('power', 'Power', 'text', v.power, { ph: '280 hp' })}</div>
+        <div class="two">${field('transmission', 'Transmission', 'text', v.transmission, { ph: '6-speed manual' })}${field('drivetrain', 'Drivetrain', 'text', v.drivetrain, { ph: 'RWD' })}</div>
+        <div class="two">${field('plate', 'Plate', 'text', v.plate)}${field('location', 'Kept at', 'text', v.location)}</div>
+      </fieldset>
+      <fieldset><legend>Mileage</legend>
+        ${field('meter', 'Measured by', 'select', v.meter, { required: true, options: Object.entries(METERS) })}
+        <div class="two">${field('odometer', 'Current odometer', 'text', v.odometer != null ? num(v.odometer) : '', { inputmode: 'numeric' })}${field('odometer_unit', 'Unit', 'select', v.odometer_unit, { required: true, options: [['mi', 'Miles'], ['km', 'Kilometres']] })}</div>
+        ${field('hours', 'Engine hours', 'text', v.hours ?? '', { inputmode: 'decimal' })}
+        ${field('odometer_date', 'Reading taken on', 'date', v.odometer_date || (isNew ? new Date().toISOString().slice(0, 10) : ''))}
+      </fieldset>
+      <fieldset><legend>Ownership</legend>
+        <div class="two">${field('purchase_price', 'Purchase price', 'text', v.purchase_price ?? '', { inputmode: 'decimal' })}${field('currency', 'Currency', 'select', v.currency, { required: true, options: Object.entries(CURRENCIES) })}</div>
+        ${field('purchase_date', 'Purchase date', 'date', v.purchase_date)}
+        <div class="two">${field('estimated_value', 'Estimated value today', 'text', v.estimated_value ?? '', { inputmode: 'decimal', help: 'Same currency. Used for collection value.' })}${field('value_date', 'Valued on', 'date', v.value_date)}</div>
+        ${field('purchased_from', 'Bought from', 'text', v.purchased_from, { ph: 'Dealer, private sale, auction…' })}
+        ${field('co_owners', 'Co-owners', 'text', v.co_owners, { help: 'Leave blank if it\'s only yours.' })}
+        ${field('status', 'Status', 'select', v.status, { required: true, options: Object.entries(STATUS) })}
+        <div class="two" id="sold-f" ${v.status === 'sold' ? '' : 'hidden'}>${field('sold_date', 'Sold on', 'date', v.sold_date)}${field('sold_price', 'Sale price (same currency)', 'text', v.sold_price ?? '', { inputmode: 'decimal' })}</div>
+      </fieldset>
+      <fieldset><legend>Notes</legend>${field('notes', 'Notes', 'textarea', v.notes)}</fieldset>
+      ${!isNew ? `<fieldset><legend>Delete</legend><div id="del-box"><button class="btn danger" type="button" id="del-v">Delete this ${word}…</button></div></fieldset>` : ''}
+    </form>`,
+    `<button class="btn" type="button" id="cancel">Cancel</button><button class="btn primary" type="button" data-submit>${isNew ? `Add ${word}` : 'Save changes'}</button>`);
+  $('#cancel').onclick = closePanel;
+  $('#f-status').onchange = e => $('#sold-f').hidden = e.target.value !== 'sold';
+  if (!isNew) $('#del-v').onclick = () => {
+    $('#del-box').innerHTML = `<div class="confirm"><p>Delete <b>${esc(vname(v))}</b> and its ${recsFor(v.id).length} service record${recsFor(v.id).length === 1 ? '' : 's'}? This can't be undone.</p>
+      <button class="btn" type="button" id="del-no">Keep it</button> <button class="btn danger solid" type="button" id="del-yes">Delete ${esc(vshort(v))}</button></div>`;
+    $('#del-no').onclick = () => openVehicleForm(v);
+    $('#del-yes').onclick = async () => {
+      const { error } = await db.from('vehicles').delete().eq('id', v.id);
+      if (error) return toast('Couldn\'t delete: ' + error.message, true);
+      S.vehicles = S.vehicles.filter(x => x.id !== v.id); S.records = S.records.filter(r => r.vehicle_id !== v.id);
+      closePanel(); toast(`Deleted ${vshort(v)}`); location.hash = '#/' + (v.kind === 'car' ? 'cars' : 'bikes'); render();
+    };
+  };
+  const yearNow = new Date().getFullYear() + 1;
+  wireForm('#v-form', {
+    year: x => x && (!/^\d{4}$/.test(x.trim()) || +x < 1885 || +x > yearNow) ? `Enter a 4-digit year between 1885 and ${yearNow}, or leave it blank.` : '',
+    make: x => !x.trim() ? 'Enter the make, like BMW or Ducati.' : '',
+    hours: x => x && !/^[\d,]*\.?\d?$/.test(x.trim()) ? 'Engine hours should be a number, like 122.9.' : '',
+    odometer: intRule('Odometer'),
+    purchase_price: moneyRule('Purchase price'),
+    sold_price: moneyRule('Sale price'),
+    estimated_value: moneyRule('Estimated value'),
+    photo: f => f && f[0] && !/^image\//.test(f[0].type) ? 'Choose an image file (JPG, PNG or HEIC).' : ''
+  }, async f => {
+    const id = v.id || crypto.randomUUID();
+    const row = {
+      id, kind: f.kind, year: f.year ? +f.year : null, make: f.make.trim(), model: nz(f.model.trim()), currency: f.currency, meter: f.meter, hours: nMoney(f.hours), trim_level: nz(f.trim_level.trim()), nickname: nz(f.nickname.trim()),
+      colour: nz(f.colour.trim()), vin: nz(f.vin.trim().toUpperCase()), engine: nz(f.engine.trim()), power: nz(f.power.trim()),
+      transmission: nz(f.transmission.trim()), drivetrain: nz(f.drivetrain.trim()), plate: nz(f.plate.trim()), location: nz(f.location.trim()),
+      odometer: nInt(f.odometer), odometer_unit: f.odometer_unit, odometer_date: nz(f.odometer_date),
+      purchase_date: nz(f.purchase_date), purchase_price: nMoney(f.purchase_price), purchased_from: nz(f.purchased_from.trim()),
+      co_owners: nz(f.co_owners.trim()), status: f.status, estimated_value: nMoney(f.estimated_value), value_date: nz(f.value_date) || (f.estimated_value && f.estimated_value != (v.estimated_value ?? '') ? new Date().toISOString().slice(0, 10) : nz(f.value_date)), sold_date: f.status === 'sold' ? nz(f.sold_date) : null,
+      sold_price: f.status === 'sold' ? nMoney(f.sold_price) : null, notes: nz(f.notes.trim())
+    };
+    if (isNew) row.garage_id = GID();
+    if (f.photo && f.photo[0]) row.photo_url = await upload(await shrinkImage(f.photo[0]), `vehicles/${id}`);
+    const res = isNew ? await db.from('vehicles').insert(row).select().single() : await db.from('vehicles').update(row).eq('id', id).select().single();
+    if (res.error) throw new Error('Couldn\'t save: ' + res.error.message);
+    S.vehicles = isNew ? [...S.vehicles, res.data] : S.vehicles.map(x => x.id === id ? res.data : x);
+    await signMedia();
+    closePanel(); toast(isNew ? `Added ${vshort(res.data)}` : 'Saved');
+    if (isNew) location.hash = '#/vehicle/' + id; render();
+  });
+}
+
+/* ---------- service form ---------- */
+function openRecord(r) {
+  const v = vById(r.vehicle_id);
+  openPanel(r.title, `
+    <dl class="kv">
+      <dt>Vehicle</dt><dd><a href="#/vehicle/${r.vehicle_id}" data-close>${esc(vname(v))}</a></dd>
+      <dt>Date</dt><dd class="mono">${r.date ? fdate(r.date) : 'Undated'}</dd>
+      ${r.mileage != null ? `<dt>Mileage</dt><dd class="mono">${r.mileage_approx ? '≈ ' : ''}${num(r.mileage)} ${v?.odometer_unit || 'mi'}</dd>` : ''}
+      ${r.hours != null ? `<dt>Engine hours</dt><dd class="mono">${(+r.hours).toLocaleString('en-US')} h</dd>` : ''}
+      ${r.shop ? `<dt>Shop</dt><dd>${esc(r.shop)}</dd>` : ''}
+      <dt>Category</dt><dd>${CATEGORIES[r.category]}</dd>
+      ${S.user ? `<dt>Amount</dt><dd class="mono">${money(r.amount, 1, r.currency)}</dd>` : ''}
+      <dt>Source</dt><dd>${CONFIDENCE[r.confidence]}</dd>
+    </dl>
+    ${r.items ? `<h2 style="font-size:14px">Work done</h2><p class="notes" style="margin-bottom:20px">${esc(r.items)}</p>` : ''}
+    ${r.notes ? `<h2 style="font-size:14px">Notes</h2><p class="notes" style="margin-bottom:20px">${esc(r.notes)}</p>` : ''}
+    ${media(r.invoice_url) ? `<a class="btn" href="${esc(media(r.invoice_url))}" target="_blank" rel="noopener">${ICON.file}Open invoice</a>` : ''}
+    ${S.editor ? '' : (S.user ? '' : `<p style="margin-top:20px">${lockNote()}</p>`)}`,
+    S.editor ? `<span class="sp"></span><button class="btn" type="button" id="r-edit">Edit</button>` : '');
+  $('#panel-b').querySelectorAll('[data-close]').forEach(a => a.onclick = closePanel);
+  if (S.editor) $('#r-edit').onclick = () => openRecordForm(r);
+}
+function openRecordForm(r, vehicleId, scan) {
+  const isNew = !r;
+  if (!S.vehicles.length) { toast('Add a vehicle first', true); return; }
+  r = r || { vehicle_id: vehicleId || '', date: new Date().toISOString().slice(0, 10), category: 'maintenance', confidence: 'printed', currency: vById(vehicleId)?.currency || 'USD' };
+  if (scan) { // pre-fill from the invoice the reader drafted
+    const d = scan.draft, v0 = vById(d.vehicle_id || vehicleId);
+    let mi = d.mileage != null ? Math.round(+d.mileage) : null;
+    if (mi != null && v0 && d.mileage_unit && d.mileage_unit !== v0.odometer_unit) mi = Math.round(conv(mi, d.mileage_unit, v0.odometer_unit));
+    Object.assign(r, { vehicle_id: v0 ? v0.id : '', title: d.title || '', date: d.date || r.date, category: d.category || 'maintenance', mileage: mi, hours: d.hours ?? null,
+      amount: d.amount ?? '', currency: d.currency || v0?.currency || 'USD', shop: d.shop || '', items: (d.items || []).join('\n'), confidence: 'printed',
+      notes: [d.invoice_number ? 'Invoice ' + d.invoice_number : '', d.plate ? 'Plate ' + d.plate : ''].filter(Boolean).join(' · ') });
+  }
+  const scanTask = scan ? (vId => vId && openTask(vById(vId)))(r.vehicle_id) : null;
+  openPanel(scan ? 'Check the drafted service' : isNew ? 'Add service' : 'Edit service', `
+    ${scan ? `<div class="banner" style="background:var(--s2);border-color:var(--line2);color:var(--fg2)">Drafted from your invoice. Check every field, then save.${r.vehicle_id ? '' : ' <b style="color:var(--fg)">Choose the vehicle</b>: the invoice didn\'t make it clear.'}${scan.draft.vehicle_match_reason && r.vehicle_id ? `<br><span class="hint">Vehicle: ${esc(scan.draft.vehicle_match_reason)}</span>` : ''}${(scan.draft.warnings || []).length ? `<ul style="margin:8px 0 0;padding-left:18px">${scan.draft.warnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}</div>` : ''}
+    <form id="r-form" novalidate>
+      ${field('vehicle_id', 'Vehicle', 'select', r.vehicle_id, { required: true, options: [['', 'Choose a vehicle'], ...S.vehicles.map(v => [v.id, vname(v)])] })}
+      ${field('title', 'What was done', 'text', r.title, { required: true, ph: 'Oil and filter change' })}
+      <div class="two">${field('date', 'Date', 'date', r.date)}${field('category', 'Category', 'select', r.category, { required: true, options: Object.entries(CATEGORIES) })}</div>
+      <div class="two">${field('amount', 'Amount', 'text', r.amount ?? '', { inputmode: 'decimal' })}${field('currency', 'Currency', 'select', r.currency, { required: true, options: Object.entries(CURRENCIES) })}</div>
+      <div class="two">${field('mileage', 'Mileage', 'text', r.mileage != null ? num(r.mileage) : '', { inputmode: 'numeric' })}${field('hours', 'Engine hours', 'text', r.hours ?? '', { inputmode: 'decimal' })}</div>
+      <label class="check"><input type="checkbox" name="mileage_approx" ${r.mileage_approx ? 'checked' : ''}> Mileage is approximate</label>
+      ${field('shop', 'Shop or who did it', 'text', r.shop, { ph: 'Dealer, independent shop, DIY…' })}
+      ${field('items', 'Parts and line items', 'textarea', r.items, { help: 'One per line works well.' })}
+      ${field('confidence', 'Where the figures come from', 'select', r.confidence, { required: true, options: Object.entries(CONFIDENCE) })}
+      ${media(r.invoice_url) ? `<p style="margin:0 0 8px"><a href="${esc(media(r.invoice_url))}" target="_blank" rel="noopener">Current invoice</a></p>` : ''}
+      ${scan ? `<p class="hint" style="margin:0 0 8px">The scanned invoice (${esc(scan.file.name)}) will be attached.</p>` : ''}
+      ${field('invoice', r.invoice_url || scan ? 'Replace invoice' : 'Invoice', 'file', '', { accept: 'image/*,application/pdf', help: 'Photo or PDF.' })}
+      ${scan ? `<label class="check" id="scan-log-wrap"${r.mileage != null ? '' : ' hidden'}><input type="checkbox" name="log_reading" checked> Also log the mileage as a reading</label>
+      <label class="check" id="scan-task-wrap"${scanTask ? '' : ' hidden'}><input type="checkbox" name="close_task" checked> <span id="scan-task-label">Check off the To-Do${scanTask ? ': ' + esc(scanTask.title) : ''}</span></label>` : ''}
+      ${field('notes', 'Notes', 'textarea', r.notes)}
+      ${!isNew ? `<fieldset style="margin-top:8px"><legend>Delete</legend><div id="del-box"><button class="btn danger" type="button" id="del-r">Delete this record…</button></div></fieldset>` : ''}
+    </form>`,
+    `<button class="btn" type="button" id="cancel">Cancel</button><button class="btn primary" type="button" data-submit>${scan ? 'Save to vehicle' : isNew ? 'Add record' : 'Save changes'}</button>`);
+  $('#cancel').onclick = () => isNew ? closePanel() : openRecord(r);
+  $('#f-vehicle_id').onchange = e => { const v = vById(e.target.value); if (v && isNew && !scan) $('#f-currency').value = v.currency || 'USD';
+    if (scan) { const t = v && openTask(v); $('#scan-task-wrap').hidden = !t; if (t) $('#scan-task-label').textContent = 'Check off the To-Do: ' + t.title; } };
+  if (scan) $('#f-mileage').addEventListener('input', e => { $('#scan-log-wrap').hidden = !e.target.value.trim(); });
+  if (!isNew) $('#del-r').onclick = () => {
+    $('#del-box').innerHTML = `<div class="confirm"><p>Delete <b>${esc(r.title)}</b>${r.date ? ' from ' + fdate(r.date) : ''}? This can't be undone.</p>
+      <button class="btn" type="button" id="del-no">Keep it</button> <button class="btn danger solid" type="button" id="del-yes">Delete record</button></div>`;
+    $('#del-no').onclick = () => openRecordForm(r);
+    $('#del-yes').onclick = async () => {
+      const { error } = await db.from('service_records').delete().eq('id', r.id);
+      if (error) return toast('Couldn\'t delete: ' + error.message, true);
+      S.records = S.records.filter(x => x.id !== r.id); closePanel(); toast('Record deleted'); render();
+    };
+  };
+  wireForm('#r-form', {
+    vehicle_id: x => !x ? 'Choose which vehicle this was for.' : '',
+    title: x => !x.trim() ? 'Describe the work in a few words, like "Brake pads and rotors".' : '',
+    hours: x => x && !/^[\d,]*\.?\d?$/.test(x.trim()) ? 'Engine hours should be a number, like 122.9.' : '',
+    mileage: intRule('Mileage'),
+    amount: moneyRule('Amount'),
+    invoice: f => f && f[0] && !/^image\/|application\/pdf/.test(f[0].type) ? 'Choose a photo or a PDF.' : ''
+  }, async f => {
+    const row = {
+      vehicle_id: f.vehicle_id, title: f.title.trim(), date: nz(f.date), currency: f.currency, hours: nMoney(f.hours), category: f.category, mileage: nInt(f.mileage), mileage_approx: !!f.mileage_approx,
+      amount: nMoney(f.amount), shop: nz(f.shop.trim()), items: nz(f.items.trim()), confidence: f.confidence, notes: nz(f.notes.trim())
+    };
+    if (f.invoice && f.invoice[0]) row.invoice_url = await upload(await shrinkImage(f.invoice[0], 2400), `invoices/${f.vehicle_id}`);
+    else if (scan) row.invoice_url = await upload(scan.file, `invoices/${f.vehicle_id}`);
+    const res = isNew ? await db.from('service_records').insert(row).select().single() : await db.from('service_records').update(row).eq('id', r.id).select().single();
+    if (res.error) throw new Error('Couldn\'t save: ' + res.error.message);
+    S.records = sortRecs(isNew ? [res.data, ...S.records] : S.records.map(x => x.id === r.id ? res.data : x));
+    if (scan) {
+      const v = vById(f.vehicle_id);
+      if (f.log_reading && (row.mileage != null || row.hours != null) && row.date) {
+        const rd = await db.from('odometer_readings').insert({ vehicle_id: v.id, date: row.date, odometer: row.mileage, unit: v.odometer_unit || 'mi', hours: row.hours, notes: 'From invoice: ' + row.title }).select().single();
+        if (!rd.error) { S.readings = [rd.data, ...S.readings].sort((a, b) => (!a.date) - (!b.date) || (b.date || '').localeCompare(a.date || '')); await syncCurrent(v); }
+      }
+      const t = openTask(v);
+      if (f.close_task && t) { const u = await db.from('service_tasks').update({ done: true, done_at: row.date || today(), record_id: res.data.id }).eq('id', t.id).select().single(); if (!u.error) S.tasks = S.tasks.map(x => x.id === t.id ? u.data : x); }
+    }
+    await signMedia();
+    closePanel(); toast(scan ? `Saved to ${vshort(vById(f.vehicle_id))}` : isNew ? 'Record added' : 'Saved'); render();
+  });
+}
+
+/* ---------- scan an invoice ---------- */
+const fileToB64 = f => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = () => no(new Error('Couldn\'t read that file.')); r.readAsDataURL(f); });
+function openScan(vehicleId) {
+  const v = vehicleId ? vById(vehicleId) : null;
+  openPanel('Scan an invoice', `
+    <p class="hint" style="margin:0 0 18px">${v ? esc(vname(v)) + '. ' : ''}Take a photo of the invoice, or choose a photo or PDF. It's read automatically and drafted as a service entry for you to check before saving.</p>
+    <div id="scan-pick" style="display:grid;gap:10px">
+      <label class="btn primary" style="height:48px">Take a photo<input id="scan-cam" type="file" accept="image/*" capture="environment" class="vh"></label>
+      <label class="btn" style="height:48px">Choose a photo or PDF<input id="scan-file" type="file" accept="image/*,application/pdf" class="vh"></label>
+      <p class="hint" style="margin:6px 0 0">Tips: flat, well lit, the whole page in frame. Totals, date and mileage must be readable.</p>
+    </div>
+    <div id="scan-busy" hidden><div class="skel" style="height:14px;width:60%;margin-bottom:12px"></div><div class="skel" style="height:14px;width:85%;margin-bottom:12px"></div><div class="skel" style="height:14px;width:40%"></div><p class="hint" style="margin:18px 0 0" id="scan-msg">Reading the invoice… this takes 10–20 seconds.</p></div>
+    <div id="scan-err"></div>`, '');
+  const go = async file => {
+    if (!file) return;
+    $('#scan-err').innerHTML = '';
+    const isPdf = file.type === 'application/pdf';
+    if (!isPdf && !/^image\//.test(file.type)) { $('#scan-err').innerHTML = '<div class="form-err">Choose a photo or a PDF.</div>'; return; }
+    if (isPdf && file.size > 5e6) { $('#scan-err').innerHTML = '<div class="form-err">That PDF is over 5 MB. Export a smaller one or take a photo instead.</div>'; return; }
+    $('#scan-pick').hidden = true; $('#scan-busy').hidden = false;
+    try {
+      const send = isPdf ? file : await shrinkImage(file, 2000);
+      const media_type = isPdf ? 'application/pdf' : (send.type || 'image/jpeg');
+      const { data, error } = await db.functions.invoke('scan-invoice', { body: { data: await fileToB64(send), media_type, vehicle_id: vehicleId || null, garage_id: GID() } });
+      let res = data; if (error) { try { res = await error.context.json(); } catch (e) { res = { message: 'The invoice reader couldn\'t be reached. Check your connection and try again.' }; } }
+      if (!res || !res.ok) throw new Error(res?.message || 'Couldn\'t read that invoice.');
+      openRecordForm(null, vehicleId, { draft: res.draft, file: send });
+    } catch (e) {
+      $('#scan-busy').hidden = true; $('#scan-pick').hidden = false;
+      $('#scan-err').innerHTML = `<div class="form-err" role="alert" style="margin-top:16px">${esc(e.message)}</div>`;
+    }
+  };
+  $('#scan-cam').onchange = e => go(e.target.files[0]);
+  $('#scan-file').onchange = e => go(e.target.files[0]);
+}
+
+/* ---------- import a spreadsheet ---------- */
+// The AI only reads the layout (a sample of each tab plus each column's distinct values) and returns a map:
+// which tab holds what, which column is which field, what each category label means. The app then reads
+// every row itself, so a sheet of any size imports quickly and nothing is cut short.
+let xlsxReady = null;
+const loadXlsx = () => xlsxReady || (xlsxReady = new Promise((ok, no) => {
+  if (window.XLSX) return ok();
+  const s = document.createElement('script'); s.src = '/vendor/xlsx-0.18.5.min.js'; s.onload = ok;
+  s.onerror = () => { xlsxReady = null; no(new Error('The spreadsheet reader didn\'t load. Check your connection and try again.')); };
+  document.head.appendChild(s);
+}));
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+const pad2 = n => String(n).padStart(2, '0');
+const isoOf = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const cellText = c => c == null ? '' : c instanceof Date ? isoOf(c) : String(c).trim();
+function readBook(buf) {
+  const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+  return wb.SheetNames.map(name => {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: true, defval: null, blankrows: false })
+      .filter(r => r.some(c => cellText(c) !== ''));
+    return { name, rows };
+  }).filter(s => s.rows.length);
+}
+// What the AI sees: per tab, the first rows in full and every column's distinct values when there are few
+function sheetSummary(book) {
+  let budget = 90000;
+  return book.map(sh => {
+    const width = Math.min(40, Math.max(...sh.rows.slice(0, 50).map(r => r.length)));
+    const full = sh.rows.length <= 150;
+    const sample = sh.rows.slice(0, full ? 150 : 30).map(r => r.slice(0, width).map(c => cellText(c).slice(0, 80)));
+    const cols = [];
+    for (let i = 0; i < width; i++) {
+      const vals = new Map();
+      for (const r of sh.rows) { const t = cellText(r[i]).slice(0, 80); if (t) vals.set(t, (vals.get(t) || 0) + 1); }
+      if (vals.size && vals.size <= 150 && !full) cols.push({ col: i, distinct: [...vals.keys()] });
+    }
+    const out = { sheet: sh.name, total_rows: sh.rows.length, rows: sample, columns_distinct_values: cols };
+    let size = JSON.stringify(out).length;
+    while (size > budget && out.rows.length > 10) { out.rows = out.rows.slice(0, Math.floor(out.rows.length / 2)); size = JSON.stringify(out).length; }
+    budget = Math.max(5000, budget - size);
+    return out;
+  });
+}
+function parseDate(c, order) {
+  if (c == null || c === '') return null;
+  let y, m, d;
+  if (c instanceof Date) { y = c.getFullYear(); m = c.getMonth() + 1; d = c.getDate(); }
+  else if (typeof c === 'number') { if (c < 1 || c > 80000) return null; const p = XLSX.SSF.parse_date_code(c); y = p.y; m = p.m; d = p.d; }
+  else {
+    const t = String(c).trim(); let x;
+    if ((x = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/.exec(t))) { y = +x[1]; m = +x[2]; d = +x[3]; }
+    else if ((x = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})/.exec(t))) { y = +x[3]; if (y < 100) y += y > 40 ? 1900 : 2000; [d, m] = order === 'MDY' ? [+x[2], +x[1]] : [+x[1], +x[2]]; }
+    else if ((x = /^(\d{1,2})[-/.](\d{4})$/.exec(t))) { m = +x[1]; y = +x[2]; d = 1; }
+    else if ((x = /^(\d{4})$/.exec(t))) { y = +x[1]; m = 1; d = 1; }
+    else return null;
+  }
+  if (!(y >= 1900 && y <= 2100 && m >= 1 && m <= 12 && d >= 1 && d <= 31)) return null;
+  return `${y}-${pad2(m)}-${pad2(d)}`;
+}
+function parseNum(c, comma) {
+  if (c == null || c === '') return null;
+  if (typeof c === 'number') return isFinite(c) ? c : null;
+  let t = String(c).replace(/[^\d,.\-]/g, '');
+  if (!t) return null;
+  if (comma) t = t.replace(/\./g, '').replace(',', '.');
+  else t = t.replace(/,/g, '');
+  const n = parseFloat(t); return isFinite(n) ? n : null;
+}
+const curOf = (c, dflt) => { const t = cellText(c).toUpperCase(); return /R\$|BRL|REAL/.test(t) ? 'BRL' : /US\$|USD|\$|DOLAR|DOLLAR/.test(t) ? 'USD' : dflt; };
+const keyOf = t => cellText(t).toLowerCase().replace(/\s+/g, ' ');
+// Turn the AI's map plus the full rows into vehicles, records and readings
+function applyMap(book, map) {
+  const out = { vehicles: [], records: [], readings: [], skipped: 0, warnings: [...(map.warnings || [])] };
+  const dflt = S.garage?.currency || 'BRL', unitD = S.garage?.distance_unit || 'km';
+  const byKey = new Map();
+  (map.vehicles || []).forEach((v, i) => {
+    const row = {
+      id: crypto.randomUUID(), garage_id: GID(), sort_order: S.vehicles.length + i,
+      kind: v.kind === 'bike' ? 'bike' : 'car', year: v.year >= 1885 && v.year <= 2100 ? v.year : null,
+      make: (v.make || 'Unknown').trim(), model: nz(v.model), trim_level: nz(v.trim_level), colour: nz(v.colour), plate: nz(v.plate), vin: nz(v.vin),
+      currency: v.currency || dflt, purchase_date: /^\d{4}-\d\d-\d\d$/.test(v.purchase_date || '') ? v.purchase_date : null,
+      purchase_price: v.purchase_price > 0 ? v.purchase_price : null, odometer: v.odometer >= 0 && v.odometer != null ? Math.round(v.odometer) : null,
+      odometer_unit: v.odometer_unit || unitD, meter: ['distance', 'hours', 'both'].includes(v.meter) ? v.meter : 'distance', hours: v.hours >= 0 && v.hours != null ? v.hours : null,
+      status: ['owned', 'project', 'stored', 'sold'].includes(v.status) ? v.status : 'owned', notes: nz(v.notes)
+    };
+    out.vehicles.push(row);
+    [v.key, ...(v.other_keys || [])].filter(Boolean).forEach(k => byKey.set(keyOf(k), row));
+  });
+  const findSheet = n => book.find(s => s.name === n) || book.find(s => s.name.toLowerCase() === String(n || '').toLowerCase());
+  const at = (r, i) => i == null || i < 0 ? null : r[i];
+  for (const h of map.history || []) {
+    const sh = findSheet(h.sheet); if (!sh) { out.warnings.push(`Tab "${h.sheet}" wasn't found.`); continue; }
+    const fixed = h.vehicle_key ? byKey.get(keyOf(h.vehicle_key)) : null;
+    const catMap = new Map((h.category_map || []).map(x => [keyOf(x.value), x.category]));
+    const readVals = new Set((h.reading_values || []).map(keyOf));
+    for (const r of sh.rows.slice((h.header_row ?? 0) + 1)) {
+      const v = fixed || byKey.get(keyOf(at(r, h.vehicle_col)));
+      const catRaw = at(r, h.category_col), titleRaw = at(r, h.title_col);
+      const date = parseDate(at(r, h.date_col), map.date_order);
+      const mileage = parseNum(at(r, h.mileage_col), map.decimal_comma), hours = parseNum(at(r, h.hours_col), map.decimal_comma);
+      if (!v) { if (r.some(c => cellText(c))) out.skipped++; continue; }
+      const isReading = readVals.size && (readVals.has(keyOf(catRaw)) || readVals.has(keyOf(titleRaw)));
+      if (isReading) {
+        if (mileage != null || hours != null) out.readings.push({ id: crypto.randomUUID(), vehicle_id: v.id, date, odometer: mileage != null ? Math.round(Math.abs(mileage)) : null, unit: v.odometer_unit, hours: hours != null ? Math.abs(hours) : null, notes: 'Imported' });
+        continue;
+      }
+      const amount = parseNum(at(r, h.amount_col), map.decimal_comma);
+      const title = cellText(titleRaw) || cellText(catRaw) || cellText(at(r, h.items_col)).slice(0, 80);
+      if (!title && amount == null && !date) continue;
+      out.records.push({
+        id: crypto.randomUUID(), vehicle_id: v.id, date, mileage: mileage != null ? Math.round(Math.abs(mileage)) : null, hours: hours != null ? Math.abs(hours) : null,
+        shop: nz(cellText(at(r, h.shop_col))), title: (title || 'Service').slice(0, 200), items: nz(cellText(at(r, h.items_col))),
+        category: catMap.get(keyOf(catRaw)) || h.default_category || 'maintenance',
+        amount: amount != null ? Math.abs(amount) : null, currency: h.currency_col != null ? curOf(at(r, h.currency_col), h.default_currency || v.currency) : (h.default_currency || v.currency),
+        confidence: 'log', notes: nz(cellText(at(r, h.notes_col)))
+      });
+    }
+  }
+  for (const m of map.readings || []) {
+    const sh = findSheet(m.sheet); if (!sh) { out.warnings.push(`Tab "${m.sheet}" wasn't found.`); continue; }
+    const fixed = m.vehicle_key ? byKey.get(keyOf(m.vehicle_key)) : null;
+    for (const r of sh.rows.slice((m.header_row ?? 0) + 1)) {
+      const v = fixed || byKey.get(keyOf(at(r, m.vehicle_col)));
+      const odo = parseNum(at(r, m.odometer_col), map.decimal_comma), hrs = parseNum(at(r, m.hours_col), map.decimal_comma);
+      if (!v) { if (r.some(c => cellText(c))) out.skipped++; continue; }
+      if (odo == null && hrs == null) continue;
+      out.readings.push({ id: crypto.randomUUID(), vehicle_id: v.id, date: parseDate(at(r, m.date_col), map.date_order), odometer: odo != null ? Math.round(Math.abs(odo)) : null, unit: v.odometer_unit, hours: hrs != null ? Math.abs(hrs) : null, notes: 'Imported' });
+    }
+  }
+  // the current odometer follows the newest dated reading when the sheet didn't give one
+  for (const v of out.vehicles) {
+    const rs = out.readings.filter(r => r.vehicle_id === v.id && r.odometer != null).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    if (v.odometer == null && rs.length) { v.odometer = Math.max(...rs.map(r => r.odometer)); v.odometer_date = rs[0].date; }
+  }
+  return out;
+}
+function openImport() {
+  openPanel('Import a spreadsheet', `
+    <p class="hint" style="margin:0 0 18px">Excel (.xlsx, .xls), OpenOffice (.ods) or CSV. Any language, any layout: one tab per vehicle, one big list, or separate tabs for vehicles and service history. You'll see everything before it's saved.</p>
+    <div id="im-pick"><label class="btn primary" style="height:48px;width:100%">Choose a spreadsheet<input id="im-file" type="file" accept=".xlsx,.xls,.xlsm,.ods,.csv,.tsv,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="vh"></label>
+      <p class="hint" style="margin:12px 0 0">Google Sheets: File → Download → Microsoft Excel, then choose that file here.</p></div>
+    <div id="im-busy" hidden><div class="skel" style="height:14px;width:60%;margin-bottom:12px"></div><div class="skel" style="height:14px;width:85%;margin-bottom:12px"></div><div class="skel" style="height:14px;width:40%"></div><p class="hint" style="margin:18px 0 0" id="im-msg">Reading the spreadsheet…</p></div>
+    <div id="im-err"></div>`, '');
+  $('#im-file').onchange = async e => {
+    const file = e.target.files[0]; if (!file) return;
+    $('#im-err').innerHTML = '';
+    if (file.size > 15e6) { $('#im-err').innerHTML = '<div class="form-err" style="margin-top:16px">That file is over 15 MB. Remove photos or unused tabs and try again.</div>'; return; }
+    $('#im-pick').hidden = true; $('#im-busy').hidden = false;
+    try {
+      await loadXlsx();
+      const book = readBook(await file.arrayBuffer());
+      if (!book.length) throw new Error('That file looks empty. Check it has your vehicles in it.');
+      $('#im-msg').textContent = `Working out the layout of ${book.length} tab${book.length === 1 ? '' : 's'}… this takes 20–40 seconds.`;
+      const { data, error } = await db.functions.invoke('import-sheet', { body: { garage_id: GID(), filename: file.name, sheets: sheetSummary(book) } });
+      let res = data; if (error) { try { res = await error.context.json(); } catch (x) { res = { message: 'The importer couldn\'t be reached. Check your connection and try again.' }; } }
+      if (!res || !res.ok) throw new Error(res?.message || 'Couldn\'t work out that spreadsheet.');
+      const plan = applyMap(book, res.map);
+      if (!plan.vehicles.length) throw new Error('No vehicles were found in that spreadsheet. ' + (plan.warnings[0] || 'Check it lists your cars or bikes.'));
+      reviewImport(plan, file.name);
+    } catch (x) {
+      $('#im-busy').hidden = true; $('#im-pick').hidden = false; $('#im-file').value = '';
+      $('#im-err').innerHTML = `<div class="form-err" role="alert" style="margin-top:16px">${esc(x.message)}</div>`;
+    }
+  };
+}
+function reviewImport(plan, fname) {
+  const count = (list, id) => list.filter(x => x.vehicle_id === id).length;
+  const spentOf = id => msum(sumBy(plan.records.filter(r => r.vehicle_id === id)));
+  openPanel('Check the import', `
+    <p class="hint" style="margin:0 0 14px">From <b style="color:var(--fg)">${esc(fname)}</b>: ${plan.vehicles.length} vehicle${plan.vehicles.length === 1 ? '' : 's'}, ${plan.records.length} service record${plan.records.length === 1 ? '' : 's'} and ${plan.readings.length} odometer reading${plan.readings.length === 1 ? '' : 's'}. Untick anything you don't want; you can edit every detail afterwards.</p>
+    ${plan.warnings.length || plan.skipped ? `<div class="banner" style="margin-bottom:16px"><b>Worth a look</b><ul style="margin:6px 0 0;padding-left:18px">${plan.skipped ? `<li>${plan.skipped} row${plan.skipped === 1 ? '' : 's'} didn't match a vehicle and will be left out.</li>` : ''}${plan.warnings.slice(0, 8).map(w => `<li>${esc(w)}</li>`).join('')}</ul></div>` : ''}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 8px"><span class="hint" id="im-sel"></span><button class="linkbtn" type="button" id="im-all">Untick all</button></div>
+    <div class="rows" id="im-list">${plan.vehicles.map(v => `<label class="row" style="cursor:pointer;grid-template-columns:auto 1fr auto;align-items:center">
+      <input type="checkbox" data-iv="${v.id}" checked>
+      <span class="tm"><span class="t" style="display:block">${esc(vname(v))}</span><span class="m" style="display:block">${v.kind === 'bike' ? 'Bike' : 'Car'}${v.plate ? ' · ' + esc(v.plate) : ''}${v.odometer != null ? ' · ' + num(v.odometer) + ' ' + v.odometer_unit : ''}${v.purchase_price ? ' · paid ' + money(v.purchase_price, 0, v.currency) : ''}</span></span>
+      <span class="hint" style="text-align:right">${plural(count(plan.records, v.id), 'record')}<br>${plural(count(plan.readings, v.id), 'reading')}${count(plan.records, v.id) ? '<br>' + spentOf(v.id) : ''}</span></label>`).join('')}</div>`,
+    `<button class="btn" type="button" id="im-back">Choose another file</button><span class="sp"></span><button class="btn primary" type="button" id="im-go">Import</button>`);
+  const sel = () => new Set([...document.querySelectorAll('[data-iv]:checked')].map(x => x.dataset.iv));
+  const upd = () => { const n = sel().size; $('#im-sel').textContent = `${n} of ${plan.vehicles.length} selected`; $('#im-go').textContent = n ? `Import ${n} vehicle${n === 1 ? '' : 's'}` : 'Import'; $('#im-go').disabled = !n; $('#im-all').textContent = n ? 'Untick all' : 'Tick all'; };
+  document.querySelectorAll('[data-iv]').forEach(x => x.onchange = upd); upd();
+  $('#im-all').onclick = () => { const on = !sel().size; document.querySelectorAll('[data-iv]').forEach(x => x.checked = on); upd(); };
+  $('#im-back').onclick = openImport;
+  $('#im-go').onclick = async () => {
+    const keep = sel(), b = $('#im-go'); b.disabled = true; $('#im-back').disabled = true;
+    const vs = plan.vehicles.filter(v => keep.has(v.id)), rs = plan.records.filter(r => keep.has(r.vehicle_id)), ds = plan.readings.filter(r => keep.has(r.vehicle_id));
+    const steps = [['vehicles', vs], ['service_records', rs], ['odometer_readings', ds]];
+    const total = vs.length + rs.length + ds.length; let done = 0;
+    try {
+      for (const [t, list] of steps) for (let i = 0; i < list.length; i += 200) {
+        const { error } = await db.from(t).upsert(list.slice(i, i + 200), { onConflict: 'id', ignoreDuplicates: true }); // ids are set here, so a retry never duplicates
+        if (error) throw new Error(`Stopped while saving ${t === 'vehicles' ? 'vehicles' : t === 'service_records' ? 'service records' : 'readings'}: ${error.message}`);
+        done += Math.min(200, list.length - i); b.textContent = `Saving… ${Math.round(done / total * 100)}%`;
+      }
+      closePanel(); toast(`Imported ${vs.length} vehicle${vs.length === 1 ? '' : 's'} and ${rs.length} record${rs.length === 1 ? '' : 's'}`);
+      await load();
+    } catch (x) {
+      b.disabled = false; $('#im-back').disabled = false; b.textContent = 'Try again';
+      $('#panel-b').insertAdjacentHTML('afterbegin', `<div class="form-err" role="alert">${esc(x.message)}${done ? ' What was saved stays; Try again picks up the rest without duplicating it.' : ''}</div>`);
+      $('#panel-b').scrollTop = 0;
+    }
+  };
+}
+
+/* ---------- charts ---------- */
+const YEAR = new Date().getFullYear();
+const KM_MI = 0.621371;
+let distUnit = (() => { try { return localStorage.getItem('mg-unit') || 'km'; } catch (e) { return 'km'; } })();
+const GF = { k: 'all' };
+const conv = (o, u, to) => u === to ? o : to === 'mi' ? o * KM_MI : o / KM_MI;
+function pointsFor(v) {
+  const p = [];
+  S.readings.filter(r => r.vehicle_id === v.id && r.date && r.odometer != null).forEach(r => p.push({ d: r.date, o: +r.odometer, u: r.unit }));
+  recsFor(v.id).filter(r => r.date && r.mileage != null).forEach(r => p.push({ d: r.date, o: +r.mileage, u: v.odometer_unit }));
+  if (v.odometer != null && v.odometer_date) p.push({ d: v.odometer_date, o: +v.odometer, u: v.odometer_unit });
+  return p.sort((a, b) => a.d.localeCompare(b.d));
+}
+function hourPoints(v) {
+  const p = S.readings.filter(r => r.vehicle_id === v.id && r.date && r.hours != null).map(r => ({ d: r.date, o: +r.hours }));
+  recsFor(v.id).filter(r => r.date && r.hours != null).forEach(r => p.push({ d: r.date, o: +r.hours }));
+  if (v.hours != null && v.odometer_date) p.push({ d: v.odometer_date, o: +v.hours });
+  return p.sort((a, b) => a.d.localeCompare(b.d));
+}
+function drivenIn(v, year, to) {
+  const y = String(year), p = pointsFor(v).map(x => ({ d: x.d, o: conv(x.o, x.u, to) }));
+  const before = p.filter(x => x.d < y + '-01-01'), inY = p.filter(x => x.d.startsWith(y));
+  if (!inY.length) return 0;
+  const base = before.length ? before[before.length - 1].o : inY[0].o;
+  return Math.max(0, Math.max(...inY.map(x => x.o)) - base);
+}
+const niceMax = v => { if (v <= 0) return 1; const e = 10 ** Math.floor(Math.log10(v)), m = v / e; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10) * e; };
+const short = n => n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1).replace(/\.0$/, '') + 'M' : n >= 1e3 ? (n / 1e3).toFixed(n >= 1e4 ? 0 : 1).replace(/\.0$/, '') + 'k' : String(Math.round(n));
+const SYM = { BRL: 'R$', USD: 'US$' };
+function chartCard(title, sub, viz, rows, tools = '') {
+  const tbl = rows && rows.length > 1 ? `<div class="tbl"><div class="tbl-wrap"><table><thead><tr>${rows[0].map((h, i) => `<th scope="col"${i ? ' class="n"' : ''}>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.slice(1).map(r => `<tr>${r.map((c, i) => `<td${i ? ' class="n"' : ''}>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>` : '';
+  return `<section class="cc"><div class="cc-h"><div><h3>${esc(title)}</h3>${sub ? `<p>${esc(sub)}</p>` : ''}</div><div class="tools">${tools}${tbl ? '<button class="btn sm" type="button" data-table aria-pressed="false">Table</button>' : ''}</div></div><div class="viz">${viz}</div>${tbl}</section>`;
+}
+function hbars(items, fmt) {
+  const max = Math.max(...items.map(i => i.value), 1);
+  return `<div>${items.map(i => `<a class="hb" href="${i.href}" data-tip="${esc(i.tip)}"><span class="l">${esc(i.label)}</span><span class="tr"><span class="b" style="width:${(i.value / max * 100).toFixed(2)}%"></span></span><span class="v">${fmt(i.value)}</span></a>`).join('')}</div>`;
+}
+function vbars(items, axis) {
+  const max = niceMax(Math.max(...items.map(i => i.value), 0));
+  return `<div class="vb" aria-hidden="true">${[1, .5, 0].map(f => `<div class="g" style="bottom:${f * 100}%"><span>${axis(max * f)}</span></div>`).join('')}${items.map(i => `<div class="col" data-tip="${esc(i.tip)}"><div class="bar" style="height:${(i.value / max * 100).toFixed(2)}%"></div></div>`).join('')}</div><div class="vx">${items.map(i => `<span>${esc(i.label)}</span>`).join('')}</div>`;
+}
+const LINES = {}; let lineN = 0;
+function lineChart(pts, fmtY, unitLabel) {
+  if (pts.length < 2) return `<p class="none">Log at least two readings to see a trend.</p>`;
+  const t = pts.map(p => Date.parse(p.d)), t0 = Math.min(...t), t1 = Math.max(...t) || t0 + 1;
+  let lo = Math.min(...pts.map(p => p.o)), hi = Math.max(...pts.map(p => p.o));
+  const pad = (hi - lo) * .08 || 1; lo = Math.max(0, lo - pad); hi += pad;
+  const X = ti => (t1 === t0 ? 50 : (ti - t0) / (t1 - t0) * 100), Y = o => 100 - (o - lo) / (hi - lo) * 100;
+  const id = 'lc' + (++lineN);
+  LINES[id] = pts.map((p, i) => ({ x: X(t[i]), y: Y(p.o), d: p.d, o: p.o }));
+  const path = LINES[id].map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
+  const y0 = new Date(t0).getFullYear(), y1 = new Date(t1).getFullYear();
+  const xl = y0 === y1 ? [[0, fdate(pts[0].d), 'first'], [100, fdate(pts[pts.length - 1].d), 'last']] : [[0, y0, 'first'], [100, y1, 'last'], ...(y1 - y0 > 2 ? [[X(Date.parse(Math.round((y0 + y1) / 2) + '-01-01')), Math.round((y0 + y1) / 2), '']] : [])];
+  return `<div class="lc" id="${id}" data-unit="${esc(unitLabel)}">
+    ${[0, .5, 1].map(f => `<div class="g" style="top:calc(${f} * (100% - 24px))"><span>${fmtY(hi - (hi - lo) * f)}</span></div>`).join('')}
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><polyline points="${path}" fill="none" stroke="var(--fg)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/></svg>
+    ${xl.map(([x, l, c]) => `<span class="xl ${c}" style="left:${x}%">${esc(l)}</span>`).join('')}
+    <div class="xh"></div><div class="dot"></div><div class="hit"></div></div>`;
+}
+function wireLine(el) {
+  const pts = LINES[el.id]; if (!pts) return;
+  const hit = el.querySelector('.hit'), xh = el.querySelector('.xh'), dot = el.querySelector('.dot'), h = () => hit.getBoundingClientRect().height;
+  const show = e => {
+    const r = hit.getBoundingClientRect(), fx = (e.clientX - r.left) / r.width * 100;
+    const p = pts.reduce((a, b) => Math.abs(b.x - fx) < Math.abs(a.x - fx) ? b : a);
+    xh.style.left = p.x + '%'; xh.style.display = 'block';
+    dot.style.left = p.x + '%'; dot.style.top = (p.y / 100 * h()) + 'px'; dot.style.display = 'block';
+    showTip(`${fdate(p.d)}\n${(+p.o).toLocaleString('en-US')} ${el.dataset.unit}`, e.clientX, e.clientY);
+  };
+  hit.addEventListener('pointermove', show); hit.addEventListener('pointerdown', show);
+  hit.addEventListener('pointerleave', () => { xh.style.display = dot.style.display = 'none'; hideTip(); });
+}
+const tipEl = () => document.getElementById('tip');
+function showTip(text, x, y) { const t = tipEl(); t.textContent = text; t.classList.add('on'); const w = t.offsetWidth, hh = t.offsetHeight; t.style.left = Math.min(innerWidth - w - 8, Math.max(8, x + 14)) + 'px'; t.style.top = Math.max(8, y - hh - 12) + 'px'; }
+function hideTip() { tipEl().classList.remove('on'); }
+document.addEventListener('pointermove', e => { const t = e.target.closest && e.target.closest('[data-tip]'); if (t) showTip(t.dataset.tip, e.clientX, e.clientY); else if (!e.target.closest || !e.target.closest('.hit')) hideTip(); });
+addEventListener('scroll', hideTip, { passive: true });
+
+function spendByYear(recs, cur, years) {
+  return years.map(y => { const l = recs.filter(r => r.currency === cur && (r.date || '').startsWith(y)); const v = l.reduce((a, r) => a + (+r.amount || 0), 0); return { label: "'" + String(y).slice(2), year: y, value: v, n: l.length, tip: `${y}: ${money(v, 0, cur)} across ${l.length} record${l.length === 1 ? '' : 's'}` }; });
+}
+function viewDashboard() {
+  const head = `<div class="head"><div><p class="eyebrow">${esc(S.garage?.name || '')}</p><h1>Garage</h1></div>${S.editor ? `<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" data-import>Import spreadsheet</button><button class="btn primary" type="button" data-add-v="car">${ICON.plus}Add vehicle</button></div>` : lockNote()}</div>`;
+  if (window.live.state === 'loading') return head + `<div class="skel" style="height:110px;margin-bottom:44px"></div><div class="garage">${'<div class="skel" style="aspect-ratio:1;border-radius:24%"></div>'.repeat(12)}</div>`;
+  if (!S.vehicles.length) return `<div class="head"><div><p class="eyebrow">${esc(S.garage?.name || '')}</p><h1>Let's fill your garage</h1>
+      <p class="sub">${S.editor ? 'Start from what you already have. Everything can be edited afterwards.' : 'Nothing here yet. The garage\'s editors will add the vehicles.'}</p></div></div>
+    ${S.editor ? `<div class="start">
+      <button type="button" data-import><span class="n">Fastest</span><b>Import a spreadsheet</b><span>Excel, Google Sheets export or CSV, in any language and layout. We find the vehicles, service history and odometer readings, and you check them before anything is saved.</span></button>
+      <button type="button" data-add-v="car"><span class="n">One at a time</span><b>Add a vehicle</b><span>Type in a car or a bike, with its photo, specs and what you paid. Then add service records or scan invoices on its page.</span></button>
+      ${S.role === 'owner' ? `<button type="button" data-signin><span class="n">Together</span><b>Invite people</b><span>Family or co-owners can add records too, or just look. You choose who edits.</span></button>` : ''}
+    </div>` : ''}`;
+  const owned = S.vehicles.filter(v => v.status !== 'sold');
+  const cars = owned.filter(v => v.kind === 'car').length, bikes = owned.length - cars;
+  const value = addSums(...owned.map(v => { const m = valuation(v).value; return m != null ? { [v.currency || 'USD']: m } : paid(v); }));
+  const valued = owned.filter(v => valuation(v).value != null).length;
+  const yRecs = S.records.filter(r => (r.date || '').startsWith(YEAR));
+  const ySpend = sumBy(yRecs);
+  const driven = owned.map(v => ({ v, d: drivenIn(v, YEAR, distUnit) })).filter(x => x.d >= 1).sort((a, b) => b.d - a.d);
+  const totalDriven = driven.reduce((a, x) => a + x.d, 0);
+  const kpis = `<dl class="kpis">
+    <div><dt>Vehicles</dt><dd>${owned.length}</dd><small>${cars} car${cars === 1 ? '' : 's'} · ${bikes} bike${bikes === 1 ? '' : 's'}</small></div>
+    ${S.user ? `<div><dt>Collection value</dt><dd class="sm">${msum(value).replace(' + ', '<br>')}</dd><small>${valued ? `${valued} at market value, ${owned.length - valued} at purchase price · <a href="#/portfolio">Portfolio</a>` : 'At purchase price — add market data on each vehicle'}</small></div>
+    <div><dt>Service in ${YEAR}</dt><dd class="sm">${msum(ySpend).replace(' + ', '<br>')}</dd><small>${yRecs.length} record${yRecs.length === 1 ? '' : 's'}</small></div>`
+    : `<div><dt>Collection value</dt><dd class="sm" style="color:var(--fg3)">Private</dd><small>${lockNote().replace('to edit', 'to see values')}</small></div>
+    <div><dt>Service in ${YEAR}</dt><dd>${yRecs.length}</dd><small>record${yRecs.length === 1 ? '' : 's'} logged this year</small></div>`}
+    <div><dt>Driven in ${YEAR}</dt><dd>${Math.round(totalDriven).toLocaleString('en-US')} <span style="font-size:.6em;color:var(--fg3)">${distUnit}</span></dd><small>${driven.length} vehicle${driven.length === 1 ? '' : 's'} with readings this year</small></div>
+  </dl>`;
+  const shown = owned.filter(v => GF.k === 'all' || v.kind === GF.k);
+  const garage = `<div class="garage-head"><h2>The garage</h2><div class="seg sm" role="group" aria-label="Show">${[['all', 'All'], ['car', 'Cars'], ['bike', 'Bikes']].map(([k, l]) => `<button type="button" data-garage="${k}" aria-pressed="${GF.k === k}">${l}</button>`).join('')}</div></div>
+    <div class="garage">${shown.map(v => `<a class="app" href="#/vehicle/${v.id}" title="${esc(vname(v))}"><span class="ic">${media(v.photo_url) ? `<img src="${esc(media(v.photo_url))}" alt="" loading="lazy">` : `<span class="mk" aria-hidden="true">${esc(((v.make || '?')[0] + ((v.model || '')[0] || '')).toUpperCase())}</span>`}</span><span class="lb">${esc(vshort(v))}</span><span class="lb2">${esc(v.year || '')}${v.colour && owned.filter(x => x.make === v.make && x.model === v.model).length > 1 ? ' · ' + esc(v.colour) : ''}</span></a>`).join('')}</div>`;
+  // charts
+  const unitSeg = `<div class="seg sm" role="group" aria-label="Distance unit">${['mi', 'km'].map(u => `<button type="button" data-unit="${u}" aria-pressed="${distUnit === u}">${u}</button>`).join('')}</div>`;
+  const top = driven.slice(0, 8);
+  const c1 = chartCard(`Most driven in ${YEAR}`, `Distance from logged readings, in ${distUnit === 'mi' ? 'miles' : 'kilometres'}`,
+    top.length ? hbars(top.map(x => ({ label: vshort(x.v) + (x.v.colour && owned.filter(y => y.make === x.v.make && y.model === x.v.model).length > 1 ? ' ' + x.v.colour : ''), value: x.d, href: '#/vehicle/' + x.v.id, tip: `${vname(x.v)}\n${Math.round(x.d).toLocaleString('en-US')} ${distUnit} in ${YEAR}` })), v => Math.round(v).toLocaleString('en-US') + ' ' + distUnit) : `<p class="none">No readings logged in ${YEAR} yet. Use Log reading on a vehicle's page.</p>`,
+    [['Vehicle', `Distance (${distUnit})`], ...driven.map(x => [vname(x.v), Math.round(x.d).toLocaleString('en-US')])], unitSeg);
+  const years = Array.from({ length: 8 }, (_, i) => YEAR - 7 + i);
+  const spendCards = !S.user ? [] : ['BRL', 'USD'].filter(c => S.records.some(r => r.currency === c && +r.amount)).map(cur => {
+    const items = spendByYear(S.records, cur, years);
+    return chartCard(`Service spend by year (${SYM[cur]})`, `${years[0]}–${YEAR}, all vehicles`, vbars(items, n => SYM[cur] + short(n)), [['Year', `Spend (${SYM[cur]})`, 'Records'], ...items.map(i => [String(i.year), money(i.value, 0, cur), String(i.n)])]);
+  });
+  const dec = {}; owned.forEach(v => { const k = v.year ? Math.floor(v.year / 10) * 10 : 'Unknown'; (dec[k] = dec[k] || []).push(v); });
+  const decKeys = Object.keys(dec).filter(k => k !== 'Unknown').map(Number).sort((a, b) => a - b);
+  const decItems = decKeys.map(k => ({ label: `'${String(k).slice(2)}s`, full: `${k}s`, value: dec[k].length, tip: `${k}s: ${dec[k].length} vehicle${dec[k].length === 1 ? '' : 's'}\n${dec[k].map(vshort).join(', ')}` }));
+  const c3 = chartCard('The collection by decade', `Model year${dec.Unknown ? ` · ${dec.Unknown.length} without a year not shown` : ''}`, vbars(decItems, n => String(Math.round(n))),
+    [['Decade', 'Vehicles'], ...decItems.map(i => [i.full, String(i.value)]), ...(dec.Unknown ? [['Year unknown', String(dec.Unknown.length)]] : [])]);
+  const tdo = todoItems(), tc = k => tdo.filter(x => x.key === k).length;
+  const tshow = tdo.filter(x => !x.noHistory).slice(0, 7);
+  const c4 = `<section class="cc"><div class="cc-h"><div><h3>Service To-Do</h3><p>${tc('overdue')} overdue · ${tc('due')} due · ${tc('soon')} soon${tdo.some(x => x.noHistory) ? ` · ${tdo.filter(x => x.noHistory).length} with no history` : ''}</p></div><a class="btn sm" href="#/ledger">Open</a></div>
+    <div class="list">${tshow.map(x => `<a class="li" href="#/vehicle/${x.v.id}"><span style="min-width:0"><span class="t" style="display:block">${esc(vname(x.v))}</span><span class="m" style="display:block">${x.task ? esc(x.task.title) + ' · ' : ''}${x.last ? 'Last service ' + fdate(x.last) : ''}</span></span><span class="r">${stChip(x.key)}</span></a>`).join('') || '<p class="none">No services coming up.</p>'}</div></section>`;
+  const recent = S.records.filter(r => r.date).slice(0, 6);
+  const c5 = `<section class="cc"><div class="cc-h"><div><h3>Recent service</h3><p>Latest entries in the history</p></div><a class="btn sm" href="#/ledger">Service</a></div>
+    <div class="list">${recent.map(r => `<a class="li" href="#/vehicle/${r.vehicle_id}"><span style="min-width:0"><span class="t" style="display:block">${esc(r.title)}</span><span class="m" style="display:block">${esc(vname(vById(r.vehicle_id)))} · ${fdate(r.date)}</span></span><span class="r">${r.amount != null ? money(r.amount, 0, r.currency) : (S.user ? '—' : '')}</span></a>`).join('')}</div></section>`;
+  return head + kpis + garage + `<div class="charts">${c1}${c3}${spendCards.join('')}${c4}${c5}</div>`;
+}
+
+/* ---------- readings ---------- */
+// The vehicle's current odometer/hours always follow its newest dated reading, so fixing or
+// deleting a wrong entry also corrects the figure shown on cards and the dashboard.
+async function syncCurrent(v) {
+  const rs = S.readings.filter(x => x.vehicle_id === v.id && x.date).sort((a, b) => b.date.localeCompare(a.date) || (+b.odometer || 0) - (+a.odometer || 0));
+  const lo = rs.find(x => x.odometer != null), lh = rs.find(x => x.hours != null);
+  if (!lo && !lh) return;
+  const upd = {};
+  if (lo) { upd.odometer = lo.unit === v.odometer_unit ? +lo.odometer : Math.round(conv(+lo.odometer, lo.unit, v.odometer_unit)); }
+  if (lh) upd.hours = +lh.hours;
+  upd.odometer_date = [lo?.date, lh?.date].filter(Boolean).sort().pop();
+  const cur = vById(v.id);
+  if (cur && cur.odometer == upd.odometer && cur.odometer_date === upd.odometer_date && (upd.hours === undefined || cur.hours == upd.hours)) return;
+  const u = await db.from('vehicles').update(upd).eq('id', v.id).select().single();
+  if (!u.error) S.vehicles = S.vehicles.map(x => x.id === v.id ? { ...x, ...u.data } : x);
+}
+function openReadingForm(v, r) {
+  const isNew = !r;
+  r = r || { date: new Date().toISOString().slice(0, 10), unit: v.odometer_unit || 'mi' };
+  const dist = v.meter !== 'hours', hrs = v.meter !== 'distance';
+  openPanel(isNew ? 'Log reading' : 'Edit reading', `
+    <p class="hint" style="margin:0 0 18px">${esc(vname(v))}${v.odometer != null || v.hours != null ? ` · last recorded ${readingStr(v.odometer, v.odometer_unit, v.hours)}${v.odometer_date ? ' on ' + fdate(v.odometer_date) : ''}` : ''}</p>
+    <form id="rd-form" novalidate>
+      ${field('date', 'Date of reading', 'date', r.date, { required: isNew || !!r.date, help: !isNew && !r.date ? 'This reading has no date. Add one if you know it.' : '' })}
+      ${dist ? `<div class="two">${field('odometer', 'Odometer', 'text', r.odometer != null ? num(r.odometer) : '', { inputmode: 'numeric', required: !hrs })}${field('unit', 'Unit', 'select', r.unit, { required: true, options: [['mi', 'Miles'], ['km', 'Kilometres']] })}</div>` : ''}
+      ${hrs ? field('hours', 'Engine hours', 'text', r.hours ?? '', { inputmode: 'decimal', required: !dist }) : ''}
+      ${field('notes', 'Note', 'text', r.notes, { ph: 'Before track day, after trip…' })}
+      ${!isNew ? `<fieldset style="margin-top:8px"><legend>Delete</legend><div id="del-box"><button class="btn danger" type="button" id="del-rd">Delete this reading…</button></div></fieldset>` : ''}
+    </form>`,
+    `<button class="btn" type="button" id="cancel">Cancel</button><button class="btn primary" type="button" data-submit>${isNew ? 'Save reading' : 'Save changes'}</button>`);
+  $('#cancel').onclick = closePanel;
+  if (!isNew) $('#del-rd').onclick = () => {
+    $('#del-box').innerHTML = `<div class="confirm"><p>Delete the reading of <b>${esc(readingStr(r.odometer, r.unit, r.hours))}</b>${r.date ? ' from ' + fdate(r.date) : ''}? This can't be undone.</p>
+      <button class="btn" type="button" id="del-no">Keep it</button> <button class="btn danger solid" type="button" id="del-yes">Delete reading</button></div>`;
+    $('#del-no').onclick = () => openReadingForm(v, r);
+    $('#del-yes').onclick = async () => {
+      const { error } = await db.from('odometer_readings').delete().eq('id', r.id);
+      if (error) return toast('Couldn\'t delete: ' + error.message, true);
+      S.readings = S.readings.filter(x => x.id !== r.id); await syncCurrent(v); closePanel(); toast('Reading deleted'); render();
+    };
+  };
+  const rules = {
+    date: x => !x ? (isNew || r.date ? 'Enter the date of the reading.' : '') : x > new Date().toISOString().slice(0, 10) ? 'The date can\'t be in the future.' : '',
+  };
+  if (dist) rules.odometer = (x, f) => x && !/^[\d,]+$/.test(x.trim()) ? 'Odometer should be a whole number, like 62,950.' : (!x && (!hrs || !f.elements.hours.value)) ? 'Enter the odometer reading.' : '';
+  if (hrs) rules.hours = (x, f) => x && !/^[\d,]*\.?\d?$/.test(x.trim()) ? 'Engine hours should be a number, like 123.5.' : (!x && (!dist || !f.elements.odometer.value)) ? 'Enter the engine hours.' : '';
+  let warned = false;
+  wireForm('#rd-form', rules, async f => {
+    if (!warned && dist && f.date && f.odometer) {
+      const o = conv(nInt(f.odometer), f.unit, v.odometer_unit);
+      const others = S.readings.filter(x => x.vehicle_id === v.id && x.id !== r.id && x.date && x.odometer != null).map(x => ({ d: x.date, o: conv(+x.odometer, x.unit, v.odometer_unit) }));
+      const later = others.filter(x => x.d < f.date && x.o > o + 0.5).sort((a, b) => b.o - a.o)[0];
+      const earlier = others.filter(x => x.d > f.date && x.o < o - 0.5).sort((a, b) => a.o - b.o)[0];
+      const clash = later ? `${num(Math.round(later.o))} ${v.odometer_unit} was already recorded on ${fdate(later.d)}, before this date` : earlier ? `only ${num(Math.round(earlier.o))} ${v.odometer_unit} was recorded later, on ${fdate(earlier.d)}` : '';
+      if (clash) { warned = true; throw new Error(`Check the date: ${clash}, so the odometer would go backwards. Fix the date or reading, or press Save again to keep it as is.`); }
+    }
+    const row = { vehicle_id: v.id, date: nz(f.date), odometer: dist ? nInt(f.odometer) : null, unit: dist ? f.unit : (v.odometer_unit || 'mi'), hours: hrs ? nMoney(f.hours) : null, notes: nz((f.notes || '').trim()) };
+    const res = isNew ? await db.from('odometer_readings').insert(row).select().single() : await db.from('odometer_readings').update(row).eq('id', r.id).select().single();
+    if (res.error) throw new Error('Couldn\'t save: ' + res.error.message);
+    S.readings = (isNew ? [res.data, ...S.readings] : S.readings.map(x => x.id === r.id ? res.data : x)).sort((a, b) => (!a.date) - (!b.date) || (b.date || '').localeCompare(a.date || ''));
+    await syncCurrent(v);
+    closePanel(); toast(isNew ? 'Reading saved' : 'Saved'); render();
+  });
+}
+
+/* ---------- market values & portfolio ---------- */
+const SRC = { bat: 'Bring a Trailer', webmotors: 'Webmotors', carsandbids: 'Cars & Bids', classic: 'Classic.com', other: 'Other' };
+const srcFromUrl = u => /bringatrailer\.com/i.test(u) ? 'bat' : /webmotors\.com/i.test(u) ? 'webmotors' : /carsandbids\.com/i.test(u) ? 'carsandbids' : /classic\.com/i.test(u) ? 'classic' : 'other';
+const today = () => new Date().toISOString().slice(0, 10);
+async function loadFx() {
+  try { const c = JSON.parse(localStorage.getItem('mg-fx') || 'null'); if (c && c.rate) S.fx = c; } catch (e) {}
+  try {
+    const r = await fetch('/fx/latest?base=USD&symbols=BRL', { cache: 'no-store' }); const j = await r.json();
+    if (j && j.rates && j.rates.BRL) { S.fx = { rate: +j.rates.BRL, date: j.date }; try { localStorage.setItem('mg-fx', JSON.stringify(S.fx)); } catch (e) {} }
+  } catch (e) { console.warn('Exchange rate unavailable', e); }
+}
+const toCur = (amt, from, to) => amt == null ? null : from === to ? +amt : !S.fx ? null : from === 'USD' ? amt * S.fx.rate : amt / S.fx.rate;
+const median = a => { const s = [...a].sort((x, y) => x - y), n = s.length; return !n ? null : n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2; };
+const compsFor = id => (S.comps || []).filter(c => c.vehicle_id === id).sort((a, b) => b.date.localeCompare(a.date));
+function valuation(v) {
+  const cur = v.currency || 'USD';
+  if (v.value_source === 'manual') return v.estimated_value != null ? { value: +v.estimated_value, source: 'manual', label: 'Your estimate' + (v.value_date ? ' · ' + fdate(v.value_date) : '') } : { value: null, source: 'manual', label: 'No estimate yet' };
+  const inc = compsFor(v.id).filter(c => c.include);
+  const cutoff = new Date(Date.now() - 730 * 864e5).toISOString().slice(0, 10);
+  let pool = inc.filter(c => c.date >= cutoff); if (!pool.length) pool = inc;
+  const own = pool.filter(c => c.currency === cur); if (own.length) pool = own; // e.g. Webmotors (R$) for a Brazilian car beats BaT (US$)
+  const sold = pool.filter(c => c.kind === 'sold'), use = sold.length ? sold : pool;
+  const vals = use.map(c => toCur(+c.price, c.currency, cur)).filter(x => x != null);
+  const allWm = use.every(c => c.source === 'webmotors');
+  if (vals.length) return { value: median(vals), source: 'comps', label: allWm ? `Median of ${vals.length} Webmotors listing${vals.length === 1 ? '' : 's'}` : `Median of ${vals.length} ${sold.length ? 'sold' : 'asking'} price${vals.length === 1 ? '' : 's'}` };
+  if (v.fipe_value != null) { const x = toCur(+v.fipe_value, 'BRL', cur); if (x != null) return { value: x, source: 'fipe', label: 'FIPE' + (v.fipe_ref ? ' · ' + v.fipe_ref : '') }; }
+  if (v.estimated_value != null) return { value: +v.estimated_value, source: 'manual', label: 'Your estimate' };
+  return { value: null, source: null, label: 'Not valued yet' };
+}
+function perf(v) {
+  const val = valuation(v), pp = v.purchase_price != null ? +v.purchase_price : null, cur = v.currency || 'USD';
+  const svc = recsFor(v.id).reduce((a, r) => a + (toCur(+r.amount || 0, r.currency || cur, cur) || 0), 0);
+  const gain = val.value != null && pp ? val.value - pp : null;
+  const years = v.purchase_date ? (Date.now() - Date.parse(v.purchase_date)) / (365.25 * 864e5) : null;
+  const cagr = gain != null && years >= 1 && pp > 0 && val.value > 0 ? (val.value / pp) ** (1 / years) - 1 : null;
+  return { v, val, pp, cur, svc, gain, pct: gain != null ? gain / pp : null, gainAll: val.value != null && pp ? val.value - pp - svc : null, years, cagr };
+}
+const pctStr = x => x == null ? '—' : (x > 0 ? '+' : x < 0 ? '−' : '') + Math.abs(x * 100).toFixed(Math.abs(x) < 0.1 ? 1 : 0) + '%';
+const signMoney = (x, cur) => x == null ? '—' : (x > 0 ? '+' : x < 0 ? '−' : '') + money(Math.abs(x), 0, cur);
+const GAIN = '#3987e5', LOSS = '#e66767';
+function divBars(items) {
+  const max = Math.max(...items.map(i => Math.abs(i.value)), 0.01);
+  return `<div class="dv">${items.map(i => `<a class="dvr" href="${i.href}" data-tip="${esc(i.tip)}"><span class="l">${esc(i.label)}</span><span class="tr"><span class="half neg">${i.value < 0 ? `<span class="b" style="width:${(-i.value / max * 100).toFixed(2)}%;background:${LOSS}"></span>` : ''}</span><span class="axis"></span><span class="half pos">${i.value > 0 ? `<span class="b" style="width:${(i.value / max * 100).toFixed(2)}%;background:${GAIN}"></span>` : ''}</span></span><span class="v">${pctStr(i.value)}</span></a>`).join('')}</div>`;
+}
+let PCUR = (() => { try { return localStorage.getItem('mg-pcur') || 'BRL'; } catch (e) { return 'BRL'; } })();
+function viewPortfolio() {
+  const head = (extra = '') => `<div class="head"><div><p class="eyebrow">The collection as an investment</p><h1>Portfolio</h1>${extra}</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><div class="seg sm" role="group" aria-label="Show totals in">${['BRL', 'USD'].map(c => `<button type="button" data-pcur="${c}" aria-pressed="${PCUR === c}">${SYM[c]}</button>`).join('')}</div></div></div>`;
+  if (window.live.state === 'loading') return head() + '<div class="skel" style="height:240px"></div>';
+  if (!S.vehicles.length) return head() + `<div class="empty"><h2>Nothing to value yet</h2><p>Add vehicles with their purchase price, then market values to track returns.</p></div>`;
+  const P = S.vehicles.filter(v => v.status !== 'sold').map(perf);
+  const valued = P.filter(p => p.val.value != null && p.pp), unvalued = P.filter(p => !(p.val.value != null && p.pp));
+  const T = k => valued.reduce((a, p) => a + (toCur(p[k], p.cur, PCUR) || 0), 0);
+  const mkt = valued.reduce((a, p) => a + (toCur(p.val.value, p.cur, PCUR) || 0), 0), paidT = T('pp'), svcT = T('svc');
+  const g = mkt - paidT, gAll = mkt - paidT - svcT;
+  const fxNote = S.fx ? `US$1 = R$${S.fx.rate.toFixed(2)} (ECB, ${fdate(S.fx.date)}). Each vehicle's return is in its own currency; totals are converted at today's rate.` : 'Exchange rate unavailable: totals only include vehicles priced in the selected currency.';
+  const kpis = `<dl class="kpis">
+    <div><dt>Market value</dt><dd class="sm">${money(mkt, 0, PCUR)}</dd><small>${valued.length} of ${P.length} vehicles valued</small></div>
+    <div><dt>Paid for these</dt><dd class="sm">${money(paidT, 0, PCUR)}</dd><small>Purchase prices</small></div>
+    <div><dt>Gain / loss</dt><dd class="sm" style="color:${g >= 0 ? GAIN : LOSS}">${signMoney(g, PCUR)}</dd><small>${pctStr(paidT ? g / paidT : null)} on purchase price</small></div>
+    <div><dt>After service costs</dt><dd class="sm" style="color:${gAll >= 0 ? GAIN : LOSS}">${signMoney(gAll, PCUR)}</dd><small>${pctStr(paidT + svcT ? gAll / (paidT + svcT) : null)} on ${money(paidT + svcT, 0, PCUR)} invested</small></div>
+  </dl>`;
+  const sorted = valued.slice().sort((a, b) => b.pct - a.pct);
+  if (!valued.length) return head(`<p class="sub">${esc(fxNote)}</p>`) + `<div class="empty" style="text-align:left;max-width:640px"><h2>Start valuing the collection</h2><p>Each vehicle needs a market value to compare with what you paid. Open a vehicle and, under Market value:</p>
+    <ol class="hint" style="margin:0 0 20px;padding-left:20px;line-height:1.8"><li><b style="color:var(--fg)">Search BaT</b>: pulls completed Bring a Trailer auctions for the same model; the median sold price becomes the market value.</li><li><b style="color:var(--fg)">Add comparable</b>: paste a Bring a Trailer result or any listing by hand.</li><li><b style="color:var(--fg)">Link FIPE model</b>: the FIPE reference price, used only when there are no listings.</li><li><b style="color:var(--fg)">My estimate</b>: your own figure, for one-offs with no good comparables.</li></ol>
+    <a class="btn primary" href="#/cars">Go to cars</a></div>` + `<div class="section"><h2 style="font-size:22px;margin-bottom:6px">Costs</h2><p class="hint" style="margin:0 0 20px">Reais and dollars are shown separately, never converted.</p>${costsBody()}</div>`;
+  const chart = valued.length ? chartCard('Return on purchase price', 'Blue is a gain, red a loss · market value vs. price paid',
+    divBars(sorted.map(p => ({ label: vshort(p.v) + (p.v.colour && S.vehicles.filter(x => x.make === p.v.make && x.model === p.v.model).length > 1 ? ' ' + p.v.colour : ''), value: p.pct, href: '#/vehicle/' + p.v.id, tip: `${vname(p.v)}\nPaid ${money(p.pp, 0, p.cur)} · worth ${money(p.val.value, 0, p.cur)}\n${signMoney(p.gain, p.cur)} (${pctStr(p.pct)}) · ${p.val.label}` }))),
+    [['Vehicle', 'Paid', 'Market value', 'Gain', 'Return'], ...sorted.map(p => [vname(p.v), money(p.pp, 0, p.cur), money(p.val.value, 0, p.cur), signMoney(p.gain, p.cur), pctStr(p.pct)])]) : '';
+  const chip = s => `<span class="chip">${s === 'comps' ? 'Comps' : s === 'fipe' ? 'FIPE' : s === 'manual' ? 'Estimate' : '—'}</span>`;
+  const row = p => `<tr><td><a href="#/vehicle/${p.v.id}">${esc(vname(p.v))}</a></td><td>${chip(p.val.source)}</td><td class="n">${money(p.pp, 0, p.cur)}</td><td class="n">${p.val.value != null ? money(p.val.value, 0, p.cur) : '—'}</td>
+    <td class="n" style="color:${p.gain == null ? 'inherit' : p.gain >= 0 ? GAIN : LOSS}">${signMoney(p.gain, p.cur)}</td><td class="n">${pctStr(p.pct)}</td><td class="n">${p.cagr != null ? pctStr(p.cagr) + '/yr' : '—'}</td><td class="n">${p.years != null ? p.years.toFixed(1) + ' yrs' : '—'}</td></tr>`;
+  const table = `<div class="section"><h2>Holdings</h2><div class="tbl-wrap"><table>
+    <thead><tr><th scope="col">Vehicle</th><th scope="col">Value from</th><th scope="col" class="n">Paid</th><th scope="col" class="n">Market value</th><th scope="col" class="n">Gain / loss</th><th scope="col" class="n">Return</th><th scope="col" class="n">Annualized</th><th scope="col" class="n">Held</th></tr></thead>
+    <tbody>${sorted.map(row).join('')}</tbody></table></div>
+    ${unvalued.length ? `<details style="margin:14px 0 0"><summary class="hint" style="cursor:pointer">${unvalued.length} vehicle${unvalued.length === 1 ? '' : 's'} not valued yet</summary><p class="hint" style="margin:10px 0 0">${unvalued.map(p => `<a href="#/vehicle/${p.v.id}">${esc(vname(p.v))}</a>${!p.pp ? ' (no purchase price)' : ''}`).join(', ')}. Open a vehicle and add comparable sales or link its FIPE model.</p></details>` : ''}</div>`;
+  return head(`<p class="sub">${esc(fxNote)}</p>`) + kpis + (chart ? `<div class="charts" style="grid-template-columns:1fr">${chart}</div>` : '') + table +
+    `<div class="section"><h2 style="font-size:22px;margin-bottom:6px">Costs</h2><p class="hint" style="margin:0 0 20px">Reais and dollars are shown separately, never converted.</p>${costsBody()}</div>`;
+}
+
+/* vehicle page: market value section */
+function marketSection(v) {
+  const p = perf(v), comps = compsFor(v.id), cur = v.currency || 'USD';
+  const tiles = `<dl class="stats" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:0 0 20px">
+    <div><dt>Market value</dt><dd>${p.val.value != null ? money(p.val.value, 0, cur) : '—'}</dd></div>
+    <div><dt>Paid</dt><dd>${money(p.pp, 0, cur)}</dd></div>
+    <div><dt>Gain / loss</dt><dd style="color:${p.gain == null ? 'inherit' : p.gain >= 0 ? GAIN : LOSS}">${signMoney(p.gain, cur)} <small>${p.pct != null ? pctStr(p.pct) : ''}</small></dd></div>
+    <div><dt>Annualized</dt><dd>${p.cagr != null ? pctStr(p.cagr) + ' <small>/yr</small>' : '—'}</dd></div>
+  </dl>`;
+  const mode = `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:18px"><span class="hint">Value from: <b style="color:var(--fg)">${esc(p.val.label)}</b></span>
+    ${S.editor ? `<div class="seg sm" role="group" aria-label="Valuation method">${[['auto', 'Market data'], ['manual', 'My estimate']].map(([k, l]) => `<button type="button" data-vsrc="${k}" aria-pressed="${(v.value_source || 'auto') === k}">${l}</button>`).join('')}</div>` : ''}
+    ${v.value_source === 'manual' && S.editor ? `<button class="btn sm" type="button" data-edit-v="${v.id}">Edit estimate</button>` : ''}</div>`;
+  const fipe = v.fipe_model
+    ? `<div class="li" style="border-top:1px solid var(--line)"><span style="min-width:0"><span class="t" style="display:block">FIPE · ${esc(v.fipe_label || '')}</span><span class="m" style="display:block">${esc([v.fipe_code, v.fipe_ref].filter(Boolean).join(' · '))}${v.fipe_checked ? ' · checked ' + fdate(v.fipe_checked) : ''}</span></span><span class="r">${v.fipe_value != null ? money(v.fipe_value, 0, 'BRL') : '—'} ${S.editor ? `<button class="btn sm" type="button" data-fipe="${v.id}" style="margin-left:8px">Change</button>` : ''}</span></div>`
+    : (S.editor ? `<p class="hint" style="margin:0 0 6px">Link this ${v.kind === 'bike' ? 'bike' : 'car'} to the FIPE table for an automatic monthly reference price (Brazilian market; rare classics may not be listed). <button class="btn sm" type="button" data-fipe="${v.id}" style="margin-left:6px">Link FIPE model</button></p>` : '');
+  const manC = comps.filter(c => !c.auto);
+  const list = manC.length ? `<div class="rows">${manC.map(c => `<button class="row" type="button" data-comp="${c.id}" style="${c.include ? '' : 'opacity:.5'}"><span class="d">${fdate(c.date)}</span><span class="tm"><span class="t" style="display:block">${esc(c.title || SRC[c.source])}</span><span class="m" style="display:block">${esc(SRC[c.source])} · ${c.kind === 'sold' ? 'Sold' : 'Asking'}${c.mileage != null ? ' · ' + num(c.mileage) + ' ' + c.mileage_unit : ''}${c.include ? '' : ' · excluded'}</span></span><span class="mi">${c.currency !== cur && S.fx ? '≈ ' + money(toCur(+c.price, c.currency, cur), 0, cur) : ''}</span><span class="a">${money(c.price, 0, c.currency)}</span></button>`).join('')}</div>`
+    : `<p class="none">None yet. Use Add comparable for recent sales or listings of the same model, from Bring a Trailer, Webmotors or anywhere else.</p>`;
+  return `<div class="section"><div class="section-head"><h2>Market value</h2>${S.editor ? `<button class="btn sm" type="button" data-add-comp="${v.id}">${ICON.plus}Add comparable</button>` : ''}</div>
+    ${tiles}${mode}<h3 style="font-size:14px;margin:22px 0 10px">Comparable sales</h3>${list}${fipe ? `<div style="margin-top:22px">${fipe}</div>` : ''}</div>`;
+}
+function openCompForm(v, c) {
+  const isNew = !c;
+  c = c || { kind: 'sold', currency: v.currency || 'USD', date: today(), include: true, mileage_unit: v.odometer_unit || 'mi' };
+  openPanel(isNew ? 'Add comparable' : 'Edit comparable', `
+    <p class="hint" style="margin:0 0 18px">${esc(vname(v))}. Use sales of the same model and similar condition.</p>
+    <form id="cp-form" novalidate>
+      ${field('url', 'Listing link', 'url', c.url, { ph: 'https://bringatrailer.com/listing/…', help: 'Bring a Trailer, Webmotors, Cars & Bids or any other site.' })}
+      ${field('title', 'Title', 'text', c.title, { ph: '1989 BMW M3, 62k miles' })}
+      <div class="two">${field('price', 'Price', 'text', c.price ?? '', { inputmode: 'decimal', required: true })}${field('currency', 'Currency', 'select', c.currency, { required: true, options: Object.entries(CURRENCIES) })}</div>
+      <div class="two">${field('kind', 'Type', 'select', c.kind, { required: true, options: [['sold', 'Sold price'], ['asking', 'Asking price']] })}${field('date', 'Date', 'date', c.date, { required: true })}</div>
+      <div class="two">${field('mileage', 'Mileage', 'text', c.mileage != null ? num(c.mileage) : '', { inputmode: 'numeric' })}${field('mileage_unit', 'Unit', 'select', c.mileage_unit, { required: true, options: [['mi', 'Miles'], ['km', 'Kilometres']] })}</div>
+      <label class="check"><input type="checkbox" name="include" ${c.include ? 'checked' : ''}> Use this sale in the market value</label>
+      ${field('notes', 'Notes', 'text', c.notes, { ph: 'Condition, options, why it compares…' })}
+      ${!isNew ? `<fieldset style="margin-top:8px"><legend>Delete</legend><div id="del-box"><button class="btn danger" type="button" id="del-cp">Delete this comparable…</button></div></fieldset>` : ''}
+    </form>`,
+    `<button class="btn" type="button" id="cancel">Cancel</button><button class="btn primary" type="button" data-submit>${isNew ? 'Add comparable' : 'Save changes'}</button>`);
+  $('#cancel').onclick = closePanel;
+  $('#f-url').addEventListener('change', e => { if (/webmotors\.com/i.test(e.target.value)) { $('#f-currency').value = 'BRL'; $('#f-mileage_unit').value = 'km'; } else if (/bringatrailer|carsandbids/i.test(e.target.value)) { $('#f-currency').value = 'USD'; $('#f-mileage_unit').value = 'mi'; } if (/webmotors/i.test(e.target.value)) $('#f-kind').value = 'asking'; });
+  if (!isNew) $('#del-cp').onclick = () => {
+    $('#del-box').innerHTML = `<div class="confirm"><p>Delete <b>${esc(c.title || SRC[c.source])}</b> (${money(c.price, 0, c.currency)})? This can't be undone.</p><button class="btn" type="button" id="del-no">Keep it</button> <button class="btn danger solid" type="button" id="del-yes">Delete comparable</button></div>`;
+    $('#del-no').onclick = () => openCompForm(v, c);
+    $('#del-yes').onclick = async () => { const { error } = await db.from('market_comps').delete().eq('id', c.id); if (error) return toast('Couldn\'t delete: ' + error.message, true); S.comps = S.comps.filter(x => x.id !== c.id); closePanel(); toast('Comparable deleted'); render(); };
+  };
+  wireForm('#cp-form', {
+    url: x => x && !/^https?:\/\/\S+\.\S+/.test(x.trim()) ? 'Paste the full link, starting with https://' : '',
+    price: x => !x ? 'Enter the price.' : !/^\$?[\d,]*\.?\d{0,2}$/.test(x.trim()) || !(nMoney(x) > 0) ? 'Price should be an amount, like 85,000.' : '',
+    date: x => !x ? 'Enter the sale or listing date.' : x > today() ? 'The date can\'t be in the future.' : '',
+    mileage: intRule('Mileage')
+  }, async f => {
+    const url = nz((f.url || '').trim());
+    const row = { vehicle_id: v.id, url, source: url ? srcFromUrl(url) : (c.source || 'other'), title: nz(f.title.trim()), price: nMoney(f.price), currency: f.currency, kind: f.kind, date: f.date, mileage: nInt(f.mileage), mileage_unit: f.mileage_unit, include: !!f.include, notes: nz((f.notes || '').trim()) };
+    const res = isNew ? await db.from('market_comps').insert(row).select().single() : await db.from('market_comps').update(row).eq('id', c.id).select().single();
+    if (res.error) throw new Error('Couldn\'t save: ' + res.error.message);
+    S.comps = isNew ? [res.data, ...S.comps] : S.comps.map(x => x.id === c.id ? res.data : x);
+    closePanel(); toast(isNew ? 'Comparable added' : 'Saved'); render();
+  });
+}
+const parseBRL = s => +String(s || '').replace(/[^\d,]/g, '').replace(',', '.');
+async function fipeGet(path) { const r = await fetch('/fipe/' + path); if (!r.ok) throw new Error('FIPE didn\'t answer (' + r.status + '). Try again in a minute.'); return r.json(); }
+async function refreshFipe() {
+  if (!S.editor || !db) return;
+  const month = today().slice(0, 7);
+  const due = S.vehicles.filter(v => v.fipe_model && v.fipe_year && (!v.fipe_checked || v.fipe_checked.slice(0, 7) < month));
+  let changed = false;
+  for (const v of due) {
+    try {
+      const j = await fipeGet(`${v.fipe_type}/marcas/${v.fipe_brand}/modelos/${v.fipe_model}/anos/${v.fipe_year}`);
+      const u = await db.from('vehicles').update({ fipe_value: parseBRL(j.Valor), fipe_ref: j.MesReferencia, fipe_code: j.CodigoFipe, fipe_checked: today() }).eq('id', v.id).select().single();
+      if (!u.error) { S.vehicles = S.vehicles.map(x => x.id === v.id ? { ...x, ...u.data } : x); changed = true; }
+    } catch (e) { console.warn('FIPE refresh failed for', vname(v), e); }
+  }
+  if (changed) render();
+}
+function openFipeForm(v) {
+  const st = { type: v.fipe_type || (v.kind === 'bike' ? 'motos' : 'carros'), brand: v.fipe_brand || '', model: v.fipe_model || '', year: v.fipe_year || '', brands: [], models: [], years: [], q: '', price: null };
+  const opts = (list, sel, ph) => `<option value="">${ph}</option>` + list.map(o => `<option value="${esc(o.codigo)}"${String(o.codigo) === String(sel) ? ' selected' : ''}>${esc(o.nome)}</option>`).join('');
+  const draw = (msg) => {
+    const ms = st.q ? st.models.filter(m => m.nome.toLowerCase().includes(st.q.toLowerCase())) : st.models;
+    openPanel('Link FIPE model', `
+      <p class="hint" style="margin:0 0 18px">${esc(vname(v))}. Pick the exact version; the price refreshes automatically each month.</p>
+      ${msg ? `<div class="form-err" role="alert">${esc(msg)}</div>` : ''}
+      <div class="fld"><label for="fp-type">Type</label><select id="fp-type"><option value="carros"${st.type === 'carros' ? ' selected' : ''}>Car</option><option value="motos"${st.type === 'motos' ? ' selected' : ''}>Motorcycle</option></select></div>
+      <div class="fld"><label for="fp-brand">Make</label><select id="fp-brand">${opts(st.brands, st.brand, st.brands.length ? 'Choose a make' : 'Loading…')}</select></div>
+      ${st.brand ? `<div class="fld"><label for="fp-q">Filter models</label><input id="fp-q" type="search" value="${esc(st.q)}" placeholder="Type part of the name, e.g. Abarth"></div>
+      <div class="fld"><label for="fp-model">Model and version</label><select id="fp-model">${opts(ms, st.model, st.models.length ? `Choose from ${ms.length} model${ms.length === 1 ? '' : 's'}` : 'Loading…')}</select></div>` : ''}
+      ${st.model ? `<div class="fld"><label for="fp-year">Model year</label><select id="fp-year">${opts(st.years, st.year, st.years.length ? 'Choose a year' : 'Loading…')}</select></div>` : ''}
+      ${st.price ? `<div class="kv" style="margin-top:8px"><dt>FIPE price</dt><dd class="mono">${esc(st.price.Valor)}</dd><dt>Reference</dt><dd>${esc(st.price.MesReferencia)} · ${esc(st.price.CodigoFipe)}</dd></div>` : ''}
+      ${v.fipe_model ? `<button class="btn danger sm" type="button" id="fp-unlink" style="margin-top:12px">Unlink FIPE</button>` : ''}`,
+      `<button class="btn" type="button" id="cancel">Cancel</button><button class="btn primary" type="button" id="fp-save" ${st.price ? '' : 'disabled'}>Save link</button>`);
+    $('#cancel').onclick = closePanel;
+    $('#fp-type').onchange = e => { Object.assign(st, { type: e.target.value, brand: '', model: '', year: '', brands: [], models: [], years: [], price: null }); go(); };
+    $('#fp-brand').onchange = e => { Object.assign(st, { brand: e.target.value, model: '', year: '', models: [], years: [], price: null, q: '' }); go(); };
+    if ($('#fp-q')) $('#fp-q').oninput = e => { st.q = e.target.value; const pos = e.target.selectionStart; draw(); $('#fp-q').focus(); $('#fp-q').setSelectionRange(pos, pos); };
+    if ($('#fp-model')) $('#fp-model').onchange = e => { Object.assign(st, { model: e.target.value, year: '', years: [], price: null }); go(); };
+    if ($('#fp-year')) $('#fp-year').onchange = e => { Object.assign(st, { year: e.target.value, price: null }); go(); };
+    if ($('#fp-unlink')) $('#fp-unlink').onclick = async () => { const u = await db.from('vehicles').update({ fipe_type: null, fipe_brand: null, fipe_model: null, fipe_year: null, fipe_label: null, fipe_code: null, fipe_value: null, fipe_ref: null, fipe_checked: null }).eq('id', v.id).select().single(); if (u.error) return toast('Couldn\'t unlink: ' + u.error.message, true); S.vehicles = S.vehicles.map(x => x.id === v.id ? { ...x, ...u.data } : x); closePanel(); toast('FIPE unlinked'); render(); };
+    $('#fp-save').onclick = async () => {
+      const m = st.models.find(x => String(x.codigo) === String(st.model)), y = st.years.find(x => String(x.codigo) === String(st.year));
+      const upd = { fipe_type: st.type, fipe_brand: String(st.brand), fipe_model: String(st.model), fipe_year: String(st.year), fipe_label: `${m ? m.nome : ''} · ${y ? y.nome : ''}`, fipe_code: st.price.CodigoFipe, fipe_value: parseBRL(st.price.Valor), fipe_ref: st.price.MesReferencia, fipe_checked: today() };
+      const u = await db.from('vehicles').update(upd).eq('id', v.id).select().single();
+      if (u.error) return draw('Couldn\'t save: ' + u.error.message);
+      S.vehicles = S.vehicles.map(x => x.id === v.id ? { ...x, ...u.data } : x); closePanel(); toast('FIPE linked'); render();
+    };
+  };
+  const go = async () => {
+    draw();
+    try {
+      if (!st.brands.length) { st.brands = await fipeGet(`${st.type}/marcas`); draw(); }
+      if (st.brand && !st.models.length) { st.models = (await fipeGet(`${st.type}/marcas/${st.brand}/modelos`)).modelos || []; draw(); }
+      if (st.model && !st.years.length) { st.years = await fipeGet(`${st.type}/marcas/${st.brand}/modelos/${st.model}/anos`); draw(); }
+      if (st.year && !st.price) { st.price = await fipeGet(`${st.type}/marcas/${st.brand}/modelos/${st.model}/anos/${st.year}`); draw(); }
+    } catch (e) { draw(e.message); }
+  };
+  go();
+}
+
+/* ---------- service to-do ---------- */
+// Service clock: Soon from 9 months after the last service, Due at 12 months, Overdue after 14 months.
+const SVC_CATS = ['maintenance', 'repair', 'restoration', 'inspection'];
+const addMonths = (d, m) => { const x = new Date(d + 'T12:00:00Z'); const day = x.getUTCDate(); x.setUTCDate(1); x.setUTCMonth(x.getUTCMonth() + m); const last = new Date(Date.UTC(x.getUTCFullYear(), x.getUTCMonth() + 1, 0)).getUTCDate(); x.setUTCDate(Math.min(day, last)); return x.toISOString().slice(0, 10); };
+const SVC_ST = {
+  overdue: { label: 'Overdue', color: '#d03b3b', rank: 0 },
+  due: { label: 'Due', color: '#ec835a', rank: 1 },
+  soon: { label: 'Soon', color: '#fab219', rank: 2 },
+  planned: { label: 'Planned', color: '#8a8c92', rank: 3 },
+  ok: { label: 'Up to date', color: '#0ca30c', rank: 4 }
+};
+const TF = { k: 'all' };
+const lastService = v => recsFor(v.id).find(r => r.date && SVC_CATS.includes(r.category))?.date || null;
+const openTask = v => (S.tasks || []).find(t => t.vehicle_id === v.id && !t.done);
+function clockStatus(base) { // base = date the 12-month clock counts from
+  const t = today();
+  if (t >= addMonths(base, 14)) return 'overdue';
+  if (t >= addMonths(base, 12)) return 'due';
+  if (t >= addMonths(base, 9)) return 'soon';
+  return 'ok';
+}
+function svcStatus(v) {
+  const last = lastService(v), task = openTask(v);
+  let key = last ? clockStatus(last) : 'overdue';
+  let due = last ? addMonths(last, 12) : null;
+  if (task && task.due_date) { // a task with its own date follows that date instead
+    const k2 = clockStatus(addMonths(task.due_date, -12));
+    if (SVC_ST[k2].rank < SVC_ST[key].rank || key === 'ok') { key = k2; due = task.due_date; }
+    if (key === 'ok') key = 'planned';
+  } else if (task && key === 'ok') key = 'planned';
+  return { key, last, due, task, noHistory: !last };
+}
+const stChip = k => `<span class="stc" style="--c:${SVC_ST[k].color}"><i aria-hidden="true"></i>${SVC_ST[k].label}</span>`;
+function todoItems() {
+  return S.vehicles.filter(v => v.status !== 'sold').map(v => ({ v, ...svcStatus(v) })).filter(x => x.key !== 'ok')
+    .sort((a, b) => SVC_ST[a.key].rank - SVC_ST[b.key].rank || (a.noHistory - b.noHistory) || (a.due || '').localeCompare(b.due || ''));
+}
+const monthYear = d => { if (!d) return ''; const [y, m] = d.split('-'); return `${m}/${y}`; };
+function todoRow(x) {
+  const t = x.task, needs = (t?.needs || '').split('\n').map(s => s.trim()).filter(Boolean);
+  const when = x.noHistory ? 'No service logged yet' : `Last service ${fdate(x.last)} · ${x.key === 'overdue' || x.key === 'due' ? 'was due' : 'due'} ${monthYear(x.due)}`;
+  return `<div class="todo">
+    <div class="todo-st">${stChip(x.key)}</div>
+    <div class="todo-main">
+      <a class="todo-v" href="#/vehicle/${x.v.id}">${esc(vname(x.v))}</a>
+      <div class="m">${esc(when)}${t?.due_date ? ` · planned for ${fdate(t.due_date)}` : ''}</div>
+      ${t ? `<div class="todo-task"><b>${esc(t.title)}</b>${needs.length ? `<ul>${needs.slice(0, 6).map(n => `<li>${esc(n)}</li>`).join('')}${needs.length > 6 ? `<li class="hint">+${needs.length - 6} more</li>` : ''}</ul>` : ''}</div>` : ''}
+    </div>
+    ${S.editor ? `<div class="todo-act"><button class="btn sm" type="button" data-task="${x.v.id}">${t ? 'Edit needs' : 'Add needs'}</button><button class="btn sm primary" type="button" data-complete="${x.v.id}">Complete</button></div>` : ''}
+  </div>`;
+}
+function todoSection() {
+  const items = todoItems();
+  const n = k => items.filter(x => x.key === k).length;
+  const shown = items.filter(x => TF.k === 'all' || x.key === TF.k);
+  const withHist = shown.filter(x => !x.noHistory), noHist = shown.filter(x => x.noHistory);
+  const filters = `<div class="seg sm" role="group" aria-label="Show">${[['all', `All ${items.length}`], ['overdue', `Overdue ${n('overdue')}`], ['due', `Due ${n('due')}`], ['soon', `Soon ${n('soon')}`], ...(n('planned') ? [['planned', `Planned ${n('planned')}`]] : [])].map(([k, l]) => `<button type="button" data-tf="${k}" aria-pressed="${TF.k === k}">${l}</button>`).join('')}</div>`;
+  return `<section class="todo-wrap">
+    <div class="section-head" style="flex-wrap:wrap"><h2>To-Do</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${filters}${S.editor ? `<button class="btn sm" type="button" data-task="">${ICON.plus}Add to To-Do</button>` : ''}</div></div>
+    <p class="hint" style="margin:-4px 0 14px">Soon from 9 months after a vehicle's last service, Due at 12 months, Overdue after 14 months. Completing a service records it on the vehicle and resets its clock.</p>
+    ${withHist.length ? `<div class="todo-list">${withHist.map(todoRow).join('')}</div>` : (noHist.length ? '' : `<p class="none">${TF.k === 'all' ? 'Nothing due. Every vehicle has been serviced within the last 9 months.' : 'Nothing in this group.'}</p>`)}
+    ${noHist.length ? `<details class="todo-nohist"${withHist.length ? '' : ' open'}><summary>${noHist.length} vehicle${noHist.length === 1 ? '' : 's'} with no service history (counted as overdue)</summary><div class="todo-list">${noHist.map(todoRow).join('')}</div></details>` : ''}
+  </section>`;
+}
+function openTaskForm(v, task) {
+  const isNew = !task;
+  task = task || { title: 'Annual service', needs: '', due_date: null };
+  const pick = !v;
+  openPanel(isNew ? 'Add to To-Do' : 'Edit service needs', `
+    <form id="tk-form" novalidate>
+      ${pick ? field('vehicle_id', 'Vehicle', 'select', '', { required: true, options: [['', 'Choose a vehicle'], ...S.vehicles.filter(x => x.status !== 'sold').map(x => [x.id, vname(x)])] }) : `<p class="hint" style="margin:0 0 18px">${esc(vname(v))} · ${SVC_ST[svcStatus(v).key].label}</p>`}
+      ${field('title', 'Service', 'text', task.title, { required: true, ph: 'Annual service, brakes, tyres…' })}
+      ${field('needs', 'What it needs', 'textarea', task.needs, { help: 'One item per line, e.g. Oil and filter, Brake fluid, Check chain.' })}
+      ${field('due_date', 'Planned date', 'date', task.due_date, { help: 'Optional. Leave empty to follow the 12-month service clock.' })}
+      ${!isNew ? `<fieldset style="margin-top:8px"><legend>Remove</legend><div id="del-box"><button class="btn danger" type="button" id="del-tk">Remove from To-Do…</button></div></fieldset>` : ''}
+    </form>`,
+    `<button class="btn" type="button" id="cancel">Cancel</button><button class="btn primary" type="button" data-submit>${isNew ? 'Add to To-Do' : 'Save changes'}</button>`);
+  $('#cancel').onclick = closePanel;
+  if (!isNew) $('#del-tk').onclick = () => {
+    $('#del-box').innerHTML = `<div class="confirm"><p>Remove <b>${esc(task.title)}</b> for ${esc(vname(v))} from the To-Do? The vehicle stays on the list if its service clock says it's due.</p><button class="btn" type="button" id="del-no">Keep it</button> <button class="btn danger solid" type="button" id="del-yes">Remove task</button></div>`;
+    $('#del-no').onclick = () => openTaskForm(v, task);
+    $('#del-yes').onclick = async () => { const { error } = await db.from('service_tasks').delete().eq('id', task.id); if (error) return toast('Couldn\'t remove: ' + error.message, true); S.tasks = S.tasks.filter(x => x.id !== task.id); closePanel(); toast('Removed from To-Do'); render(); };
+  };
+  wireForm('#tk-form', {
+    ...(pick ? { vehicle_id: x => !x ? 'Choose which vehicle needs service.' : '' } : {}),
+    title: x => !x.trim() ? 'Name the service, like "Annual service".' : ''
+  }, async f => {
+    const vid = pick ? f.vehicle_id : v.id;
+    const existing = pick ? openTask(vById(vid)) : null;
+    const row = { vehicle_id: vid, title: f.title.trim(), needs: nz(f.needs.trim()), due_date: nz(f.due_date) };
+    const res = !isNew ? await db.from('service_tasks').update(row).eq('id', task.id).select().single()
+      : existing ? await db.from('service_tasks').update({ ...row, needs: [existing.needs, row.needs].filter(Boolean).join('\n') || null }).eq('id', existing.id).select().single()
+      : await db.from('service_tasks').insert(row).select().single();
+    if (res.error) throw new Error('Couldn\'t save: ' + res.error.message);
+    S.tasks = S.tasks.some(x => x.id === res.data.id) ? S.tasks.map(x => x.id === res.data.id ? res.data : x) : [res.data, ...S.tasks];
+    closePanel(); toast(existing ? 'Added to the existing To-Do for this vehicle' : 'Saved'); render();
+  });
+}
+function openCompleteForm(v) {
+  const task = openTask(v), dist = v.meter !== 'hours', hrs = v.meter !== 'distance';
+  openPanel('Complete service', `
+    <p class="hint" style="margin:0 0 18px">${esc(vname(v))}. This adds the work to the vehicle's service history${task ? ' and checks it off the To-Do' : ''}.</p>
+    <form id="cs-form" novalidate>
+      ${field('title', 'Service', 'text', task?.title || 'Annual service', { required: true })}
+      <div class="two">${field('date', 'Date completed', 'date', today(), { required: true })}${field('category', 'Category', 'select', 'maintenance', { required: true, options: Object.entries(CATEGORIES) })}</div>
+      <div class="two">${dist ? field('mileage', `Mileage (${v.odometer_unit})`, 'text', v.odometer != null ? num(v.odometer) : '', { inputmode: 'numeric', help: 'Also logged as a reading.' }) : ''}${hrs ? field('hours', 'Engine hours', 'text', v.hours ?? '', { inputmode: 'decimal' }) : ''}</div>
+      <div class="two">${field('amount', 'Cost', 'text', '', { inputmode: 'decimal' })}${field('currency', 'Currency', 'select', v.currency || 'USD', { required: true, options: Object.entries(CURRENCIES) })}</div>
+      ${field('shop', 'Shop or who did it', 'text', '', { ph: 'Dealer, independent shop, DIY…' })}
+      ${field('items', 'What was done', 'textarea', task?.needs || '', { help: 'One item per line. Edit to match what was actually done.' })}
+      ${field('invoice', 'Invoice', 'file', '', { accept: 'image/*,application/pdf', help: 'Photo or PDF.' })}
+      ${field('notes', 'Notes', 'textarea', '')}
+    </form>`,
+    `<button class="btn" type="button" id="cancel">Cancel</button><button class="btn primary" type="button" data-submit>Complete and record</button>`);
+  $('#cancel').onclick = closePanel;
+  wireForm('#cs-form', {
+    title: x => !x.trim() ? 'Describe the service in a few words.' : '',
+    date: x => !x ? 'Enter the date the work was done.' : x > today() ? 'The date can\'t be in the future.' : '',
+    ...(dist ? { mileage: intRule('Mileage') } : {}),
+    ...(hrs ? { hours: x => x && !/^[\d,]*\.?\d?$/.test(x.trim()) ? 'Engine hours should be a number, like 123.5.' : '' } : {}),
+    amount: moneyRule('Cost'),
+    invoice: fl => fl && fl[0] && !/^image\/|application\/pdf/.test(fl[0].type) ? 'Choose a photo or a PDF.' : ''
+  }, async f => {
+    const rec = { vehicle_id: v.id, title: f.title.trim(), date: f.date, category: f.category, mileage: dist ? nInt(f.mileage) : null, hours: hrs ? nMoney(f.hours) : null, mileage_approx: false,
+      amount: nMoney(f.amount), currency: f.currency, shop: nz(f.shop.trim()), items: nz(f.items.trim()), confidence: f.invoice && f.invoice[0] ? 'printed' : 'log', notes: nz(f.notes.trim()) };
+    if (f.invoice && f.invoice[0]) rec.invoice_url = await upload(await shrinkImage(f.invoice[0], 2400), `invoices/${v.id}`);
+    const res = await db.from('service_records').insert(rec).select().single();
+    if (res.error) throw new Error('Couldn\'t save the service: ' + res.error.message);
+    S.records = sortRecs([res.data, ...S.records]);
+    if (task) {
+      const u = await db.from('service_tasks').update({ done: true, done_at: f.date, record_id: res.data.id }).eq('id', task.id).select().single();
+      if (!u.error) S.tasks = S.tasks.map(x => x.id === task.id ? u.data : x);
+    }
+    if (rec.mileage != null || rec.hours != null) {
+      const rd = await db.from('odometer_readings').insert({ vehicle_id: v.id, date: f.date, odometer: rec.mileage, unit: v.odometer_unit || 'mi', hours: rec.hours, notes: 'At service: ' + rec.title }).select().single();
+      if (!rd.error) { S.readings = [rd.data, ...S.readings].sort((a, b) => (!a.date) - (!b.date) || (b.date || '').localeCompare(a.date || '')); await syncCurrent(v); }
+    }
+    await signMedia();
+    closePanel(); toast(`Service recorded on ${vshort(v)}`); render();
+  });
+}
+
+
+/* ---------- router ---------- */
+function current() { const h = location.hash.replace(/^#\/?/, '') || 'dashboard'; const [a, b] = h.split('/'); return { a, b }; }
+function render() {
+  const { a, b } = current();
+  const tab = a === 'costs' ? 'portfolio' : a === 'vehicle' ? (vById(b)?.kind === 'bike' ? 'bikes' : 'cars') : a;
+  document.querySelectorAll('.tab').forEach(t => t.toggleAttribute('aria-current', false) || (t.dataset.r === tab && t.setAttribute('aria-current', 'page')));
+  $('#n-cars').textContent = S.vehicles.filter(v => v.kind === 'car').length || '';
+  $('#n-bikes').textContent = S.vehicles.filter(v => v.kind === 'bike').length || '';
+  document.querySelector('.tab[data-r="portfolio"]').hidden = !S.user;
+  const banner = window.live.state === 'offline' ? `<div class="banner" style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap"><span>Offline: ${esc(S.offline?.reason || 'the database couldn\'t be reached')}, so this is the copy saved${S.offline?.saved ? ' on ' + fdate(S.offline.saved) : ''}. Changes won't save until the connection is back. If you're on a work network, it may block the database; try your phone's data.</span><button class="btn sm" type="button" onclick="location.reload()">Try again</button></div>` : '';
+  let html;
+  if (a === 'dashboard') html = viewDashboard();
+  else if (a === 'bikes') html = viewList('bike');
+  else if (a === 'ledger') html = viewLedger();
+  else if (a === 'costs' || a === 'portfolio') html = viewPortfolio();
+  else if (a === 'vehicle') html = viewVehicle(b);
+  else html = viewList('car');
+  const titles = { dashboard: 'Dashboard', cars: 'Cars', bikes: 'Bikes', ledger: 'Service', costs: 'Portfolio', portfolio: 'Portfolio' };
+  document.title = (a === 'vehicle' ? vname(vById(b)) : titles[a] || 'Dashboard') + ' · ' + (S.garage?.name || 'Minha Garagem');
+  $('#view').innerHTML = banner + html;
+  wireView();
+}
+function wireView() {
+  const V = $('#view');
+  V.querySelectorAll('[data-add-v]').forEach(b => b.onclick = () => openVehicleForm(null, b.dataset.addV));
+  V.querySelectorAll('[data-edit-v]').forEach(b => b.onclick = () => openVehicleForm(vById(b.dataset.editV)));
+  V.querySelectorAll('[data-add-r]').forEach(b => b.onclick = () => openRecordForm(null, b.dataset.addR));
+  V.querySelectorAll('[data-rec]').forEach(b => b.onclick = () => openRecord(S.records.find(r => r.id === b.dataset.rec)));
+  V.querySelectorAll('[data-signin]').forEach(b => b.onclick = openAccount);
+  V.querySelectorAll('[data-more-reads]').forEach(b => b.onclick = () => { readLimit[b.dataset.moreReads] = 1e9; render(); });
+  V.querySelectorAll('[data-garage]').forEach(b => b.onclick = () => { GF.k = b.dataset.garage; render(); });
+  V.querySelectorAll('[data-unit]').forEach(b => b.onclick = () => { distUnit = b.dataset.unit; try { localStorage.setItem('mg-unit', distUnit); } catch (e) {} render(); });
+  V.querySelectorAll('[data-table]').forEach(b => b.onclick = () => { const c = b.closest('.cc'); const on = c.classList.toggle('as-table'); b.setAttribute('aria-pressed', on); b.textContent = on ? 'Chart' : 'Table'; });
+  V.querySelectorAll('[data-log]').forEach(b => b.onclick = () => openReadingForm(vById(b.dataset.log)));
+  V.querySelectorAll('[data-read]').forEach(b => b.onclick = () => { const r = S.readings.find(x => x.id === b.dataset.read); openReadingForm(vById(r.vehicle_id), r); });
+  V.querySelectorAll('.lc').forEach(wireLine);
+  V.querySelectorAll('[data-scan]').forEach(b => b.onclick = () => openScan(b.dataset.scan || null));
+  V.querySelectorAll('[data-import]').forEach(b => b.onclick = openImport);
+  V.querySelectorAll('[data-tf]').forEach(b => b.onclick = () => { TF.k = b.dataset.tf; render(); });
+  V.querySelectorAll('[data-task]').forEach(b => b.onclick = () => { const v = b.dataset.task ? vById(b.dataset.task) : null; openTaskForm(v, v ? openTask(v) : null); });
+  V.querySelectorAll('[data-complete]').forEach(b => b.onclick = () => openCompleteForm(vById(b.dataset.complete)));
+  V.querySelectorAll('[data-pcur]').forEach(b => b.onclick = () => { PCUR = b.dataset.pcur; try { localStorage.setItem('mg-pcur', PCUR); } catch (e) {} render(); });
+  V.querySelectorAll('[data-add-comp]').forEach(b => b.onclick = () => openCompForm(vById(b.dataset.addComp)));
+  V.querySelectorAll('[data-comp]').forEach(b => b.onclick = () => { const c = S.comps.find(x => x.id === b.dataset.comp); if (S.editor) openCompForm(vById(c.vehicle_id), c); });
+  V.querySelectorAll('[data-fipe]').forEach(b => b.onclick = () => openFipeForm(vById(b.dataset.fipe)));
+  V.querySelectorAll('[data-vsrc]').forEach(b => b.onclick = async () => { const v = vById(current().b); const u = await db.from('vehicles').update({ value_source: b.dataset.vsrc }).eq('id', v.id).select().single(); if (u.error) return toast('Couldn\'t save: ' + u.error.message, true); S.vehicles = S.vehicles.map(x => x.id === v.id ? { ...x, ...u.data } : x); render(); if (b.dataset.vsrc === 'manual' && u.data.estimated_value == null) openVehicleForm(vById(v.id)); });
+  const keep = (id, k) => { const el = $(id); if (!el) return; el.oninput = el.onchange = () => { LF[k] = el.value; const pos = el.selectionStart; render(); const n = $(id); n.focus(); if (pos != null && n.setSelectionRange) n.setSelectionRange(pos, pos); }; };
+  keep('#lf-q', 'q'); keep('#lf-v', 'v'); keep('#lf-c', 'c'); keep('#lf-y', 'y');
+  const c = $('#lf-clear'); if (c) c.onclick = () => { Object.keys(LF).forEach(k => LF[k] = ''); render(); };
+}
+let lastRoute = '';
+window.addEventListener('hashchange', () => {
+  if ($('#panel').classList.contains('on')) closePanel();
+  render();
+  const r = current().a; if (r !== lastRoute) { window.scrollTo(0, 0); lastRoute = r; }
+  $('#view').focus({ preventScroll: true });
+});
+$('#acct-btn').onclick = openAccount;
+
+if (!db) showLogin('The app couldn\'t start. Check your connection and reload the page.');
+// Never call Supabase from inside onAuthStateChange: the library holds its auth lock while the
+// callback runs, so a getSession() or query there waits on itself forever and every request stalls.
+// Deferring with setTimeout lets the lock release first. (INITIAL_SESSION fires on subscribe.)
+if (db) db.auth.onAuthStateChange((event, session) => { setTimeout(() => refreshAuth(session), 0); });
+</script>
+</body>
+</html>
