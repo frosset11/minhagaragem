@@ -614,7 +614,7 @@ function showLogin(msg) {
   $('#login').innerHTML = `<div class="login-card">
     <img class="login-ic" src="/icons/icon-192.png?v=1" alt="">
     <h1>My Garage</h1>
-    <p class="sub">${up ? 'Create your account. Then set up your garage, or open one you were invited to.' : 'Your cars and bikes, their service history and what they\'re worth.'}</p>
+    <p class="sub">${up ? 'Create your account. Then set up your garage, or open one you were invited to.' : 'Manage your garage, all in one place'}</p>
     <form id="auth-form" novalidate>
       ${msg ? `<div class="form-err" role="alert">${esc(msg)}</div>` : ''}
       ${field('email', 'Email', 'email', '', { required: true, ac: 'email' })}
