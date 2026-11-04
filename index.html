@@ -50,6 +50,7 @@ a{color:inherit}
 .brand img.logo{width:auto;max-width:150px;object-fit:contain;border-radius:4px}
 .brand img.logo ~ .brand-g::before{display:none}
 .sw{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.sw-g{display:grid;grid-template-columns:44px 1fr;gap:10px 8px;align-items:center;margin-bottom:6px}.sw-g .hint{font-size:12.5px}
 .sw button{width:34px;height:34px;border-radius:50%;border:1px solid var(--line2);cursor:pointer;padding:0}
 .sw button[aria-pressed="true"]{outline:2px solid var(--fg);outline-offset:2px}
 .sw input[type=color]{width:34px;height:34px;padding:0;border:1px solid var(--line2);border-radius:50%;background:none;cursor:pointer;min-height:0}
@@ -350,6 +351,23 @@ body.locked .login{display:grid}
   .kv{grid-template-columns:100px 1fr}
   .spec div{margin-right:0}
 }
+/* light backgrounds: dark text, darker lines, light error/warning boxes */
+:root[data-tone="light"]{
+  --s1:color-mix(in srgb,var(--bg),#000 3%); --s2:color-mix(in srgb,var(--bg),#000 6%); --s3:color-mix(in srgb,var(--bg),#000 9%);
+  --line:color-mix(in srgb,var(--bg),#000 11%); --line2:color-mix(in srgb,var(--bg),#000 20%);
+  --fg:#16171a; --fg2:#4f525a; --fg3:#73767e;
+  --danger:#b8352b; --ok:#2f7d45; --warn:#8a5d00; --bar:#5d6068;
+  color-scheme:light;
+}
+:root[data-tone="light"] .btn.primary:hover{background:#2e3035}
+:root[data-tone="light"] .btn.danger{border-color:#e2b1ab}
+:root[data-tone="light"] .btn.danger.solid,:root[data-tone="light"] .toast.bad{color:#fff}
+:root[data-tone="light"] .chip.light{border-color:rgba(0,0,0,.12)}
+:root[data-tone="light"] .scrim{background:rgba(0,0,0,.28)}
+:root[data-tone="light"] .fld input:hover,:root[data-tone="light"] .fld select:hover,:root[data-tone="light"] .fld textarea:hover,:root[data-tone="light"] .app:hover .ic{border-color:color-mix(in srgb,var(--bg),#000 32%)}
+:root[data-tone="light"] .form-err{background:#fbecea;border-color:#e2b1ab;color:#8a2a22}
+:root[data-tone="light"] .confirm{background:#fbecea;border-color:#e2b1ab}
+:root[data-tone="light"] .banner{background:#fbf3de;border-color:#e2cd96;color:#64500f}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{transition-duration:0ms!important;animation:none!important}
   .card:hover{transform:none}
@@ -466,19 +484,26 @@ async function signMedia() {
 
 /* ---------- garage look: logo, background colour, motorcycles on/off ---------- */
 const DEFAULT_BG = '#121314';
-const BG_PRESETS = [['#121314', 'Graphite'], ['#16181d', 'Slate'], ['#0f1522', 'Midnight'], ['#0d1a1d', 'Petrol'], ['#0f1a14', 'Racing green'], ['#1d1013', 'Burgundy'], ['#1a1511', 'Espresso'], ['#18121c', 'Plum']];
+const BG_DARK = [['#121314', 'Graphite'], ['#16181d', 'Slate'], ['#0f1522', 'Midnight'], ['#0d1a1d', 'Petrol'], ['#0f1a14', 'Racing green'], ['#1d1013', 'Burgundy'], ['#1a1511', 'Espresso'], ['#18121c', 'Plum']];
+const BG_LIGHT = [['#f6f6f4', 'Paper'], ['#eef0f3', 'Mist'], ['#f3ede3', 'Sand'], ['#e8eee6', 'Sage'], ['#e6eef2', 'Sky'], ['#f4e9e6', 'Blush'], ['#eeeadf', 'Stone'], ['#ece8f2', 'Lavender']];
 const bikesOn = () => S.garage?.show_bikes !== false;
-// Text is light, so backgrounds stay dark: lighter picks are scaled down until they're dark enough.
-function darken(hex) {
+// Dark backgrounds get light text and light backgrounds get dark text. Colours in between are hard to read
+// either way, so they're nudged to the nearest readable shade: darkened, or mixed with white.
+const rgbOf = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+const lumOf = c => (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255;
+const isLightBg = hex => lumOf(rgbOf(hex)) > 0.5;
+function readable(hex) {
   hex = /^#[0-9a-f]{6}$/i.test(hex || '') ? hex.toLowerCase() : DEFAULT_BG;
-  const c = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
-  const L = (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255;
-  if (L <= 0.14) return hex;
-  return '#' + c.map(x => Math.round(x * 0.14 / L).toString(16).padStart(2, '0')).join('');
+  const c = rgbOf(hex), L = lumOf(c), toHex = a => '#' + a.map(x => Math.round(Math.min(255, Math.max(0, x))).toString(16).padStart(2, '0')).join('');
+  if (L <= 0.14 || L >= 0.8) return hex;
+  if (L <= 0.5) return toHex(c.map(x => x * 0.14 / L));
+  const t = (0.8 - L) / (1 - L);
+  return toHex(c.map(x => x + (255 - x) * t));
 }
 function previewBg(hex) {
-  const bg = darken(hex);
+  const bg = readable(hex);
   document.documentElement.style.setProperty('--bg', bg);
+  document.documentElement.dataset.tone = isLightBg(bg) ? 'light' : 'dark';
   const m = document.querySelector('meta[name="theme-color"]'); if (m) m.content = bg;
 }
 async function applyLook(g) {
@@ -757,10 +782,12 @@ async function openAccount() {
         ${g.logo_url ? `<label class="check"><input type="checkbox" name="logo_remove"> Remove the logo</label>` : ''}
         <span class="err" id="f-logo-err" aria-live="polite"></span></div>
       <div class="fld" data-f="bg_color"><label for="f-bgc">Background colour</label>
-        <div class="sw" role="group" aria-label="Background colour">${BG_PRESETS.map(([c, n]) => `<button type="button" data-bg="${c}" style="background:${c}" aria-pressed="${darken(g.bg_color || DEFAULT_BG) === c}" aria-label="${n}" title="${n}"></button>`).join('')}
-          <input type="color" id="f-bgc" value="${darken(g.bg_color || DEFAULT_BG)}" title="Pick any colour"></div>
-        <input type="hidden" name="bg_color" value="${darken(g.bg_color || DEFAULT_BG)}">
-        <span class="help">Dark colours keep the text readable, so lighter picks are darkened automatically. You see it straight away; it's kept when you save.</span></div>
+        ${(() => { const cur = readable(g.bg_color || DEFAULT_BG), sw = list => list.map(([c, n]) => `<button type="button" data-bg="${c}" style="background:${c}" aria-pressed="${cur === c}" aria-label="${n}" title="${n}"></button>`).join('');
+          return `<div class="sw-g"><span class="hint">Dark</span><div class="sw" role="group" aria-label="Dark backgrounds">${sw(BG_DARK)}</div>
+          <span class="hint">Light</span><div class="sw" role="group" aria-label="Light backgrounds">${sw(BG_LIGHT)}</div>
+          <span class="hint">Any</span><div class="sw"><input type="color" id="f-bgc" value="${cur}" title="Pick any colour"></div></div>
+        <input type="hidden" name="bg_color" value="${cur}">`; })()}
+        <span class="help">Text turns dark on light backgrounds and light on dark ones. Strong mid-tones are softened a little so everything stays readable. You see it straight away; it's kept when you save.</span></div>
       <label class="check"><input type="checkbox" name="show_bikes" ${g.show_bikes !== false ? 'checked' : ''}> Motorcycles: show the Bikes tab and the motorcycle option</label>
       ${g.show_bikes !== false && S.vehicles.some(v => v.kind === 'bike') ? `<p class="hint" style="margin:6px 0 0">If you turn this off, the motorcycles you already have stay in Service and Portfolio. Turn it back on any time.</p>` : ''}
       <button class="btn" type="submit" style="margin-top:14px">Save look</button>
@@ -810,11 +837,11 @@ async function openAccount() {
       toast('Garage saved'); render(); openAccount();
     });
     const look = $('#look-form');
-    const setBg = hex => { const c = darken(hex); look.elements.bg_color.value = c; $('#f-bgc').value = c; look.querySelectorAll('[data-bg]').forEach(b => b.setAttribute('aria-pressed', b.dataset.bg === c)); previewBg(c); };
+    const setBg = hex => { const c = readable(hex); look.elements.bg_color.value = c; $('#f-bgc').value = c; look.querySelectorAll('[data-bg]').forEach(b => b.setAttribute('aria-pressed', b.dataset.bg === c)); previewBg(c); };
     look.querySelectorAll('[data-bg]').forEach(b => b.onclick = () => setBg(b.dataset.bg));
     $('#f-bgc').oninput = e => setBg(e.target.value);
     wireForm('#look-form', { logo: fl => fl && fl[0] && !/^image\/(png|jpeg|webp)$/.test(fl[0].type) ? 'Use a PNG, JPG or WebP image.' : fl && fl[0] && fl[0].size > 10e6 ? 'Use an image under 10 MB.' : '' }, async f => {
-      const row = { bg_color: darken(f.bg_color), show_bikes: !!f.show_bikes };
+      const row = { bg_color: readable(f.bg_color), show_bikes: !!f.show_bikes };
       const old = g.logo_url;
       if (f.logo && f.logo[0]) row.logo_url = await upload(await shrinkLogo(f.logo[0]), 'brand');
       else if (f.logo_remove) row.logo_url = null;
