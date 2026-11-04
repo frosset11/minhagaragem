@@ -502,6 +502,38 @@ async function shrinkLogo(file, max = 512) {
   return new File([blob], 'logo.' + (png ? 'png' : 'jpg'), { type: png ? 'image/png' : 'image/jpeg' });
 }
 
+/* ---------- allowances: vehicles per garage, garages per account ---------- */
+// Until online payment exists, extra places are added by an admin (see supabase/migrations/0004_allowances.sql).
+const PRICES = { vehicle: '$1', garage: '$20' };
+const CONTACT_EMAIL = ''; // shown on the "full" screens when set
+S.garageLimit = 1;
+const activeVehicles = () => S.vehicles.filter(v => v.status !== 'sold').length;
+const vLimit = () => S.garage?.vehicle_limit ?? 5;
+const vFull = () => activeVehicles() >= vLimit();
+const ownedGarages = () => S.garages.filter(g => g.role === 'owner').length;
+function limitMsg(err) {
+  const m = String(err?.message || err || '');
+  let x = /vehicle_limit:(\d+)/.exec(m);
+  if (x) return `This garage is full: it holds ${x[1]} vehicles, and sold ones don't count. Extra places are ${PRICES.vehicle} each, paid once.`;
+  x = /garage_limit:(\d+)/.exec(m);
+  if (x) return `Your account includes ${x[1]} garage${x[1] === '1' ? '' : 's'} of your own. Each extra garage is ${PRICES.garage}, paid once.`;
+  return null;
+}
+function openLimit(kind) {
+  const ask = what => CONTACT_EMAIL
+    ? `Online payment is coming soon. For now, <a href="mailto:${esc(CONTACT_EMAIL)}?subject=${encodeURIComponent(what)}">email us</a> and we'll add it to your account.`
+    : `Online payment is coming soon. For now, contact us and we'll add it to your account.`;
+  const body = kind === 'vehicle'
+    ? `<p>${esc(S.garage?.name || 'This garage')} holds ${vLimit()} vehicles, and all ${vLimit()} places are in use. Sold vehicles don't count, so marking one as sold frees its place.</p>
+       <p>Extra places are <b>${PRICES.vehicle} per vehicle</b>, paid once.</p>
+       <p class="hint">${S.role === 'owner' ? ask('More vehicle places for ' + (S.garage?.name || 'my garage')) : 'Ask the owner of this garage to add more places.'}</p>`
+    : `<p>Your account includes ${S.garageLimit} garage${S.garageLimit === 1 ? '' : 's'} of your own, and ${S.garageLimit === 1 ? 'it\'s' : 'they\'re all'} in use. Garages you were invited to don't count.</p>
+       <p>Each extra garage is <b>${PRICES.garage}</b>, paid once.</p>
+       <p class="hint">${ask('Another garage for ' + (S.user?.email || 'my account'))}</p>`;
+  openPanel(kind === 'vehicle' ? 'This garage is full' : 'Add another garage', body, `<span class="sp"></span><button class="btn" type="button" id="lim-ok">Got it</button>`);
+  $('#lim-ok').onclick = closePanel;
+}
+
 /* ---------- data (everything is scoped to the garage that's open) ---------- */
 const cacheKey = () => 'mg-cache-' + GID();
 const isJwtErr = err => err && /jwt|token|401|PGRST30/i.test((err.code || '') + ' ' + (err.message || ''));
@@ -588,6 +620,8 @@ async function loadGarages() {
     S.garages = cached;
   } else {
     S.garages = (data || []).filter(m => m.garage).map(m => ({ ...m.garage, role: m.role })).sort((a, b) => a.name.localeCompare(b.name));
+    const acc = await db.from('accounts').select('garage_limit').maybeSingle();
+    S.garageLimit = acc.data?.garage_limit ?? 1;
     try { localStorage.setItem('mg-garages-' + S.user.id, JSON.stringify(S.garages)); } catch (e) {}
   }
   let want = null; try { want = localStorage.getItem('mg-garage'); } catch (e) {}
@@ -668,7 +702,7 @@ const garageFields = g => `${field('name', 'Garage name', 'text', g.name, { requ
 const garageRules = { name: v => !v.trim() ? 'Give your garage a name.' : v.trim().length > 80 ? 'Keep the name under 80 characters.' : '' };
 async function createGarage(f) {
   const { data: id, error } = await db.rpc('create_garage', { p_name: f.name.trim(), p_currency: f.currency, p_unit: f.distance_unit, p_lang: 'en' });
-  if (error) throw new Error(/5 garages/.test(error.message) ? 'You already own 5 garages, which is the limit for now.' : 'Couldn\'t create the garage: ' + error.message);
+  if (error) throw new Error(limitMsg(error) || 'Couldn\'t create the garage: ' + error.message);
   try { localStorage.setItem('mg-garage', id); } catch (e) {}
   await loadGarages();
   S.vehicles = []; S.records = []; S.readings = []; S.comps = []; S.tasks = []; window.live.state = 'loading';
@@ -713,6 +747,7 @@ async function openAccount() {
     ${g ? `<fieldset><legend>Garage</legend>
       ${owner ? `<form id="g-form" novalidate>${garageFields(g)}<button class="btn" type="submit">Save garage</button></form>`
         : `<dl class="kv"><dt>Garage</dt><dd>${esc(g.name)}</dd><dt>Your role</dt><dd>${ROLES[S.role]} · ${esc(ROLE_HELP[S.role])}</dd></dl>`}
+      <p class="hint" style="margin:12px 0 0">Vehicles: ${activeVehicles()} of ${vLimit()} places used (sold ones don't count) · extra places ${PRICES.vehicle} each, paid once</p>
     </fieldset>
     ${owner ? `<fieldset><legend>Look</legend><form id="look-form" novalidate>
       <div class="fld" data-f="logo"><label for="f-logo">Garage logo <span class="hint">(optional)</span></label>
@@ -741,6 +776,7 @@ async function openAccount() {
     </fieldset>` : ''}
     <fieldset><legend>Your garages</legend>
       ${others.length ? `<div class="rows" style="margin-bottom:12px">${others.map(x => `<button class="row" type="button" data-gsw="${x.id}" style="grid-template-columns:1fr auto"><span class="t">${esc(x.name)}</span><span class="hint">${ROLES[x.role]}</span></button>`).join('')}</div>` : ''}
+      <p class="hint" style="margin:0 0 10px">You own ${ownedGarages()} of ${S.garageLimit} garage${S.garageLimit === 1 ? '' : 's'} included with your account · extra garages ${PRICES.garage} each, paid once</p>
       <div id="g-new"><button class="btn" type="button" id="g-new-btn">${ICON.plus}Create another garage</button></div>
     </fieldset>
     <dl class="kv"><dt>Signed in as</dt><dd>${esc(S.user.email)}</dd></dl>
@@ -760,6 +796,7 @@ async function openAccount() {
   });
   document.querySelectorAll('[data-gsw]').forEach(b => b.onclick = () => switchGarage(b.dataset.gsw));
   $('#g-new-btn').onclick = () => {
+    if (ownedGarages() >= S.garageLimit) return openLimit('garage');
     $('#g-new').innerHTML = `<form id="gn-form" novalidate>${garageFields({ name: '', currency: g?.currency || 'BRL', distance_unit: g?.distance_unit || 'km' })}<button class="btn primary" type="submit">Create garage</button> <button class="btn" type="button" id="gn-x">Cancel</button></form>`;
     $('#gn-x').onclick = openAccount; $('#f-name').focus();
     wireForm('#gn-form', garageRules, createGarage);
@@ -1080,6 +1117,7 @@ function costsBody() {
 
 /* ---------- vehicle form ---------- */
 function openVehicleForm(v, kind) {
+  if (!v && vFull()) return openLimit('vehicle');
   const isNew = !v; v = v || { kind, odometer_unit: S.garage?.distance_unit || 'km', status: 'owned', currency: S.garage?.currency || 'BRL', meter: 'distance' };
   const word = v.kind === 'car' ? 'car' : 'bike';
   openPanel(isNew ? `Add ${word}` : 'Edit details', `
@@ -1156,7 +1194,7 @@ function openVehicleForm(v, kind) {
     if (isNew) row.garage_id = GID();
     if (f.photo && f.photo[0]) row.photo_url = await upload(await shrinkImage(f.photo[0]), `vehicles/${id}`);
     const res = isNew ? await db.from('vehicles').insert(row).select().single() : await db.from('vehicles').update(row).eq('id', id).select().single();
-    if (res.error) throw new Error('Couldn\'t save: ' + res.error.message);
+    if (res.error) throw new Error(limitMsg(res.error) || 'Couldn\'t save: ' + res.error.message);
     S.vehicles = isNew ? [...S.vehicles, res.data] : S.vehicles.map(x => x.id === id ? res.data : x);
     await signMedia();
     closePanel(); toast(isNew ? `Added ${vshort(res.data)}` : 'Saved');
@@ -1479,7 +1517,13 @@ function reviewImport(plan, fname) {
       <span class="hint" style="text-align:right">${plural(count(plan.records, v.id), 'record')}<br>${plural(count(plan.readings, v.id), 'reading')}${count(plan.records, v.id) ? '<br>' + spentOf(v.id) : ''}</span></label>`).join('')}</div>`,
     `<button class="btn" type="button" id="im-back">Choose another file</button><span class="sp"></span><button class="btn primary" type="button" id="im-go">Import</button>`);
   const sel = () => new Set([...document.querySelectorAll('[data-iv]:checked')].map(x => x.dataset.iv));
-  const upd = () => { const n = sel().size; $('#im-sel').textContent = `${n} of ${plan.vehicles.length} selected`; $('#im-go').textContent = n ? `Import ${n} vehicle${n === 1 ? '' : 's'}` : 'Import'; $('#im-go').disabled = !n; $('#im-all').textContent = n ? 'Untick all' : 'Tick all'; };
+  const room = Math.max(0, vLimit() - activeVehicles());
+  const upd = () => {
+    const keep = sel(), n = keep.size, active = plan.vehicles.filter(v => keep.has(v.id) && v.status !== 'sold').length, over = active > room;
+    $('#im-sel').textContent = `${n} of ${plan.vehicles.length} selected` + (over ? ` · this garage has room for ${room} more (sold ones don't count). Untick ${active - room}, or add places at ${PRICES.vehicle} each.` : '');
+    $('#im-sel').style.color = over ? 'var(--warn)' : '';
+    $('#im-go').textContent = n ? `Import ${n} vehicle${n === 1 ? '' : 's'}` : 'Import'; $('#im-go').disabled = !n || over; $('#im-all').textContent = n ? 'Untick all' : 'Tick all';
+  };
   document.querySelectorAll('[data-iv]').forEach(x => x.onchange = upd); upd();
   $('#im-all').onclick = () => { const on = !sel().size; document.querySelectorAll('[data-iv]').forEach(x => x.checked = on); upd(); };
   $('#im-back').onclick = openImport;
@@ -1491,7 +1535,7 @@ function reviewImport(plan, fname) {
     try {
       for (const [t, list] of steps) for (let i = 0; i < list.length; i += 200) {
         const { error } = await db.from(t).upsert(list.slice(i, i + 200), { onConflict: 'id', ignoreDuplicates: true }); // ids are set here, so a retry never duplicates
-        if (error) throw new Error(`Stopped while saving ${t === 'vehicles' ? 'vehicles' : t === 'service_records' ? 'service records' : 'readings'}: ${error.message}`);
+        if (error) throw new Error(limitMsg(error) || `Stopped while saving ${t === 'vehicles' ? 'vehicles' : t === 'service_records' ? 'service records' : 'readings'}: ${error.message}`);
         done += Math.min(200, list.length - i); b.textContent = `Saving… ${Math.round(done / total * 100)}%`;
       }
       closePanel(); toast(`Imported ${vs.length} vehicle${vs.length === 1 ? '' : 's'} and ${rs.length} record${rs.length === 1 ? '' : 's'}`);
