@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#121314">
-<title>Minha Garagem</title>
+<title>My Garage</title>
 <link rel="icon" href="/favicon.ico?v=1" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png?v=1">
 <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16.png?v=1">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=1">
 <link rel="manifest" href="/site.webmanifest?v=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Garagem">
+<meta name="apple-mobile-web-app-title" content="My Garage">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,8 +21,8 @@
 <script>window.supabase || document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"><\/script>');</script>
 <style>
 :root{
-  --bg:#121314; --s1:#18191b; --s2:#1f2023; --s3:#26282b;
-  --line:#2b2d30; --line2:#3a3c40;
+  --bg:#121314; --s1:color-mix(in srgb,var(--bg),#fff 2.5%); --s2:color-mix(in srgb,var(--bg),#fff 5%); --s3:color-mix(in srgb,var(--bg),#fff 8%);
+  --line:color-mix(in srgb,var(--bg),#fff 10%); --line2:color-mix(in srgb,var(--bg),#fff 16%);
   --fg:#f5f5f6; --fg2:#a9abb0; --fg3:#74767c;
   --danger:#f2786f; --ok:#9ad0a6; --warn:#e6c27a;
   --r:12px; --r-sm:8px;
@@ -43,10 +43,18 @@ a{color:inherit}
 #view:focus,#view:focus-visible{outline:none}
 
 /* header */
-.top{position:sticky;top:0;z-index:20;background:rgba(18,19,20,.96);border-bottom:1px solid var(--line)}
+.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 96%,transparent);border-bottom:1px solid var(--line)}
 .top-in{max-width:1240px;margin:0 auto;display:flex;align-items:center;gap:24px;padding:0 24px;height:64px}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none;flex-shrink:0}
 .brand img{width:28px;height:28px;border-radius:7px}
+.brand img.logo{width:auto;max-width:150px;object-fit:contain;border-radius:4px}
+.brand img.logo ~ .brand-g::before{display:none}
+.sw{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.sw button{width:34px;height:34px;border-radius:50%;border:1px solid var(--line2);cursor:pointer;padding:0}
+.sw button[aria-pressed="true"]{outline:2px solid var(--fg);outline-offset:2px}
+.sw input[type=color]{width:34px;height:34px;padding:0;border:1px solid var(--line2);border-radius:50%;background:none;cursor:pointer;min-height:0}
+.sw input[type=color]::-webkit-color-swatch-wrapper{padding:0}.sw input[type=color]::-webkit-color-swatch{border:0;border-radius:50%}
+.logo-pv{height:48px;max-width:220px;object-fit:contain;display:block;margin-bottom:10px}
 .brand b{font-weight:600;font-size:16px;letter-spacing:-.02em}
 .brand-g{color:var(--fg3);font-size:14px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .brand-g:not(:empty)::before{content:"/";margin-right:10px;color:var(--line2)}
@@ -107,7 +115,7 @@ h2{font-size:18px;letter-spacing:-.015em;font-weight:600;margin:0 0 14px}
 .facts dt{font-size:11px;color:var(--fg3);text-transform:uppercase;letter-spacing:.08em}
 .facts dd{margin:2px 0 0;font-family:var(--mono);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chip{display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:999px;font-size:11.5px;font-weight:500;background:var(--s3);color:var(--fg2);border:1px solid var(--line2);white-space:nowrap}
-.chip.light{background:rgba(18,19,20,.8);color:var(--fg);border-color:rgba(255,255,255,.12)}
+.chip.light{background:color-mix(in srgb,var(--bg) 80%,transparent);color:var(--fg);border-color:rgba(255,255,255,.12)}
 
 /* empty */
 .empty{border:1px dashed var(--line2);border-radius:var(--r);padding:56px 24px;text-align:center}
@@ -351,7 +359,7 @@ body.locked .login{display:grid}
 <body class="locked">
 <header class="top">
   <div class="top-in">
-    <a class="brand" href="#/dashboard" aria-label="Minha Garagem — Dashboard"><img src="/icons/icon-192.png?v=1" alt=""><b>Minha Garagem</b><span class="brand-g" id="brand-g"></span></a>
+    <a class="brand" href="#/dashboard" aria-label="My Garage — Dashboard"><img id="brand-logo" src="/icons/icon-192.png?v=1" alt=""><b id="brand-name">My Garage</b><span class="brand-g" id="brand-g"></span></a>
     <nav class="tabs" aria-label="Sections">
       <a class="tab" href="#/dashboard" data-r="dashboard">Dashboard</a>
       <a class="tab" href="#/cars" data-r="cars">Cars<span class="n" id="n-cars"></span></a>
@@ -366,7 +374,7 @@ body.locked .login{display:grid}
   </div>
 </header>
 
-<section id="login" class="login" aria-label="Sign in"><div class="login-card"><img class="login-ic" src="/icons/icon-192.png?v=1" alt=""><h1>Minha Garagem</h1></div></section>
+<section id="login" class="login" aria-label="Sign in"><div class="login-card"><img class="login-ic" src="/icons/icon-192.png?v=1" alt=""><h1>My Garage</h1></div></section>
 <main id="view" tabindex="-1"></main>
 
 <div class="scrim" id="scrim"></div>
@@ -456,6 +464,44 @@ async function signMedia() {
   }
 }
 
+/* ---------- garage look: logo, background colour, motorcycles on/off ---------- */
+const DEFAULT_BG = '#121314';
+const BG_PRESETS = [['#121314', 'Graphite'], ['#16181d', 'Slate'], ['#0f1522', 'Midnight'], ['#0d1a1d', 'Petrol'], ['#0f1a14', 'Racing green'], ['#1d1013', 'Burgundy'], ['#1a1511', 'Espresso'], ['#18121c', 'Plum']];
+const bikesOn = () => S.garage?.show_bikes !== false;
+// Text is light, so backgrounds stay dark: lighter picks are scaled down until they're dark enough.
+function darken(hex) {
+  hex = /^#[0-9a-f]{6}$/i.test(hex || '') ? hex.toLowerCase() : DEFAULT_BG;
+  const c = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+  const L = (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255;
+  if (L <= 0.14) return hex;
+  return '#' + c.map(x => Math.round(x * 0.14 / L).toString(16).padStart(2, '0')).join('');
+}
+function previewBg(hex) {
+  const bg = darken(hex);
+  document.documentElement.style.setProperty('--bg', bg);
+  const m = document.querySelector('meta[name="theme-color"]'); if (m) m.content = bg;
+}
+async function applyLook(g) {
+  previewBg(g?.bg_color || DEFAULT_BG);
+  const bt = document.querySelector('.tab[data-r="bikes"]'); if (bt) bt.hidden = g ? g.show_bikes === false : false;
+  const p = mediaPath(g?.logo_url);
+  if (p && !SIGNED[p] && db) { const { data } = await db.storage.from('media').createSignedUrl(p, 7 * 24 * 3600); if (data?.signedUrl) SIGNED[p] = data.signedUrl; }
+  if (g !== S.garage && g) return; // another garage was opened meanwhile
+  const src = p ? SIGNED[p] || '' : '';
+  const img = $('#brand-logo');
+  img.src = src || '/icons/icon-192.png?v=1'; img.classList.toggle('logo', !!src); img.alt = src ? (g?.name || '') + ' logo' : '';
+  $('#brand-name').hidden = !!src;
+}
+async function shrinkLogo(file, max = 512) {
+  const img = await createImageBitmap(file);
+  const k = Math.min(1, max / Math.max(img.width, img.height));
+  const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  const png = file.type !== 'image/jpeg'; // keep transparency
+  const blob = await new Promise(r => c.toBlob(r, png ? 'image/png' : 'image/jpeg', 0.9));
+  return new File([blob], 'logo.' + (png ? 'png' : 'jpg'), { type: png ? 'image/png' : 'image/jpeg' });
+}
+
 /* ---------- data (everything is scoped to the garage that's open) ---------- */
 const cacheKey = () => 'mg-cache-' + GID();
 const isJwtErr = err => err && /jwt|token|401|PGRST30/i.test((err.code || '') + ' ' + (err.message || ''));
@@ -515,7 +561,7 @@ async function refreshAuth(session) {
   if (!S.user) {
     S.editor = false; S.role = null; S.garage = null; S.garages = [];
     S.vehicles = []; S.records = []; S.readings = []; S.comps = []; S.tasks = [];
-    window.live.state = 'loading'; Object.keys(SIGNED).forEach(k => delete SIGNED[k]);
+    window.live.state = 'loading'; Object.keys(SIGNED).forEach(k => delete SIGNED[k]); applyLook(null);
     clearCaches();
     showLogin(pendingLoginMsg); pendingLoginMsg = null; return;
   }
@@ -552,6 +598,7 @@ function pickGarage(g) {
   S.garage = g; S.role = g?.role || null; S.editor = S.role === 'owner' || S.role === 'editor';
   if (g) { try { localStorage.setItem('mg-garage', g.id); } catch (e) {} if (g.distance_unit) distUnit = g.distance_unit; }
   $('#brand-g').textContent = g ? g.name : '';
+  applyLook(g);
 }
 async function switchGarage(id) {
   const g = S.garages.find(x => x.id === id); if (!g || g.id === GID()) return;
@@ -562,11 +609,11 @@ async function switchGarage(id) {
 let loginMode = 'in', pendingLoginMsg = null;
 function showLogin(msg) {
   document.body.classList.add('locked'); closePanel();
-  document.title = 'Sign in · Minha Garagem';
+  document.title = 'Sign in · My Garage';
   const up = loginMode === 'up';
   $('#login').innerHTML = `<div class="login-card">
     <img class="login-ic" src="/icons/icon-192.png?v=1" alt="">
-    <h1>Minha Garagem</h1>
+    <h1>My Garage</h1>
     <p class="sub">${up ? 'Create your account. Then set up your garage, or open one you were invited to.' : 'Your cars and bikes, their service history and what they\'re worth.'}</p>
     <form id="auth-form" novalidate>
       ${msg ? `<div class="form-err" role="alert">${esc(msg)}</div>` : ''}
@@ -595,7 +642,7 @@ function showLogin(msg) {
 // First visit: no garage yet. Create one (or wait for an invite).
 function showOnboarding(msg) {
   document.body.classList.add('locked'); closePanel();
-  document.title = 'Set up your garage · Minha Garagem';
+  document.title = 'Set up your garage · My Garage';
   $('#login').innerHTML = `<div class="login-card" style="max-width:440px">
     <img class="login-ic" src="/icons/icon-192.png?v=1" alt="">
     <h1>Set up your garage</h1>
@@ -616,7 +663,7 @@ function showOnboarding(msg) {
     try { await createGarage(f); } finally { if ($('#ob-form button[type=submit]')) { btn.disabled = false; btn.textContent = 'Create garage'; } }
   });
 }
-const garageFields = g => `${field('name', 'Garage name', 'text', g.name, { required: true, ph: 'e.g. Garagem Rosset' })}
+const garageFields = g => `${field('name', 'Garage name', 'text', g.name, { required: true, ph: 'e.g. The Rosset Garage' })}
   <div class="two">${field('currency', 'Main currency', 'select', g.currency, { required: true, options: Object.entries(CURRENCIES) })}${field('distance_unit', 'Distance', 'select', g.distance_unit, { required: true, options: [['km', 'Kilometres'], ['mi', 'Miles']] })}</div>`;
 const garageRules = { name: v => !v.trim() ? 'Give your garage a name.' : v.trim().length > 80 ? 'Keep the name under 80 characters.' : '' };
 async function createGarage(f) {
@@ -667,6 +714,22 @@ async function openAccount() {
       ${owner ? `<form id="g-form" novalidate>${garageFields(g)}<button class="btn" type="submit">Save garage</button></form>`
         : `<dl class="kv"><dt>Garage</dt><dd>${esc(g.name)}</dd><dt>Your role</dt><dd>${ROLES[S.role]} · ${esc(ROLE_HELP[S.role])}</dd></dl>`}
     </fieldset>
+    ${owner ? `<fieldset><legend>Look</legend><form id="look-form" novalidate>
+      <div class="fld" data-f="logo"><label for="f-logo">Garage logo <span class="hint">(optional)</span></label>
+        ${media(g.logo_url) ? `<img class="logo-pv" src="${esc(media(g.logo_url))}" alt="Current logo">` : ''}
+        <input id="f-logo" name="logo" type="file" accept="image/png,image/jpeg,image/webp">
+        <span class="help">Replaces the My Garage name at the top left, for everyone in this garage. A PNG with a transparent background works best.</span>
+        ${g.logo_url ? `<label class="check"><input type="checkbox" name="logo_remove"> Remove the logo</label>` : ''}
+        <span class="err" id="f-logo-err" aria-live="polite"></span></div>
+      <div class="fld" data-f="bg_color"><label for="f-bgc">Background colour</label>
+        <div class="sw" role="group" aria-label="Background colour">${BG_PRESETS.map(([c, n]) => `<button type="button" data-bg="${c}" style="background:${c}" aria-pressed="${darken(g.bg_color || DEFAULT_BG) === c}" aria-label="${n}" title="${n}"></button>`).join('')}
+          <input type="color" id="f-bgc" value="${darken(g.bg_color || DEFAULT_BG)}" title="Pick any colour"></div>
+        <input type="hidden" name="bg_color" value="${darken(g.bg_color || DEFAULT_BG)}">
+        <span class="help">Dark colours keep the text readable, so lighter picks are darkened automatically. You see it straight away; it's kept when you save.</span></div>
+      <label class="check"><input type="checkbox" name="show_bikes" ${g.show_bikes !== false ? 'checked' : ''}> Motorcycles: show the Bikes tab and the motorcycle option</label>
+      ${g.show_bikes !== false && S.vehicles.some(v => v.kind === 'bike') ? `<p class="hint" style="margin:6px 0 0">If you turn this off, the motorcycles you already have stay in Service and Portfolio. Turn it back on any time.</p>` : ''}
+      <button class="btn" type="submit" style="margin-top:14px">Save look</button>
+    </form></fieldset>` : ''}
     <fieldset><legend>People</legend>
       <div class="rows" style="margin-bottom:14px">${members.map(person).join('')}</div>
       ${invites.length ? `<p class="hint" style="margin:0 0 6px">Waiting to join</p><div class="rows" style="margin-bottom:14px">${invites.map(iv => `<div class="li"><span style="min-width:0"><span class="t" style="display:block">${esc(iv.email)}</span><span class="m" style="display:block">${ROLES[iv.role]} · invited ${fdate(iv.created_at.slice(0, 10))}</span></span><span class="r"><button class="btn sm" type="button" data-inv-x="${iv.id}">Cancel</button></span></div>`).join('')}</div>` : ''}
@@ -709,6 +772,22 @@ async function openAccount() {
       const ng = { ...u.data, role: S.role }; S.garages = S.garages.map(x => x.id === g.id ? ng : x); pickGarage(ng);
       toast('Garage saved'); render(); openAccount();
     });
+    const look = $('#look-form');
+    const setBg = hex => { const c = darken(hex); look.elements.bg_color.value = c; $('#f-bgc').value = c; look.querySelectorAll('[data-bg]').forEach(b => b.setAttribute('aria-pressed', b.dataset.bg === c)); previewBg(c); };
+    look.querySelectorAll('[data-bg]').forEach(b => b.onclick = () => setBg(b.dataset.bg));
+    $('#f-bgc').oninput = e => setBg(e.target.value);
+    wireForm('#look-form', { logo: fl => fl && fl[0] && !/^image\/(png|jpeg|webp)$/.test(fl[0].type) ? 'Use a PNG, JPG or WebP image.' : fl && fl[0] && fl[0].size > 10e6 ? 'Use an image under 10 MB.' : '' }, async f => {
+      const row = { bg_color: darken(f.bg_color), show_bikes: !!f.show_bikes };
+      const old = g.logo_url;
+      if (f.logo && f.logo[0]) row.logo_url = await upload(await shrinkLogo(f.logo[0]), 'brand');
+      else if (f.logo_remove) row.logo_url = null;
+      const u = await db.from('garages').update(row).eq('id', g.id).select().single();
+      if (u.error) throw new Error('Couldn\'t save the look: ' + u.error.message);
+      if (old && 'logo_url' in row && mediaPath(old)) db.storage.from('media').remove([mediaPath(old)]);
+      const ng = { ...u.data, role: S.role }; S.garages = S.garages.map(x => x.id === g.id ? ng : x); pickGarage(ng);
+      if (!ng.show_bikes && current().a === 'bikes') location.hash = '#/cars';
+      toast('Look saved'); render(); openAccount();
+    });
     wireForm('#inv-form', { email: v => !v ? 'Enter their email.' : !/^\S+@\S+\.\S+$/.test(v.trim()) ? 'Enter a full email, like name@example.com.' : members.some(m => m.email === v.trim().toLowerCase()) ? 'They\'re already in this garage.' : '' }, async f => {
       const { error } = await db.from('garage_invites').insert({ garage_id: g.id, email: f.email.trim().toLowerCase(), role: f.role, created_by: S.user.id });
       if (error) throw new Error(/duplicate/.test(error.message) ? 'That email is already invited.' : 'Couldn\'t invite: ' + error.message);
@@ -732,7 +811,7 @@ async function openAccount() {
     $('#gdel-yes').onclick = async () => {
       $('#gdel-yes').disabled = true;
       if (owner) { // photos and invoices go first, while the garage still exists to authorise it
-        const paths = [...S.vehicles.map(v => v.photo_url), ...S.records.map(r => r.invoice_url)].map(mediaPath).filter(Boolean);
+        const paths = [g.logo_url, ...S.vehicles.map(v => v.photo_url), ...S.records.map(r => r.invoice_url)].map(mediaPath).filter(Boolean);
         for (let i = 0; i < paths.length; i += 100) await db.storage.from('media').remove(paths.slice(i, i + 100));
       }
       const { error } = owner ? await db.from('garages').delete().eq('id', g.id) : await db.from('garage_members').delete().eq('garage_id', g.id).eq('user_id', S.user.id);
@@ -759,6 +838,7 @@ function openPanel(title, body, foot, opts = {}) {
 }
 function closePanel() {
   $('#panel').classList.remove('on'); $('#scrim').classList.remove('on');
+  if (S.garage) previewBg(S.garage.bg_color || DEFAULT_BG); // undo an unsaved colour preview
   if (lastFocus && document.contains(lastFocus)) lastFocus.focus({ preventScroll: true });
 }
 $('#panel-x').onclick = closePanel; $('#scrim').onclick = closePanel;
@@ -1009,7 +1089,7 @@ function openVehicleForm(v, kind) {
         ${field('photo', v.photo_url ? 'Replace photo' : 'Photo', 'file', '', { accept: 'image/*', help: 'A side or 3/4 view works best on the card.' })}
       </fieldset>
       <fieldset><legend>Basics</legend>
-        ${field('kind', 'Type', 'select', v.kind, { required: true, options: [['car', 'Car'], ['bike', 'Motorcycle']] })}
+        ${field('kind', 'Type', 'select', v.kind, { required: true, options: bikesOn() || v.kind === 'bike' ? [['car', 'Car'], ['bike', 'Motorcycle']] : [['car', 'Car']] })}
         <div class="two">${field('year', 'Year', 'text', v.year, { inputmode: 'numeric' })}${field('make', 'Make', 'text', v.make, { required: true, ph: 'BMW' })}</div>
         <div class="two">${field('model', 'Model', 'text', v.model, { ph: 'M3' })}${field('trim_level', 'Trim or version', 'text', v.trim_level)}</div>
         <div class="two">${field('nickname', 'Nickname', 'text', v.nickname)}${field('colour', 'Colour', 'text', v.colour)}</div>
@@ -1512,7 +1592,7 @@ function viewDashboard() {
       <p class="sub">${S.editor ? 'Start from what you already have. Everything can be edited afterwards.' : 'Nothing here yet. The garage\'s editors will add the vehicles.'}</p></div></div>
     ${S.editor ? `<div class="start">
       <button type="button" data-import><span class="n">Fastest</span><b>Import a spreadsheet</b><span>Excel, Google Sheets export or CSV, in any language and layout. We find the vehicles, service history and odometer readings, and you check them before anything is saved.</span></button>
-      <button type="button" data-add-v="car"><span class="n">One at a time</span><b>Add a vehicle</b><span>Type in a car or a bike, with its photo, specs and what you paid. Then add service records or scan invoices on its page.</span></button>
+      <button type="button" data-add-v="car"><span class="n">One at a time</span><b>Add a vehicle</b><span>Type in a ${bikesOn() ? 'car or a bike' : 'car'}, with its photo, specs and what you paid. Then add service records or scan invoices on its page.</span></button>
       ${S.role === 'owner' ? `<button type="button" data-signin><span class="n">Together</span><b>Invite people</b><span>Family or co-owners can add records too, or just look. You choose who edits.</span></button>` : ''}
     </div>` : ''}`;
   const owned = S.vehicles.filter(v => v.status !== 'sold');
@@ -1524,15 +1604,16 @@ function viewDashboard() {
   const driven = owned.map(v => ({ v, d: drivenIn(v, YEAR, distUnit) })).filter(x => x.d >= 1).sort((a, b) => b.d - a.d);
   const totalDriven = driven.reduce((a, x) => a + x.d, 0);
   const kpis = `<dl class="kpis">
-    <div><dt>Vehicles</dt><dd>${owned.length}</dd><small>${cars} car${cars === 1 ? '' : 's'} · ${bikes} bike${bikes === 1 ? '' : 's'}</small></div>
+    <div><dt>Vehicles</dt><dd>${owned.length}</dd><small>${cars} car${cars === 1 ? '' : 's'}${bikesOn() || bikes ? ` · ${bikes} bike${bikes === 1 ? '' : 's'}` : ''}</small></div>
     ${S.user ? `<div><dt>Collection value</dt><dd class="sm">${msum(value).replace(' + ', '<br>')}</dd><small>${valued ? `${valued} at market value, ${owned.length - valued} at purchase price · <a href="#/portfolio">Portfolio</a>` : 'At purchase price — add market data on each vehicle'}</small></div>
     <div><dt>Service in ${YEAR}</dt><dd class="sm">${msum(ySpend).replace(' + ', '<br>')}</dd><small>${yRecs.length} record${yRecs.length === 1 ? '' : 's'}</small></div>`
     : `<div><dt>Collection value</dt><dd class="sm" style="color:var(--fg3)">Private</dd><small>${lockNote().replace('to edit', 'to see values')}</small></div>
     <div><dt>Service in ${YEAR}</dt><dd>${yRecs.length}</dd><small>record${yRecs.length === 1 ? '' : 's'} logged this year</small></div>`}
     <div><dt>Driven in ${YEAR}</dt><dd>${Math.round(totalDriven).toLocaleString('en-US')} <span style="font-size:.6em;color:var(--fg3)">${distUnit}</span></dd><small>${driven.length} vehicle${driven.length === 1 ? '' : 's'} with readings this year</small></div>
   </dl>`;
-  const shown = owned.filter(v => GF.k === 'all' || v.kind === GF.k);
-  const garage = `<div class="garage-head"><h2>The garage</h2><div class="seg sm" role="group" aria-label="Show">${[['all', 'All'], ['car', 'Cars'], ['bike', 'Bikes']].map(([k, l]) => `<button type="button" data-garage="${k}" aria-pressed="${GF.k === k}">${l}</button>`).join('')}</div></div>
+  const gk = bikesOn() ? GF.k : 'all';
+  const shown = owned.filter(v => gk === 'all' || v.kind === gk);
+  const garage = `<div class="garage-head"><h2>The garage</h2>${bikesOn() ? `<div class="seg sm" role="group" aria-label="Show">${[['all', 'All'], ['car', 'Cars'], ['bike', 'Bikes']].map(([k, l]) => `<button type="button" data-garage="${k}" aria-pressed="${GF.k === k}">${l}</button>`).join('')}</div>` : ''}</div>
     <div class="garage">${shown.map(v => `<a class="app" href="#/vehicle/${v.id}" title="${esc(vname(v))}"><span class="ic">${media(v.photo_url) ? `<img src="${esc(media(v.photo_url))}" alt="" loading="lazy">` : `<span class="mk" aria-hidden="true">${esc(((v.make || '?')[0] + ((v.model || '')[0] || '')).toUpperCase())}</span>`}</span><span class="lb">${esc(vshort(v))}</span><span class="lb2">${esc(v.year || '')}${v.colour && owned.filter(x => x.make === v.make && x.model === v.model).length > 1 ? ' · ' + esc(v.colour) : ''}</span></a>`).join('')}</div>`;
   // charts
   const unitSeg = `<div class="seg sm" role="group" aria-label="Distance unit">${['mi', 'km'].map(u => `<button type="button" data-unit="${u}" aria-pressed="${distUnit === u}">${u}</button>`).join('')}</div>`;
@@ -1973,16 +2054,17 @@ function render() {
   $('#n-cars').textContent = S.vehicles.filter(v => v.kind === 'car').length || '';
   $('#n-bikes').textContent = S.vehicles.filter(v => v.kind === 'bike').length || '';
   document.querySelector('.tab[data-r="portfolio"]').hidden = !S.user;
+  document.querySelector('.tab[data-r="bikes"]').hidden = !bikesOn();
   const banner = window.live.state === 'offline' ? `<div class="banner" style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap"><span>Offline: ${esc(S.offline?.reason || 'the database couldn\'t be reached')}, so this is the copy saved${S.offline?.saved ? ' on ' + fdate(S.offline.saved) : ''}. Changes won't save until the connection is back. If you're on a work network, it may block the database; try your phone's data.</span><button class="btn sm" type="button" onclick="location.reload()">Try again</button></div>` : '';
   let html;
   if (a === 'dashboard') html = viewDashboard();
-  else if (a === 'bikes') html = viewList('bike');
+  else if (a === 'bikes' && bikesOn()) html = viewList('bike');
   else if (a === 'ledger') html = viewLedger();
   else if (a === 'costs' || a === 'portfolio') html = viewPortfolio();
   else if (a === 'vehicle') html = viewVehicle(b);
   else html = viewList('car');
   const titles = { dashboard: 'Dashboard', cars: 'Cars', bikes: 'Bikes', ledger: 'Service', costs: 'Portfolio', portfolio: 'Portfolio' };
-  document.title = (a === 'vehicle' ? vname(vById(b)) : titles[a] || 'Dashboard') + ' · ' + (S.garage?.name || 'Minha Garagem');
+  document.title = (a === 'vehicle' ? vname(vById(b)) : titles[a] || 'Dashboard') + ' · ' + (S.garage?.name || 'My Garage');
   $('#view').innerHTML = banner + html;
   wireView();
 }
