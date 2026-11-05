@@ -10,7 +10,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png?v=1">
 <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16.png?v=1">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=1">
-<link rel="manifest" href="/site.webmanifest?v=1">
+<link rel="manifest" href="/site.webmanifest?v=2">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="AUTODEX">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -117,6 +117,12 @@ h2{font-size:18px;letter-spacing:-.015em;font-weight:600;margin:0 0 14px}
 .ill-bar{width:100%;height:6px;border-radius:999px;background:rgba(255,255,255,.25);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.3)}
 .ill-bar i{display:block;height:100%;width:0;background:#fff;border-radius:inherit;transition:width 1s linear}
 .app .ic img.dim{opacity:.35}
+.in-steps{list-style:none;margin:0 0 18px;padding:0;display:flex;flex-direction:column;gap:14px}
+.in-steps li{display:flex;gap:12px;align-items:flex-start;font-size:15px;line-height:1.5}
+.in-n{width:26px;height:26px;border-radius:50%;background:var(--fg);color:var(--bg);display:grid;place-items:center;font-size:13px;font-weight:600;flex-shrink:0}
+.in-share{margin-top:24px;padding-top:18px;border-top:1px solid var(--line)}
+.in-link{flex:1;min-width:0;background:var(--bg);border:1px solid var(--line2);border-radius:var(--r-sm);padding:9px 12px;font-family:'Geist Mono',monospace;font-size:13px;color:var(--fg2)}
+.in-card{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:12px 16px;margin:0 0 20px;font-size:14px}
 a.btn{text-decoration:none}
 .tour-dots{display:flex;gap:6px;margin:0 0 22px}
 .tour-dots i{height:4px;flex:1;border-radius:999px;background:var(--line2)}
@@ -261,6 +267,8 @@ legend{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--f
 body.locked .top, body.locked main, body.locked .panel, body.locked .scrim{display:none}
 .login{display:none;min-height:100vh;min-height:100dvh;place-items:center;padding:24px 16px}
 body.locked .login{display:grid}
+body.locked.panel-ok .panel{display:flex}
+body.locked.panel-ok .scrim{display:block}
 .login-card{width:min(400px,100%);background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:32px 28px 28px}
 .login-ic{width:64px;height:64px;border-radius:15px;display:block;margin:0 0 20px}
 .login-card h1{font-size:30px}
@@ -693,7 +701,7 @@ async function refreshAuth(session) {
   enterApp();
   if (prev !== S.user.id || window.live.state === 'loading') await load(); else render();
   if (pendingToast) { toast(pendingToast); pendingToast = null; }
-  maybeTour();
+  if (pendingInstall) openPendingInstall(); else maybeTour();
 }
 let pendingToast = null;
 function clearCaches() {
@@ -743,9 +751,12 @@ function showLogin(msg) {
       ${field('pw', up ? 'Choose a password' : 'Password', 'password', '', { required: true, help: up ? 'At least 8 characters.' : '', ac: up ? 'new-password' : 'current-password' })}
       <button class="btn primary" type="submit" style="width:100%;height:44px;margin-top:4px">${up ? 'Create account' : 'Sign in'}</button>
     </form>
+    <p style="text-align:center;margin:10px 0 0" id="login-install"${canInstall() ? '' : ' hidden'}><button type="button" class="linkbtn" id="login-install-b">Add AUTODEX to your home screen</button></p>
     <p style="text-align:center;margin:18px 0 0"><button type="button" class="linkbtn" id="login-mode">${up ? 'Already have an account? Sign in' : 'New here? Create an account'}</button></p>
   </div>`;
   $('#login-mode').onclick = () => { loginMode = up ? 'in' : 'up'; showLogin(); };
+  $('#login-install-b').onclick = installApp;
+  openPendingInstall();
   setTimeout(() => $('#f-email')?.focus(), 30);
   wireForm('#auth-form', {
     email: v => !v ? 'Enter your email.' : !/^\S+@\S+\.\S+$/.test(v) ? 'Enter a full email, like name@example.com.' : '',
@@ -964,7 +975,7 @@ function openPanel(title, body, foot, opts = {}) {
   setTimeout(() => (first || $('#panel-x')).focus({ preventScroll: true }), 60);
 }
 function closePanel() {
-  $('#panel').classList.remove('on'); $('#scrim').classList.remove('on');
+  $('#panel').classList.remove('on'); $('#scrim').classList.remove('on'); setTimeout(() => { if (!$('#panel').classList.contains('on')) document.body.classList.remove('panel-ok'); }, 300);
   if (S.garage) previewBg(S.garage.bg_color || DEFAULT_BG); // undo an unsaved colour preview
   if (lastFocus && document.contains(lastFocus)) lastFocus.focus({ preventScroll: true });
 }
@@ -1148,7 +1159,7 @@ function openTour(i = 0) {
   setTimeout(() => $('#tour-next')?.focus(), 80);
 }
 // After sign-in: first visit to a garage → quick start
-function maybeTour() { if (S.user && S.garage && !flag('mg_tour_done') && !$('#panel').classList.contains('on')) setTimeout(() => openTour(0), 500); }
+function maybeTour() { if (S.user && S.garage && !flag('mg_tour_done') && !$('#panel').classList.contains('on')) setTimeout(() => { if (!$('#panel').classList.contains('on')) openTour(0); }, 500); }
 
 // Dashboard checklist: ticks itself as features get used; hidden when done or dismissed
 function checklist() {
@@ -1191,6 +1202,7 @@ const HELP = [
     ['How do I import a spreadsheet?', 'Add vehicle → Import a spreadsheet, or Import spreadsheet on a vehicle\'s page. Choose One vehicle (then pick which car, or a new one) or My whole collection. Excel, OpenOffice and CSV files work, in any language and layout; from Google Sheets use File → Download → Microsoft Excel. You see everything before it\'s saved.'],
     ['Can I fix what the spreadsheet import got wrong?', 'Yes. On the Check the import screen, open Edit details and records under any vehicle to change its details, fix or remove records and readings, or add missing ones. Records missing a date, amount or description are marked to check. Nothing is saved until you click Import.'],
     ['Will importing duplicate vehicles or records?', 'No. Vehicles already in the garage are matched by VIN, plate or make, model and year, and their history is added to them. Records already logged (same date and amount) are skipped. If a match is wrong, choose Different vehicle on the review screen.'],
+    ['Can I use AUTODEX like an app on my phone?', 'Yes. On Android, tap Add on the Dashboard card (or Add to home screen in Help) and confirm: AUTODEX gets its own icon and opens full screen. On iPhone, tap Share in Safari, then Add to Home Screen, then Add; Apple doesn\'t let websites do this for you. The link ending in /#/install opens these steps directly.'],
     ['Can I replay the quick start?', 'Yes: use Replay the quick start at the top of this page, or Quick start in the Getting started card on the Dashboard.']]],
   ['Photos and illustrations', [
     ['How do illustrations work?', 'When you add a photo, choose Turn it into an illustration. In about a minute it\'s redrawn as a clean vector-style illustration on a light grey background, and it replaces the photo. Meanwhile the photo shows dimmed with a progress bar. A front three-quarter view works best.'],
@@ -1221,7 +1233,7 @@ function viewHelp() {
   const groups = HELP.map(([g, items]) => [g, items.filter(([t, a]) => !q || (t + ' ' + a).toLowerCase().includes(q))]).filter(([, items]) => items.length);
   const n = groups.reduce((a, [, items]) => a + items.length, 0);
   return `<div class="head"><div><p class="eyebrow">Help center</p><h1>How can we help?</h1><p class="sub">Answers about every part of AUTODEX.</p></div>
-      ${S.user && S.garage ? '<button class="btn" type="button" data-tour>Replay the quick start</button>' : ''}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${!isStandalone() ? '<button class="btn" type="button" data-install>Add to home screen</button>' : ''}${S.user && S.garage ? '<button class="btn" type="button" data-tour>Replay the quick start</button>' : ''}</div></div>
     <div class="fld help-s" style="max-width:560px"><label for="help-q">Search help</label><input id="help-q" type="search" value="${esc(helpQ)}" placeholder="e.g. invoice, illustration, invite" autocomplete="off"></div>
     <p class="hint" id="help-n" aria-live="polite" style="margin:-4px 0 20px">${q ? `${n} answer${n === 1 ? '' : 's'}` : ''}</p>
     ${n ? groups.map(([g, items]) => `<section class="help-g"><h2>${esc(g)}</h2>${items.map(([t, a]) => `<details class="help-a"${q ? ' open' : ''}><summary>${esc(t)}</summary><p>${esc(a)}</p></details>`).join('')}</section>`).join('')
@@ -1232,6 +1244,58 @@ function wireHelp() {
   const i = $('#help-q'); if (!i) return;
   i.oninput = () => { helpQ = i.value; const pos = i.selectionStart; render(); const j = $('#help-q'); j.focus(); j.setSelectionRange(pos, pos); };
   const c = $('#help-clear'); if (c) c.onclick = () => { helpQ = ''; render(); $('#help-q').focus(); };
+}
+
+/* ---------- add to home screen ---------- */
+// Android and desktop Chrome/Edge hand us their install prompt (one tap). iPhone/iPad allow no such prompt,
+// so there we show the two taps. The link /#/install opens this straight away (handy to share).
+let installEvt = null, pendingInstall = false;
+const openPendingInstall = () => { if (pendingInstall) { pendingInstall = false; setTimeout(() => openInstall(false), 300); } };
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isAndroid = () => /Android/i.test(navigator.userAgent);
+const canInstall = () => !isStandalone() && (!!installEvt || isIOS() || isAndroid());
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; if (!document.body.classList.contains('locked')) render(); else refreshInstallLink(); });
+addEventListener('appinstalled', () => { installEvt = null; toast('AUTODEX is on your home screen'); if (!document.body.classList.contains('locked')) render(); });
+const SHARE_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-3px"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M5 11v8a2 2 0 002 2h10a2 2 0 002-2v-8"/></svg>';
+async function installApp() {
+  if (installEvt) { // the browser's own install dialog
+    const e = installEvt; installEvt = null;
+    try { await e.prompt(); const { outcome } = await e.userChoice; if (outcome !== 'accepted') installEvt = e; } catch (x) { openInstall(true); }
+    return;
+  }
+  openInstall(true);
+}
+function openInstall(steps) {
+  const ios = isIOS(), safari = ios && !/CriOS|FxiOS|EdgiOS/.test(navigator.userAgent);
+  const link = location.origin + '/#/install';
+  const how = isStandalone() ? `<p>AUTODEX is already open as an app on this device.</p>`
+    : installEvt && !steps ? `<p class="tour-t">Install AUTODEX on this device: it opens full screen from its own icon, like any other app.</p><button class="btn primary" type="button" id="in-go" style="width:100%;height:48px">Add to home screen</button>`
+    : ios ? `<ol class="in-steps">
+        <li><span class="in-n">1</span><span>Tap <b>Share</b> ${SHARE_ICON} ${safari ? 'in Safari\'s toolbar (on iPhone it\'s at the bottom; if you only see ••• tap that first)' : 'in your browser\'s address bar'}.</span></li>
+        <li><span class="in-n">2</span><span>Scroll down and tap <b>Add to Home Screen</b>.</span></li>
+        <li><span class="in-n">3</span><span>Tap <b>Add</b>. AUTODEX now opens from its own icon.</span></li></ol>
+        <p class="hint">Apple doesn't let websites add themselves to the home screen, so these taps are the shortest way.</p>`
+    : isAndroid() ? `<ol class="in-steps">
+        <li><span class="in-n">1</span><span>Open your browser's menu <b>⋮</b> (top right in Chrome).</span></li>
+        <li><span class="in-n">2</span><span>Tap <b>Add to Home screen</b> or <b>Install app</b>.</span></li>
+        <li><span class="in-n">3</span><span>Tap <b>Install</b> or <b>Add</b>.</span></li></ol>`
+    : `<p class="tour-t">Open this page on your phone to add AUTODEX to its home screen. In Chrome or Edge on a computer, use the install icon at the right of the address bar.</p>`;
+  document.body.classList.add('panel-ok'); // may open over the sign-in screen
+  openPanel('Add AUTODEX to your home screen', `${how}
+    <div class="in-share"><p class="hint" style="margin:0 0 8px">Link that opens this screen, to send to a phone or share:</p>
+      <div style="display:flex;gap:8px"><input class="in-link" readonly value="${esc(link)}" aria-label="Install link"><button class="btn" type="button" id="in-copy">Copy</button></div></div>`,
+    `<span class="sp"></span><button class="btn" type="button" id="in-done">Done</button>`);
+  $('#in-done').onclick = closePanel;
+  $('#in-copy').onclick = async () => { try { await navigator.clipboard.writeText(link); toast('Link copied'); } catch (x) { document.querySelector('.in-link').select(); } };
+  const go = $('#in-go'); if (go) go.onclick = () => { closePanel(); installApp(); };
+}
+function refreshInstallLink() { const l = $('#login-install'); if (l) l.hidden = !canInstall(); }
+// a slim card on the Dashboard on phones
+function installCard() {
+  if (!canInstall() || flag('mg_install_hidden') || !(isIOS() || isAndroid() || installEvt)) return '';
+  return `<div class="in-card"><span><b>Get AUTODEX on your home screen</b><span class="hint"> · opens full screen, like an app</span></span>
+    <span style="display:flex;gap:8px;align-items:center"><button class="btn sm primary" type="button" data-install>Add</button><button class="linkbtn" type="button" data-install-hide aria-label="Hide this">Not now</button></span></div>`;
 }
 
 /* ---------- views ---------- */
@@ -2137,7 +2201,7 @@ function spendByYear(recs, cur, years) {
 function viewDashboard() {
   const head = `<div class="head"><div><p class="eyebrow">${esc(S.garage?.name || '')}</p><h1>Garage</h1></div>${S.editor ? `<button class="btn primary" type="button" data-add-v="any">${ICON.plus}Add ${bikesOn() ? 'vehicle' : 'car'}</button>` : lockNote()}</div>`;
   if (window.live.state === 'loading') return head + `<div class="skel" style="height:110px;margin-bottom:44px"></div><div class="garage">${'<div class="skel" style="aspect-ratio:1;border-radius:24%"></div>'.repeat(12)}</div>`;
-  if (!S.vehicles.length) return `<div class="head"><div><p class="eyebrow">${esc(S.garage?.name || '')}</p><h1>Let's fill your garage</h1>
+  if (!S.vehicles.length) return installCard() + `<div class="head"><div><p class="eyebrow">${esc(S.garage?.name || '')}</p><h1>Let's fill your garage</h1>
       <p class="sub">${S.editor ? 'Start from what you already have. Everything can be edited afterwards.' : 'Nothing here yet. The garage\'s editors will add the vehicles.'}</p></div></div>
     ${S.editor ? `<div class="start">
       <button type="button" data-import><span class="n">Fastest</span><b>Import a spreadsheet</b><span>Excel, Google Sheets export or CSV, in any language and layout. We find the vehicles, service history and odometer readings, and you check them before anything is saved.</span></button>
@@ -2188,7 +2252,7 @@ function viewDashboard() {
   const recent = S.records.filter(r => r.date).slice(0, 6);
   const c5 = `<section class="cc"><div class="cc-h"><div><h3>Recent service</h3><p>Latest entries in the history</p></div><a class="btn sm" href="#/ledger">Service</a></div>
     <div class="list">${recent.map(r => `<a class="li" href="#/vehicle/${r.vehicle_id}"><span style="min-width:0"><span class="t" style="display:block">${esc(r.title)}</span><span class="m" style="display:block">${esc(vname(vById(r.vehicle_id)))} · ${fdate(r.date)}</span></span><span class="r">${r.amount != null ? money(r.amount, 0, r.currency) : (S.user ? '—' : '')}</span></a>`).join('')}</div></section>`;
-  return head + checklist() + kpis + garage + `<div class="charts">${c1}${c3}${spendCards.join('')}${c4}${c5}</div>`;
+  return installCard() + head + checklist() + kpis + garage + `<div class="charts">${c1}${c3}${spendCards.join('')}${c4}${c5}</div>`;
 }
 
 /* ---------- readings ---------- */
@@ -2623,6 +2687,8 @@ function wireView() {
   const V = $('#view');
   V.querySelectorAll('[data-add-v]').forEach(b => b.onclick = () => openAddVehicle(b.dataset.addV));
   V.querySelectorAll('[data-type-v]').forEach(b => b.onclick = () => openVehicleForm(null, b.dataset.typeV));
+  V.querySelectorAll('[data-install]').forEach(b => b.onclick = installApp);
+  V.querySelectorAll('[data-install-hide]').forEach(b => b.onclick = () => { setFlag('mg_install_hidden'); render(); toast('Hidden. It\'s also in Help.'); });
   V.querySelectorAll('[data-tour]').forEach(b => b.onclick = () => openTour(0));
   V.querySelectorAll('[data-gs]').forEach(b => b.onclick = () => gsDo(b.dataset.gs));
   V.querySelectorAll('[data-gs-hide]').forEach(b => b.onclick = () => { setFlag('mg_list_hidden'); render(); toast('Hidden. The quick start is always in Help.'); });
@@ -2656,12 +2722,15 @@ function wireView() {
 }
 let lastRoute = '';
 window.addEventListener('hashchange', () => {
+  if (location.hash === '#/install') { history.replaceState(null, '', S.user ? '#/dashboard' : location.pathname); render(); openInstall(false); return; }
   if ($('#panel').classList.contains('on')) closePanel();
   render();
   const r = current().a; if (r !== lastRoute) { window.scrollTo(0, 0); lastRoute = r; }
   $('#view').focus({ preventScroll: true });
 });
 $('#acct-btn').onclick = openAccount;
+// The quicklink /#/install opens the add-to-home-screen sheet, signed in or not
+if (location.hash === '#/install') { history.replaceState(null, '', location.pathname); pendingInstall = true; }
 
 if (!db) showLogin('The app couldn\'t start. Check your connection and reload the page.');
 // Never call Supabase from inside onAuthStateChange: the library holds its auth lock while the
