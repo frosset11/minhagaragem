@@ -1,14 +1,24 @@
 // Works out the layout of a spreadsheet (which tab holds vehicles, history or readings, which column is
 // which field, what each category label means). The app applies the map to every row itself.
-import { askClaude, cors, gate, int, json, num, oneOrNull, str } from '../_shared/ai.ts';
+import { askClaude, cors, gate, json } from '../_shared/ai.ts';
+
+// The API allows at most 16 nullable (union-typed) fields per schema, and this map has more than 30.
+// So "none" is written as "" or -1 here, and nulled() turns those back into null before the app sees them.
+const str = (d: string) => ({ type: 'string', description: `${d} ("" if none)` });
+const num = (d: string) => ({ type: 'number', description: `${d} (-1 if none)` });
+const int = (d: string) => ({ type: 'integer', description: `${d} (-1 if none)` });
+const oneOrNull = (vals: string[], d: string) => ({ type: 'string', enum: [...vals, ''], description: `${d} ("" if none)` });
+const nulled = (x: unknown): unknown => Array.isArray(x) ? x.map(nulled)
+  : x && typeof x === 'object' ? Object.fromEntries(Object.entries(x).map(([k, v]) => [k, nulled(v)]))
+  : x === '' || (typeof x === 'number' && x < 0) ? null : x;
 
 const CATEGORIES = ['maintenance', 'repair', 'restoration', 'modification', 'parts', 'tyres', 'detailing', 'inspection', 'registration', 'insurance', 'other'];
-const col = (d: string) => int(`0-based column index for ${d}, or null if there is none`);
+const col = (d: string) => int(`0-based column index for ${d}`);
 const VEHICLE = {
   type: 'object',
   properties: {
     key: { type: 'string', description: 'the exact text that identifies this vehicle in the history/readings vehicle column (copy it verbatim from the distinct values), or its name on the vehicles tab' },
-    existing: str('when this is one of the vehicles already in the garage: its ref from that list (e.g. "G2"), otherwise null'),
+    existing: str('when this is one of the vehicles already in the garage: its ref from that list (e.g. "G2"), otherwise empty'),
     other_keys: { type: 'array', items: { type: 'string' }, description: 'other exact spellings used for the same vehicle elsewhere in the file' },
     kind: { type: 'string', enum: ['car', 'bike'] },
     year: int('model year'), make: { type: 'string', description: 'manufacturer, e.g. Honda (add it when only the model is written, like CBX)' },
@@ -80,7 +90,7 @@ Deno.serve(async (req) => {
       .filter((e): e is Record<string, unknown> => !!e && typeof e === 'object' && typeof (e as { ref?: unknown }).ref === 'string')
       .map(e => Object.fromEntries(['ref', 'kind', 'year', 'make', 'model', 'trim', 'colour', 'plate', 'vin', 'nickname'].filter(k => e[k] != null && e[k] !== '').map(k => [k, String(e[k]).slice(0, 60)])));
     const existingText = existing.length
-      ? `\nThe garage already has these vehicles:\n${JSON.stringify(existing)}\nWhen a vehicle in the file is one of these (same plate or VIN, or clearly the same make, model and year), set existing to its ref and use the same make, model and year. Leave existing null for anything new. Never give two file vehicles the same ref.\n`
+      ? `\nThe garage already has these vehicles:\n${JSON.stringify(existing)}\nWhen a vehicle in the file is one of these (same plate or VIN, or clearly the same make, model and year), set existing to its ref and use the same make, model and year. Leave existing empty for anything new. Never give two file vehicles the same ref.\n`
       : '';
 
     const prompt = `A car and motorcycle owner uploaded the spreadsheet "${String(body.filename || '').slice(0, 120)}" to load their collection into a garage app. Below is each tab: its rows (each row an array of cells, row 0 first; a tab with many rows shows only its first rows) and, for long tabs, every distinct value per column.
@@ -99,7 +109,7 @@ ${payload}`;
     if ('fail' in out && out.fail) return out.fail;
     await g.record(out.usage);
     if (!out.data) return json({ error: 'no_map', message: out.stop === 'max_tokens' ? 'That file has too many vehicles to read in one go. Split it into two files and import each.' : 'Couldn\'t work out that spreadsheet. Check it lists your vehicles and try again.' }, 422);
-    return json({ ok: true, map: out.data });
+    return json({ ok: true, map: nulled(out.data) });
   } catch (e) {
     console.error(e);
     return json({ error: 'exception', message: 'Something went wrong reading the spreadsheet. Try again.' }, 500);
