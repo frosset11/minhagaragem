@@ -110,7 +110,19 @@ h2{font-size:18px;letter-spacing:-.015em;font-weight:600;margin:0 0 14px}
 .ph .mk{position:absolute;inset:0;display:grid;place-items:center;color:var(--line2);font-weight:700;font-size:56px;letter-spacing:-.05em;user-select:none}
 .ph .st{position:absolute;top:12px;left:12px}
 .ph img.illus{object-fit:contain;background:#e5e5e5}
-.ph .ill{position:absolute;left:12px;bottom:12px}
+.ph img.dim{opacity:.35;filter:grayscale(.4)}
+.ill-prog{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(70%,320px);display:flex;flex-direction:column;gap:8px;align-items:center;text-align:center}
+.ill-prog b{font-size:13.5px;font-weight:600;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.ill-bar{width:100%;height:6px;border-radius:999px;background:rgba(255,255,255,.25);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.ill-bar i{display:block;height:100%;width:0;background:#fff;border-radius:inherit;transition:width 1s linear}
+.app .ic img.dim{opacity:.35}
+.choice{display:flex;flex-direction:column;gap:8px;margin:-4px 0 16px}
+.choice[hidden]{display:none}
+.choice label{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border:1px solid var(--line2);border-radius:var(--r-sm);cursor:pointer;font-size:14px}
+.choice label:has(input:checked){border-color:var(--fg)}
+.choice input{margin-top:3px}
+.choice span{display:flex;flex-direction:column;gap:2px}
+.choice small{color:var(--fg3);font-size:12.5px}
 .card .body{padding:16px 18px 18px}
 .card .yr{font-family:var(--mono);font-size:12px;color:var(--fg3)}
 .card .nm{font-size:19px;font-weight:600;letter-spacing:-.02em;line-height:1.25;margin:2px 0 0}
@@ -953,7 +965,7 @@ function wireForm(sel, rules, onSubmit) {
     const btns = [...document.querySelectorAll('#panel button[type=submit], #panel [data-submit]')];
     btns.forEach(b => b.disabled = true);
     try {
-      const vals = Object.fromEntries([...form.elements].filter(x => x.name).map(x => [x.name, x.type === 'checkbox' ? x.checked : x.type === 'file' ? x.files : x.value]));
+      const vals = Object.fromEntries([...form.elements].filter(x => x.name && (x.type !== 'radio' || x.checked)).map(x => [x.name, x.type === 'checkbox' ? x.checked : x.type === 'file' ? x.files : x.value]));
       await onSubmit(vals);
     } catch (err) {
       form.insertAdjacentHTML('afterbegin', `<div class="form-err" role="alert">${esc(err.message || err)}</div>`);
@@ -989,11 +1001,20 @@ async function upload(file, prefix) {
 
 /* ---------- illustrations: a vehicle's photo redrawn as a vector-style illustration ---------- */
 // Runs after a photo is uploaded (or from "Make illustration"). The illustration replaces the photo.
-const ILLUS = new Set(); // vehicle ids being drawn right now
+const ILLUS = new Map(); // vehicle id → when its drawing started
 const isIllus = v => /\/illus\//.test(v?.photo_url || '');
+// The model reports no progress, so the bar follows the usual time (about a minute) and waits near the end
+const illPct = id => Math.round(95 * (1 - Math.exp(-(Date.now() - ILLUS.get(id)) / 28000)));
+const progHtml = id => `<div class="ill-prog"><b>Drawing the illustration…</b><div class="ill-bar" role="progressbar" aria-label="Drawing the illustration" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${illPct(id)}" data-prog="${id}"><i style="width:${illPct(id)}%"></i></div></div>`;
+let illTimer = null;
+const tickIllus = () => {
+  document.querySelectorAll('[data-prog]').forEach(b => { if (!ILLUS.has(b.dataset.prog)) return; const p = illPct(b.dataset.prog); b.firstElementChild.style.width = p + '%'; b.setAttribute('aria-valuenow', p); });
+  if (!ILLUS.size) { clearInterval(illTimer); illTimer = null; }
+};
 async function illustrate(v) {
   if (!v || ILLUS.has(v.id) || !v.photo_url) return;
-  ILLUS.add(v.id); render();
+  ILLUS.set(v.id, Date.now()); render();
+  if (!illTimer) illTimer = setInterval(tickIllus, 1000);
   toast(`Drawing an illustration of ${vshort(v)}. This takes about a minute.`);
   try {
     const { data, error } = await db.functions.invoke('illustrate', { body: { garage_id: GID(), vehicle_id: v.id } });
@@ -1010,8 +1031,11 @@ async function illustrate(v) {
     const { data: row, error: e2 } = await db.from('vehicles').update({ photo_url: url }).eq('id', v.id).select().single();
     if (e2) throw new Error('The illustration was made but couldn\'t be saved: ' + e2.message);
     if (old && old !== mediaPath(url)) db.storage.from('media').remove([old]).catch(() => {}); // the original photo is replaced
+    // finish the bar, then swap the dimmed photo for the illustration
+    document.querySelectorAll(`[data-prog="${v.id}"] i`).forEach(i => i.style.width = '100%');
     S.vehicles = S.vehicles.map(x => x.id === v.id ? row : x);
     await signMedia();
+    await new Promise(r => setTimeout(r, 600));
     toast(`Illustration ready for ${vshort(row)}`);
   } catch (x) {
     toast(x.message || 'The illustration couldn\'t be made.', true);
@@ -1022,7 +1046,7 @@ async function illustrate(v) {
 function photo(v, eager) {
   const mk = esc(((v.make || '?')[0] + ((v.model || '')[0] || '')).toUpperCase());
   const src = media(v.photo_url);
-  return `<div class="ph">${src ? `<img src="${esc(src)}" alt="${esc(vname(v))}" ${eager ? '' : 'loading="lazy"'}${isIllus(v) ? ' class="illus"' : ''}>` : `<div class="mk" aria-hidden="true">${mk}</div>`}${v.status && v.status !== 'owned' ? `<span class="st chip light">${esc(STATUS[v.status])}</span>` : ''}${ILLUS.has(v.id) ? '<span class="ill chip light" role="status">Drawing the illustration…</span>' : ''}</div>`;
+  return `<div class="ph">${src ? `<img src="${esc(src)}" alt="${esc(vname(v))}" ${eager ? '' : 'loading="lazy"'}${isIllus(v) || ILLUS.has(v.id) ? ` class="${[isIllus(v) ? 'illus' : '', ILLUS.has(v.id) ? 'dim' : ''].join(' ').trim()}"` : ''}>` : `<div class="mk" aria-hidden="true">${mk}</div>`}${v.status && v.status !== 'owned' ? `<span class="st chip light">${esc(STATUS[v.status])}</span>` : ''}${ILLUS.has(v.id) ? progHtml(v.id) : ''}</div>`;
 }
 function viewList(kind) {
   const list = S.vehicles.filter(v => v.kind === kind);
@@ -1185,7 +1209,11 @@ function openVehicleForm(v, kind) {
     <form id="v-form" novalidate>
       <fieldset><legend>Photo</legend>
         ${media(v.photo_url) ? `<img class="thumb" src="${esc(media(v.photo_url))}" alt="">` : ''}
-        ${field('photo', v.photo_url ? 'Replace photo' : 'Photo', 'file', '', { accept: 'image/jpeg,image/png,image/webp', help: 'A front three-quarter view works best. It\'s redrawn as an illustration and replaces the photo.' })}
+        ${field('photo', v.photo_url ? 'Replace photo' : 'Photo', 'file', '', { accept: 'image/jpeg,image/png,image/webp', help: 'A front three-quarter view works best.' })}
+        <div class="choice" id="photo-choice" role="radiogroup" aria-label="What to do with the photo" hidden>
+          <label><input type="radio" name="photo_mode" value="illustrate" checked><span><b>Turn it into an illustration</b><small>Redrawn in a clean vector style, in about a minute. It replaces the photo.</small></span></label>
+          <label><input type="radio" name="photo_mode" value="keep"><span><b>Keep my photo as it is</b><small>You can still make an illustration later from the vehicle's page.</small></span></label>
+        </div>
       </fieldset>
       <fieldset><legend>Basics</legend>
         ${field('kind', 'Type', 'select', v.kind, { required: true, options: bikesOn() || v.kind === 'bike' ? [['car', 'Car'], ['bike', 'Motorcycle']] : [['car', 'Car']] })}
@@ -1220,6 +1248,7 @@ function openVehicleForm(v, kind) {
     `<button class="btn" type="button" id="cancel">Cancel</button><button class="btn primary" type="button" data-submit>${isNew ? `Add ${word}` : 'Save changes'}</button>`);
   $('#cancel').onclick = closePanel;
   $('#f-status').onchange = e => $('#sold-f').hidden = e.target.value !== 'sold';
+  $('#f-photo').addEventListener('change', e => { $('#photo-choice').hidden = !e.target.files.length; });
   if (!isNew) $('#del-v').onclick = () => {
     $('#del-box').innerHTML = `<div class="confirm"><p>Delete <b>${esc(vname(v))}</b> and its ${recsFor(v.id).length} service record${recsFor(v.id).length === 1 ? '' : 's'}? This can't be undone.</p>
       <button class="btn" type="button" id="del-no">Keep it</button> <button class="btn danger solid" type="button" id="del-yes">Delete ${esc(vshort(v))}</button></div>`;
@@ -1260,7 +1289,7 @@ function openVehicleForm(v, kind) {
     await signMedia();
     closePanel(); toast(isNew ? `Added ${vshort(res.data)}` : 'Saved');
     if (isNew) location.hash = '#/vehicle/' + id; render();
-    if (row.photo_url) setTimeout(() => illustrate(res.data), 1200); // new photo: redraw it as an illustration
+    if (row.photo_url && f.photo_mode !== 'keep') setTimeout(() => illustrate(res.data), 300); // new photo, illustration chosen
   });
 }
 
@@ -1911,7 +1940,7 @@ function viewDashboard() {
   const gk = bikesOn() ? GF.k : 'all';
   const shown = owned.filter(v => gk === 'all' || v.kind === gk);
   const garage = `<div class="garage-head"><h2>The garage</h2>${bikesOn() ? `<div class="seg sm" role="group" aria-label="Show">${[['all', 'All'], ['car', 'Cars'], ['bike', 'Bikes']].map(([k, l]) => `<button type="button" data-garage="${k}" aria-pressed="${GF.k === k}">${l}</button>`).join('')}</div>` : ''}</div>
-    <div class="garage">${shown.map(v => `<a class="app" href="#/vehicle/${v.id}" title="${esc(vname(v))}"><span class="ic">${media(v.photo_url) ? `<img src="${esc(media(v.photo_url))}" alt="" loading="lazy">` : `<span class="mk" aria-hidden="true">${esc(((v.make || '?')[0] + ((v.model || '')[0] || '')).toUpperCase())}</span>`}</span><span class="lb">${esc(vshort(v))}</span><span class="lb2">${esc(v.year || '')}${v.colour && owned.filter(x => x.make === v.make && x.model === v.model).length > 1 ? ' · ' + esc(v.colour) : ''}</span></a>`).join('')}</div>`;
+    <div class="garage">${shown.map(v => `<a class="app" href="#/vehicle/${v.id}" title="${esc(vname(v))}"><span class="ic">${media(v.photo_url) ? `<img src="${esc(media(v.photo_url))}" alt="" loading="lazy"${ILLUS.has(v.id) ? ' class="dim"' : ''}>` : `<span class="mk" aria-hidden="true">${esc(((v.make || '?')[0] + ((v.model || '')[0] || '')).toUpperCase())}</span>`}</span><span class="lb">${esc(vshort(v))}</span><span class="lb2">${esc(v.year || '')}${v.colour && owned.filter(x => x.make === v.make && x.model === v.model).length > 1 ? ' · ' + esc(v.colour) : ''}</span></a>`).join('')}</div>`;
   // charts
   const unitSeg = `<div class="seg sm" role="group" aria-label="Distance unit">${['mi', 'km'].map(u => `<button type="button" data-unit="${u}" aria-pressed="${distUnit === u}">${u}</button>`).join('')}</div>`;
   const top = driven.slice(0, 8);
