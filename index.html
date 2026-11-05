@@ -980,7 +980,7 @@ async function openAccount() {
     const setBg = hex => { const c = readable(hex); look.elements.bg_color.value = c; $('#f-bgc').value = c; look.querySelectorAll('[data-bg]').forEach(b => b.setAttribute('aria-pressed', b.dataset.bg === c)); previewBg(c); };
     look.querySelectorAll('[data-bg]').forEach(b => b.onclick = () => setBg(b.dataset.bg));
     $('#f-bgc').oninput = e => setBg(e.target.value);
-    wireForm('#look-form', { logo: fl => fl && fl[0] && !/^image\/(png|jpeg|webp)$/.test(fl[0].type) ? 'Use a PNG, JPG or WebP image.' : fl && fl[0] && fl[0].size > 10e6 ? 'Use an image under 10 MB.' : '' }, async f => {
+    wireForm('#look-form', { logo: fl => fl && fl[0] && !/^image\/(png|jpeg|webp)$/.test(fl[0].type) ? 'Use a PNG, JPG or WebP image.' : fl && fl[0] && fl[0].size > MAX_FILE ? `Use an image under ${MAX_FILE_MB} MB.` : '' }, async f => {
       const row = { bg_color: readable(f.bg_color), show_bikes: !!f.show_bikes };
       const old = g.logo_url;
       if (f.logo && f.logo[0]) row.logo_url = await upload(await shrinkLogo(f.logo[0]), 'brand');
@@ -1111,6 +1111,8 @@ const intRule = (label) => v => v && !/^[\d,]+$/.test(v.trim()) ? `${label} shou
 const moneyRule = (label) => v => v && !/^\$?[\d,]*\.?\d{0,2}$/.test(v.trim()) ? `${label} should be an amount, like 1,250 or 1250.50.` : '';
 
 /* ---------- uploads ---------- */
+// Largest file anyone can add (photos, invoices, PDFs, spreadsheets); the storage bucket allows the same
+const MAX_FILE_MB = 20, MAX_FILE = MAX_FILE_MB * 1024 * 1024;
 async function shrinkImage(file, max = 1800) {
   if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return file;
   const img = await createImageBitmap(file);
@@ -1121,6 +1123,7 @@ async function shrinkImage(file, max = 1800) {
   return new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
 }
 async function upload(file, prefix) {
+  if (file.size > MAX_FILE) throw new Error(`That file is over ${MAX_FILE_MB} MB. Choose a smaller one, or save without it.`);
   const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
   const path = `${GID()}/${prefix}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
   const { error } = await db.storage.from('media').upload(path, file, { contentType: file.type, upsert: false });
@@ -1770,7 +1773,7 @@ function openRecordForm(r, vehicleId, scan) {
       ${field('confidence', 'Where the figures come from', 'select', r.confidence, { required: true, options: Object.entries(CONFIDENCE) })}
       ${media(r.invoice_url) ? `<p style="margin:0 0 8px"><a href="${esc(media(r.invoice_url))}" target="_blank" rel="noopener">Current invoice</a></p>` : ''}
       ${scan ? `<p class="hint" style="margin:0 0 8px">The scanned invoice (${esc(scan.file.name)}) will be attached.</p>` : ''}
-      ${field('invoice', r.invoice_url || scan ? 'Replace invoice' : 'Invoice', 'file', '', { accept: 'image/*,application/pdf', help: 'Photo or PDF.' })}
+      ${field('invoice', r.invoice_url || scan ? 'Replace invoice' : 'Invoice', 'file', '', { accept: 'image/*,application/pdf', help: `Photo or PDF, up to ${MAX_FILE_MB} MB.` })}
       ${scan ? `<label class="check" id="scan-log-wrap"${r.mileage != null ? '' : ' hidden'}><input type="checkbox" name="log_reading" checked> Also log the mileage as a reading</label>
       <label class="check" id="scan-task-wrap"${scanTask ? '' : ' hidden'}><input type="checkbox" name="close_task" checked> <span id="scan-task-label">Check off the To-Do${scanTask ? ': ' + esc(scanTask.title) : ''}</span></label>` : ''}
       ${field('notes', 'Notes', 'textarea', r.notes)}
@@ -1840,7 +1843,7 @@ function openScan(vehicleId) {
     $('#scan-err').innerHTML = '';
     const isPdf = file.type === 'application/pdf';
     if (!isPdf && !/^image\//.test(file.type)) { $('#scan-err').innerHTML = '<div class="form-err">Choose a photo or a PDF.</div>'; return; }
-    if (isPdf && file.size > 5e6) { $('#scan-err').innerHTML = '<div class="form-err">That PDF is over 5 MB. Export a smaller one or take a photo instead.</div>'; return; }
+    if (file.size > MAX_FILE) { $('#scan-err').innerHTML = `<div class="form-err">That file is over ${MAX_FILE_MB} MB. ${isPdf ? 'Export a smaller PDF or take a photo instead.' : 'Choose a smaller photo.'}</div>`; return; }
     $('#scan-pick').hidden = true; $('#scan-busy').hidden = false;
     try {
       const send = isPdf ? file : await shrinkImage(file, 2000);
@@ -2065,7 +2068,7 @@ function openImport(kind, opts = {}) {
     const file = e.target.files[0]; if (!file) return;
     const single = scopeNow() === 'single', target = single && $('#im-target').value ? vById($('#im-target').value) : null;
     $('#im-err').innerHTML = '';
-    if (file.size > 15e6) { $('#im-err').innerHTML = '<div class="form-err" style="margin-top:16px">That file is over 15 MB. Remove photos or unused tabs and try again.</div>'; return; }
+    if (file.size > MAX_FILE) { $('#im-err').innerHTML = `<div class="form-err" style="margin-top:16px">That file is over ${MAX_FILE_MB} MB. Remove photos or unused tabs and try again.</div>`; return; }
     $('#im-pick').hidden = true; $('#im-busy').hidden = false; $('#im-type').disabled = true;
     try {
       await loadXlsx();
@@ -2800,7 +2803,7 @@ function openCompleteForm(v) {
       <div class="two">${field('amount', 'Cost', 'text', '', { inputmode: 'decimal' })}${field('currency', 'Currency', 'select', v.currency || 'USD', { required: true, options: Object.entries(CURRENCIES) })}</div>
       ${field('shop', 'Shop or who did it', 'text', '', { ph: 'Dealer, independent shop, DIY…' })}
       ${field('items', 'What was done', 'textarea', task?.needs || '', { help: 'One item per line. Edit to match what was actually done.' })}
-      ${field('invoice', 'Invoice', 'file', '', { accept: 'image/*,application/pdf', help: 'Photo or PDF.' })}
+      ${field('invoice', 'Invoice', 'file', '', { accept: 'image/*,application/pdf', help: `Photo or PDF, up to ${MAX_FILE_MB} MB.` })}
       ${field('notes', 'Notes', 'textarea', '')}
     </form>`,
     `<button class="btn" type="button" id="cancel">Cancel</button><button class="btn primary" type="button" data-submit>Complete and record</button>`);

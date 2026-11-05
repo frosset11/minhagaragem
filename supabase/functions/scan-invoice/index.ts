@@ -34,7 +34,9 @@ Deno.serve(async (req) => {
     if ('fail' in g) return g.fail;
     const media = String(body.media_type || '');
     if (!body.data || !/^(image\/(jpeg|png|webp|gif)|application\/pdf)$/.test(media)) return json({ error: 'bad_file', message: 'Send a JPG, PNG or PDF of the invoice.' }, 400);
-    if (body.data.length > 7_000_000) return json({ error: 'too_big', message: 'That file is too large. Use a photo or a PDF under 5 MB.' }, 400);
+    // base64 is 4/3 of the file: PDFs up to 20 MB; photos are shrunk by the app, and the AI takes images up to 5 MB
+    if (media === 'application/pdf' ? body.data.length > 28_000_000 : body.data.length > 7_000_000)
+      return json({ error: 'too_big', message: media === 'application/pdf' ? 'That PDF is over 20 MB. Export a smaller one or take a photo instead.' : 'That photo is too large to read. Take it again or choose a JPG.' }, 400);
 
     const [{ data: vehicles }, { data: garage }] = await Promise.all([
       g.sb.from('vehicles').select('id,kind,year,make,model,trim_level,colour,plate,vin,odometer,odometer_unit,currency').eq('garage_id', body.garage_id).neq('status', 'sold'),
