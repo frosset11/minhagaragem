@@ -4,9 +4,9 @@ import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 export const MODEL = 'claude-sonnet-5-5';
 // Monthly AI allowance per garage, by plan
 export const LIMITS: Record<string, Record<string, number>> = {
-  free: { scan: 20, import: 3 },
-  pro: { scan: 300, import: 30 },
-  concierge: { scan: 1000, import: 100 }
+  free: { scan: 20, import: 3, illustrate: 5 },
+  pro: { scan: 300, import: 30, illustrate: 50 },
+  concierge: { scan: 1000, import: 100, illustrate: 200 }
 };
 export const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
 export const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
@@ -23,7 +23,9 @@ export const findKey = (): string | null => {
 };
 
 // Who's calling, can they write to this garage, and is there allowance left this month?
-export async function gate(req: Request, garageId: unknown, kind: 'scan' | 'import') {
+export type Kind = 'scan' | 'import' | 'illustrate';
+const KIND_WORDS: Record<Kind, string> = { scan: 'invoice scans', import: 'spreadsheet imports', illustrate: 'illustrations' };
+export async function gate(req: Request, garageId: unknown, kind: Kind, needsKey = true) {
   const auth = req.headers.get('Authorization') ?? '';
   const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: auth } } });
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
@@ -36,9 +38,9 @@ export async function gate(req: Request, garageId: unknown, kind: 'scan' | 'impo
   const limit = (LIMITS[plan] || LIMITS.free)[kind];
   const since = new Date(); since.setUTCDate(1); since.setUTCHours(0, 0, 0, 0);
   const { count } = await admin.from('usage_events').select('id', { count: 'exact', head: true }).eq('garage_id', garageId).eq('kind', kind).gte('created_at', since.toISOString());
-  if ((count ?? 0) >= limit) return { fail: json({ error: 'limit', message: `This garage has used its ${limit} ${kind === 'scan' ? 'invoice scans' : 'spreadsheet imports'} for this month. The allowance resets on the 1st.` }, 429) };
-  const key = findKey();
-  if (!key) return { fail: json({ error: 'missing_key', message: 'The AI reader isn\'t set up yet. Try again later.' }, 503) };
+  if ((count ?? 0) >= limit) return { fail: json({ error: 'limit', message: `This garage has used its ${limit} ${KIND_WORDS[kind]} for this month. The allowance resets on the 1st.` }, 429) };
+  const key = needsKey ? findKey() : '';
+  if (needsKey && !key) return { fail: json({ error: 'missing_key', message: 'The AI reader isn\'t set up yet. Try again later.' }, 503) };
   const record = (usage: { input_tokens?: number; output_tokens?: number } | undefined) =>
     admin.from('usage_events').insert({ garage_id: garageId, user_id: u.user.id, kind, tokens_in: usage?.input_tokens ?? null, tokens_out: usage?.output_tokens ?? null });
   return { sb, key, record };

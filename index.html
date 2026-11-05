@@ -109,6 +109,8 @@ h2{font-size:18px;letter-spacing:-.015em;font-weight:600;margin:0 0 14px}
 .ph img{width:100%;height:100%;object-fit:cover;display:block}
 .ph .mk{position:absolute;inset:0;display:grid;place-items:center;color:var(--line2);font-weight:700;font-size:56px;letter-spacing:-.05em;user-select:none}
 .ph .st{position:absolute;top:12px;left:12px}
+.ph img.illus{object-fit:contain;background:#e5e5e5}
+.ph .ill{position:absolute;left:12px;bottom:12px}
 .card .body{padding:16px 18px 18px}
 .card .yr{font-family:var(--mono);font-size:12px;color:var(--fg3)}
 .card .nm{font-size:19px;font-weight:600;letter-spacing:-.02em;line-height:1.25;margin:2px 0 0}
@@ -985,11 +987,42 @@ async function upload(file, prefix) {
   return db.storage.from('media').getPublicUrl(path).data.publicUrl;
 }
 
+/* ---------- illustrations: a vehicle's photo redrawn as a vector-style illustration ---------- */
+// Runs after a photo is uploaded (or from "Make illustration"). The illustration replaces the photo.
+const ILLUS = new Set(); // vehicle ids being drawn right now
+const isIllus = v => /\/illus\//.test(v?.photo_url || '');
+async function illustrate(v) {
+  if (!v || ILLUS.has(v.id) || !v.photo_url) return;
+  ILLUS.add(v.id); render();
+  toast(`Drawing an illustration of ${vshort(v)}. This takes about a minute.`);
+  try {
+    const { data, error } = await db.functions.invoke('illustrate', { body: { garage_id: GID(), vehicle_id: v.id } });
+    let res = data; if (error) { try { res = await error.context.json(); } catch (x) { res = { message: 'The illustrator couldn\'t be reached. Check your connection and try again.' }; } }
+    if (!res || !res.ok) throw new Error(res?.message || 'The illustration couldn\'t be made.');
+    // 1024 px from the model, stored at 1000 x 1000
+    const bin = Uint8Array.from(atob(res.image), c => c.charCodeAt(0));
+    const img = await createImageBitmap(new Blob([bin], { type: 'image/png' }));
+    const c = document.createElement('canvas'); c.width = c.height = 1000;
+    const ctx = c.getContext('2d'); ctx.imageSmoothingQuality = 'high'; ctx.drawImage(img, 0, 0, 1000, 1000);
+    const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.92));
+    const cur = vById(v.id) || v, old = mediaPath(cur.photo_url);
+    const url = await upload(new File([blob], 'illustration.jpg', { type: 'image/jpeg' }), `vehicles/${v.id}/illus`);
+    const { data: row, error: e2 } = await db.from('vehicles').update({ photo_url: url }).eq('id', v.id).select().single();
+    if (e2) throw new Error('The illustration was made but couldn\'t be saved: ' + e2.message);
+    if (old && old !== mediaPath(url)) db.storage.from('media').remove([old]).catch(() => {}); // the original photo is replaced
+    S.vehicles = S.vehicles.map(x => x.id === v.id ? row : x);
+    await signMedia();
+    toast(`Illustration ready for ${vshort(row)}`);
+  } catch (x) {
+    toast(x.message || 'The illustration couldn\'t be made.', true);
+  } finally { ILLUS.delete(v.id); render(); }
+}
+
 /* ---------- views ---------- */
 function photo(v, eager) {
   const mk = esc(((v.make || '?')[0] + ((v.model || '')[0] || '')).toUpperCase());
   const src = media(v.photo_url);
-  return `<div class="ph">${src ? `<img src="${esc(src)}" alt="${esc(vname(v))}" ${eager ? '' : 'loading="lazy"'}>` : `<div class="mk" aria-hidden="true">${mk}</div>`}${v.status && v.status !== 'owned' ? `<span class="st chip light">${esc(STATUS[v.status])}</span>` : ''}</div>`;
+  return `<div class="ph">${src ? `<img src="${esc(src)}" alt="${esc(vname(v))}" ${eager ? '' : 'loading="lazy"'}${isIllus(v) ? ' class="illus"' : ''}>` : `<div class="mk" aria-hidden="true">${mk}</div>`}${v.status && v.status !== 'owned' ? `<span class="st chip light">${esc(STATUS[v.status])}</span>` : ''}${ILLUS.has(v.id) ? '<span class="ill chip light" role="status">Drawing the illustration…</span>' : ''}</div>`;
 }
 function viewList(kind) {
   const list = S.vehicles.filter(v => v.kind === kind);
@@ -1048,7 +1081,7 @@ function viewVehicle(id) {
           <div><dt>Owned</dt><dd>${owned != null ? (owned >= 365 ? (owned / 365).toFixed(1) + ' <small>yrs</small>' : owned + ' <small>days</small>') : '—'}</dd></div>
           <div><dt>Records</dt><dd>${recs.length}</dd></div>
         </dl>
-        <div class="actions">${S.editor ? `<button class="btn primary" type="button" data-scan="${v.id}">Scan invoice</button><button class="btn" type="button" data-add-r="${v.id}">${ICON.plus}Add service</button><button class="btn" type="button" data-log="${v.id}">${ICON.plus}Log reading</button><button class="btn" type="button" data-edit-v="${v.id}">Edit details</button>` : (S.user ? '' : lockNote())}</div>
+        <div class="actions">${S.editor ? `<button class="btn primary" type="button" data-scan="${v.id}">Scan invoice</button><button class="btn" type="button" data-add-r="${v.id}">${ICON.plus}Add service</button><button class="btn" type="button" data-log="${v.id}">${ICON.plus}Log reading</button><button class="btn" type="button" data-edit-v="${v.id}">Edit details</button>${v.photo_url && !isIllus(v) ? `<button class="btn" type="button" data-illus="${v.id}"${ILLUS.has(v.id) ? ' disabled' : ''}>${ILLUS.has(v.id) ? 'Drawing…' : 'Make illustration'}</button>` : ''}` : (S.user ? '' : lockNote())}</div>
       </div>
     </div>
     ${vehicleCharts(v)}
@@ -1152,7 +1185,7 @@ function openVehicleForm(v, kind) {
     <form id="v-form" novalidate>
       <fieldset><legend>Photo</legend>
         ${media(v.photo_url) ? `<img class="thumb" src="${esc(media(v.photo_url))}" alt="">` : ''}
-        ${field('photo', v.photo_url ? 'Replace photo' : 'Photo', 'file', '', { accept: 'image/*', help: 'A side or 3/4 view works best on the card.' })}
+        ${field('photo', v.photo_url ? 'Replace photo' : 'Photo', 'file', '', { accept: 'image/jpeg,image/png,image/webp', help: 'A front three-quarter view works best. It\'s redrawn as an illustration and replaces the photo.' })}
       </fieldset>
       <fieldset><legend>Basics</legend>
         ${field('kind', 'Type', 'select', v.kind, { required: true, options: bikesOn() || v.kind === 'bike' ? [['car', 'Car'], ['bike', 'Motorcycle']] : [['car', 'Car']] })}
@@ -1207,7 +1240,7 @@ function openVehicleForm(v, kind) {
     purchase_price: moneyRule('Purchase price'),
     sold_price: moneyRule('Sale price'),
     estimated_value: moneyRule('Estimated value'),
-    photo: f => f && f[0] && !/^image\//.test(f[0].type) ? 'Choose an image file (JPG, PNG or HEIC).' : ''
+    photo: f => f && f[0] && !/^image\/(jpeg|png|webp)$/.test(f[0].type) ? 'Choose a JPG, PNG or WebP photo. On iPhone, pick it from Photos and it\'s converted automatically.' : ''
   }, async f => {
     const id = v.id || crypto.randomUUID();
     const row = {
@@ -1227,6 +1260,7 @@ function openVehicleForm(v, kind) {
     await signMedia();
     closePanel(); toast(isNew ? `Added ${vshort(res.data)}` : 'Saved');
     if (isNew) location.hash = '#/vehicle/' + id; render();
+    if (row.photo_url) setTimeout(() => illustrate(res.data), 1200); // new photo: redraw it as an illustration
   });
 }
 
@@ -2335,6 +2369,7 @@ function wireView() {
   const V = $('#view');
   V.querySelectorAll('[data-add-v]').forEach(b => b.onclick = () => openAddVehicle(b.dataset.addV));
   V.querySelectorAll('[data-type-v]').forEach(b => b.onclick = () => openVehicleForm(null, b.dataset.typeV));
+  V.querySelectorAll('[data-illus]').forEach(b => b.onclick = () => illustrate(vById(b.dataset.illus)));
   V.querySelectorAll('[data-edit-v]').forEach(b => b.onclick = () => openVehicleForm(vById(b.dataset.editV)));
   V.querySelectorAll('[data-add-r]').forEach(b => b.onclick = () => openRecordForm(null, b.dataset.addR));
   V.querySelectorAll('[data-rec]').forEach(b => b.onclick = () => openRecord(S.records.find(r => r.id === b.dataset.rec)));
