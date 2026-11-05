@@ -53,7 +53,7 @@ a{color:inherit}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none;flex-shrink:0}
 .brand img{height:22px;width:auto;display:block}
 .brand img.logo{width:auto;max-width:150px;object-fit:contain;border-radius:4px}
-.brand img.logo ~ .brand-g::before{display:none}
+.brandbar{display:flex;align-items:center;gap:10px;flex-shrink:0;min-width:0}
 .sw{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .sw-g{display:grid;grid-template-columns:44px 1fr;gap:10px 8px;align-items:center;margin-bottom:6px}.sw-g .hint{font-size:12.5px}
 .sw button{width:34px;height:34px;border-radius:50%;border:1px solid var(--line2);cursor:pointer;padding:0}
@@ -62,8 +62,26 @@ a{color:inherit}
 .sw input[type=color]::-webkit-color-swatch-wrapper{padding:0}.sw input[type=color]::-webkit-color-swatch{border:0;border-radius:50%}
 .logo-pv{height:48px;max-width:220px;object-fit:contain;display:block;margin-bottom:10px}
 .brand b{font-family:var(--brand);font-weight:600;font-size:15px;letter-spacing:.22em}
-.brand-g{color:var(--fg3);font-size:14px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.brand-g:not(:empty)::before{content:"/";margin-right:10px;color:var(--line2)}
+.gsw{position:relative;display:flex;align-items:center;min-width:0}
+.gsw::before{content:"/";margin-right:4px;color:var(--line2);font-size:14px}
+.brandbar.has-logo .gsw::before{display:none}
+.brand-g{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:220px;height:32px;padding:0 8px;border-radius:8px;color:var(--fg3);font-size:14px;cursor:pointer;transition:background var(--t-fast),color var(--t-fast)}
+.brand-g span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.brand-g svg{flex-shrink:0;opacity:.7;transition:transform var(--t-fast)}
+.brand-g:hover,.brand-g[aria-expanded="true"]{background:var(--s2);color:var(--fg)}
+.brand-g[aria-expanded="true"] svg{transform:rotate(180deg)}
+.brand-g:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+.gmenu{position:absolute;top:calc(100% + 8px);left:0;z-index:40;min-width:260px;max-width:min(340px,calc(100vw - 32px));background:var(--s1);border:1px solid var(--line2);border-radius:var(--r);box-shadow:0 12px 32px rgba(0,0,0,.35);padding:6px}
+.gmenu .gm-h{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg3);padding:8px 10px 6px}
+.gmenu button{all:unset;box-sizing:border-box;display:grid;grid-template-columns:22px 1fr auto;align-items:center;gap:10px;width:100%;padding:9px 10px;border-radius:8px;cursor:pointer;font-size:14px;color:var(--fg)}
+.gmenu button:hover,.gmenu button:focus-visible{background:var(--s2);outline:none}
+.gmenu .gm-sw{width:18px;height:18px;border-radius:50%;border:1px solid var(--line2)}
+.gmenu .gm-n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gmenu .gm-r{font-size:12px;color:var(--fg3);display:flex;align-items:center;gap:6px}
+.gmenu .gm-r svg{color:var(--accent)}
+.gmenu hr{border:0;border-top:1px solid var(--line);margin:6px 4px}
+.gmenu .gm-a{grid-template-columns:22px 1fr;color:var(--fg2)}
+.gmenu .gm-a svg{justify-self:center;color:var(--fg3)}
 .start{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:8px}
 .start button{all:unset;box-sizing:border-box;cursor:pointer;border:1px solid var(--line);border-radius:var(--r);background:var(--s1);padding:20px;display:flex;flex-direction:column;gap:6px;transition:border-color var(--t-fast),background var(--t-fast)}
 .start button:hover{border-color:var(--line2);background:var(--s2)}
@@ -415,8 +433,13 @@ body.locked.panel-ok .scrim{display:block}
   .hb{grid-template-columns:minmax(0,104px) minmax(0,1fr) auto;gap:8px}
   .cc{padding:16px}
   .top-in{height:auto;flex-wrap:wrap;padding:12px 16px 0;gap:10px}
-  .brand{flex:1;min-width:0}
-  .brand-g{max-width:40vw}
+  .brandbar{flex:1;min-width:0;gap:6px}
+  .brand{flex-shrink:0}
+  .gsw{flex:1 1 auto;min-width:0}
+  .brand-g{max-width:100%;padding:0 6px}
+  .gmenu{position:fixed;left:16px;right:16px;min-width:0;max-width:none}
+  .brandbar:has(.gsw:not([hidden])) #brand-name{display:none}
+  .gsw::before{display:none}
   .live span{display:none}
   .tabs{order:3;flex-basis:100%;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:4px 16px 10px;scroll-snap-type:x proximity}
   .tabs::-webkit-scrollbar{display:none}
@@ -460,7 +483,13 @@ body.locked.panel-ok .scrim{display:block}
 <body class="locked">
 <header class="top">
   <div class="top-in">
-    <a class="brand" href="#/dashboard" aria-label="AUTODEX — Dashboard"><img id="brand-logo" src="/icons/mark.svg?v=2" alt=""><b id="brand-name">AUTODEX</b><span class="brand-g" id="brand-g"></span></a>
+    <div class="brandbar" id="brandbar">
+      <a class="brand" href="#/dashboard" aria-label="AUTODEX — Dashboard"><img id="brand-logo" src="/icons/mark.svg?v=2" alt=""><b id="brand-name">AUTODEX</b></a>
+      <div class="gsw" id="gsw" hidden>
+        <button class="brand-g" id="brand-g" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="gmenu" title="Switch garage"><span id="brand-gn"></span><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <div class="gmenu" id="gmenu" role="menu" aria-label="Your garages" hidden></div>
+      </div>
+    </div>
     <nav class="tabs" aria-label="Sections">
       <a class="tab" href="#/dashboard" data-r="dashboard">Dashboard</a>
       <a class="tab" href="#/cars" data-r="cars">Cars<span class="n" id="n-cars"></span></a>
@@ -619,6 +648,7 @@ async function applyLook(g) {
   const img = $('#brand-logo');
   img.src = src || '/icons/mark.svg?v=2'; img.classList.toggle('logo', !!src); img.alt = src ? (g?.name || '') + ' logo' : '';
   $('#brand-name').hidden = !!src;
+  $('#brandbar').classList.toggle('has-logo', !!src);
 }
 async function shrinkLogo(file, max = 512) {
   const img = await createImageBitmap(file);
@@ -789,15 +819,47 @@ async function loadGarages() {
 function pickGarage(g) {
   S.garage = g; S.role = g?.role || null; S.editor = S.role === 'owner' || S.role === 'editor';
   if (g) { try { localStorage.setItem('mg-garage', g.id); } catch (e) {} if (g.distance_unit) distUnit = g.distance_unit; }
-  $('#brand-g').textContent = g ? g.name : '';
+  $('#brand-gn').textContent = g ? g.name : ''; $('#gsw').hidden = !g; closeGMenu();
   applyLook(g);
 }
 async function switchGarage(id) {
   const g = S.garages.find(x => x.id === id); if (!g || g.id === GID()) return;
   closePanel(); pickGarage(g);
-  S.vehicles = []; S.records = []; S.readings = []; S.comps = []; S.tasks = []; window.live.state = 'loading';
+  S.vehicles = []; S.records = []; S.readings = []; S.comps = []; S.tasks = []; S.billing = undefined; S.usage = null; window.live.state = 'loading';
   location.hash = '#/dashboard'; render(); await load(); toast('Opened ' + g.name);
 }
+/* ---------- garage switcher: the garage name in the header ---------- */
+function openGMenu() {
+  const m = $('#gmenu'), cur = GID();
+  const check = '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2.5 6.5 5 9l4.5-6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const item = g => `<button type="button" role="menuitemradio" aria-checked="${g.id === cur}" data-gm="${g.id}"><span class="gm-sw" style="background:${readable(g.bg_color || DEFAULT_BG)}" aria-hidden="true"></span><span class="gm-n">${esc(g.name)}</span><span class="gm-r">${ROLES[g.role] || ''}${g.id === cur ? check : ''}</span></button>`;
+  m.innerHTML = `<div class="gm-h">Your garages</div>${S.garages.map(item).join('')}<hr>
+    <button type="button" role="menuitem" class="gm-a" data-gm-new><span aria-hidden="true">${ICON.plus}</span><span>Create another garage</span></button>
+    <button type="button" role="menuitem" class="gm-a" data-gm-acct><span aria-hidden="true"></span><span>Manage garages and people</span></button>`;
+  m.hidden = false; $('#brand-g').setAttribute('aria-expanded', 'true');
+  if (getComputedStyle(m).position === 'fixed') m.style.top = Math.round($('#brand-g').getBoundingClientRect().bottom + 8) + 'px'; else m.style.top = '';
+  m.querySelectorAll('[data-gm]').forEach(b => b.onclick = () => { closeGMenu(); if (b.dataset.gm !== GID()) switchGarage(b.dataset.gm); });
+  m.querySelector('[data-gm-acct]').onclick = () => { closeGMenu(); openAccount(); };
+  m.querySelector('[data-gm-new]').onclick = async () => {
+    closeGMenu(); await openAccount();
+    $('#g-new-btn')?.click(); $('#g-new')?.scrollIntoView({ block: 'center' });
+  };
+  (m.querySelector('[aria-checked="true"]') || m.querySelector('button'))?.focus();
+}
+function closeGMenu(focus) {
+  const m = $('#gmenu'); if (!m || m.hidden) return;
+  m.hidden = true; $('#brand-g').setAttribute('aria-expanded', 'false');
+  if (focus) $('#brand-g').focus();
+}
+$('#brand-g').onclick = e => { e.stopPropagation(); $('#gmenu').hidden ? openGMenu() : closeGMenu(); };
+document.addEventListener('click', e => { if (!e.target.closest('#gsw')) closeGMenu(); });
+$('#gmenu').addEventListener('keydown', e => {
+  const items = [...$('#gmenu').querySelectorAll('button')], i = items.indexOf(document.activeElement);
+  if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeGMenu(true); }
+  else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items[(i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length]?.focus(); }
+  else if (e.key === 'Home' || e.key === 'End') { e.preventDefault(); items[e.key === 'Home' ? 0 : items.length - 1].focus(); }
+  else if (e.key === 'Tab') closeGMenu();
+});
 let loginMode = 'in', pendingLoginMsg = null;
 function showLogin(msg) {
   tourLock = false; $('#panel-x').hidden = false;
