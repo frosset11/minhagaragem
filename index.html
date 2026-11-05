@@ -1587,21 +1587,23 @@ function resolveImport(plan, keep, modes) {
   return out;
 }
 function reviewImport(plan, fname, kind) {
+  plan.keep = plan.keep || new Set(plan.vehicles.map(v => v.id)); plan.modes = plan.modes || new Map();
   const count = (list, id) => list.filter(x => x.vehicle_id === id).length;
   const spentOf = id => msum(sumBy(plan.records.filter(r => r.vehicle_id === id)));
   const matched = plan.vehicles.filter(v => plan.match.has(v.id)).length;
   openPanel('Check the import', `
-    <p class="hint" style="margin:0 0 14px">From <b style="color:var(--fg)">${esc(fname)}</b>: ${plural(plan.vehicles.length, 'vehicle')}, ${plural(plan.records.length, 'service record')} and ${plural(plan.readings.length, 'odometer reading')}.${matched ? ` ${matched === plan.vehicles.length ? (matched === 1 ? 'It is' : 'They are all') : matched + (matched === 1 ? ' is' : ' are')} already in this garage, so ${matched === 1 ? 'its' : 'their'} history is added to ${matched === 1 ? 'it' : 'them'} and records already there are skipped.` : ''} Untick anything you don't want; you can edit every detail afterwards.</p>
+    <p class="hint" style="margin:0 0 14px">From <b style="color:var(--fg)">${esc(fname)}</b>: ${plural(plan.vehicles.length, 'vehicle')}, ${plural(plan.records.length, 'service record')} and ${plural(plan.readings.length, 'odometer reading')}.${matched ? ` ${matched === plan.vehicles.length ? (matched === 1 ? 'It is' : 'They are all') : matched + (matched === 1 ? ' is' : ' are')} already in this garage, so ${matched === 1 ? 'its' : 'their'} history is added to ${matched === 1 ? 'it' : 'them'} and records already there are skipped.` : ''} Untick anything you don't want, or open <i>Edit details and records</i> to fix what the spreadsheet got wrong before it's saved.</p>
     ${plan.warnings.length || plan.skipped ? `<div class="banner" style="margin-bottom:16px"><b>Worth a look</b><ul style="margin:6px 0 0;padding-left:18px">${plan.skipped ? `<li>${plural(plan.skipped, 'row')} didn't match a vehicle and will be left out.</li>` : ''}${plan.warnings.slice(0, 8).map(w => `<li>${esc(w)}</li>`).join('')}</ul></div>` : ''}
     <div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 8px"><span class="hint" id="im-sel" aria-live="polite"></span><button class="linkbtn" type="button" id="im-all">Untick all</button></div>
     <div class="rows" id="im-list">${plan.vehicles.map(v => { const ex = plan.match.has(v.id) ? vById(plan.match.get(v.id)) : null; return `<div class="row" style="grid-template-columns:auto 1fr auto;align-items:start">
-      <input type="checkbox" data-iv="${v.id}" id="iv-${v.id}" checked style="margin-top:3px" aria-label="Import ${esc(vname(v))}">
+      <input type="checkbox" data-iv="${v.id}" id="iv-${v.id}"${plan.keep.has(v.id) ? ' checked' : ''} style="margin-top:3px" aria-label="Import ${esc(vname(v))}">
       <span class="tm"><label for="iv-${v.id}" class="t" style="display:block;cursor:pointer">${esc(vname(ex || v))}</label><span class="m" style="display:block">${ex ? 'In your garage · ' : ''}${v.kind === 'bike' ? 'Bike' : 'Car'}${v.plate ? ' · ' + esc(v.plate) : ''}${v.odometer != null ? ' · ' + num(v.odometer) + ' ' + v.odometer_unit : ''}${v.purchase_price ? ' · paid ' + money(v.purchase_price, 0, v.currency) : ''}</span>
-        ${ex ? `<label class="vh" for="im-m-${v.id}">What to do with ${esc(vname(v))}</label><span class="fld" style="display:block;margin-top:8px"><select id="im-m-${v.id}" data-im-mode="${v.id}"><option value="merge">Same vehicle: add its history</option><option value="new">Different vehicle: add it as new</option></select></span>` : ''}</span>
+        ${ex ? `<label class="vh" for="im-m-${v.id}">What to do with ${esc(vname(v))}</label><span class="fld" style="display:block;margin-top:8px"><select id="im-m-${v.id}" data-im-mode="${v.id}"><option value="merge">Same vehicle: add its history</option><option value="new"${plan.modes.get(v.id) === 'new' ? ' selected' : ''}>Different vehicle: add it as new</option></select></span>` : ''}
+        <span style="display:flex;gap:12px;align-items:center;margin-top:6px"><button class="linkbtn" type="button" data-im-edit="${v.id}" style="padding:4px 0">Edit details and records</button>${toCheck(plan, v.id) ? `<span class="hint" style="color:var(--warn)">${toCheck(plan, v.id)} to check</span>` : ''}</span></span>
       <span class="hint" style="text-align:right" data-im-n="${v.id}">${plural(count(plan.records, v.id), 'record')}<br>${plural(count(plan.readings, v.id), 'reading')}${count(plan.records, v.id) ? '<br>' + spentOf(v.id) : ''}</span></div>`; }).join('')}</div>`,
     `<button class="btn" type="button" id="im-back">Choose another file</button><span class="sp"></span><button class="btn primary" type="button" id="im-go">Import</button>`);
-  const sel = () => new Set([...document.querySelectorAll('[data-iv]:checked')].map(x => x.dataset.iv));
-  const modes = () => new Map([...document.querySelectorAll('[data-im-mode]')].map(x => [x.dataset.imMode, x.value]));
+  const sel = () => (plan.keep = new Set([...document.querySelectorAll('[data-iv]:checked')].map(x => x.dataset.iv)));
+  const modes = () => (plan.modes = new Map([...document.querySelectorAll('[data-im-mode]')].map(x => [x.dataset.imMode, x.value])));
   const room = Math.max(0, vLimit() - activeVehicles());
   let res;
   const upd = () => {
@@ -1620,6 +1622,7 @@ function reviewImport(plan, fname, kind) {
   document.querySelectorAll('[data-iv],[data-im-mode]').forEach(x => x.onchange = upd); upd();
   $('#im-all').onclick = () => { const on = !sel().size; document.querySelectorAll('[data-iv]').forEach(x => x.checked = on); upd(); };
   $('#im-back').onclick = () => openImport(kind);
+  document.querySelectorAll('[data-im-edit]').forEach(x => x.onclick = () => { sel(); modes(); editImport(plan, x.dataset.imEdit, fname, kind); });
   $('#im-go').onclick = async () => {
     const b = $('#im-go'); b.disabled = true; $('#im-back').disabled = true;
     document.querySelectorAll('[data-iv],[data-im-mode]').forEach(x => x.disabled = true);
@@ -1648,6 +1651,105 @@ function reviewImport(plan, fname, kind) {
       $('#panel-b').scrollTop = 0;
     }
   };
+}
+
+/* ---------- edit an imported vehicle before saving ---------- */
+// Rows worth a second look: no date, no amount or no description
+const needsCheck = r => !r.date || r.amount == null || !r.title || r.title === 'Service';
+const toCheck = (plan, vid) => plan.records.filter(r => r.vehicle_id === vid && needsCheck(r)).length;
+function editImport(plan, vid, fname, kind) {
+  const v = plan.vehicles.find(x => x.id === vid); if (!v) return reviewImport(plan, fname, kind);
+  const merging = plan.match.has(vid) && plan.modes.get(vid) !== 'new' ? vById(plan.match.get(vid)) : null;
+  let onlyCheck = false;
+  const inp = (o, k, label, val, t = 'text', extra = '') => `<div class="fld" data-f="${o}-${k}"><label for="ie-${o}-${k}">${esc(label)}</label><input id="ie-${o}-${k}" data-o="${o}" data-k="${k}" data-t="${t}" type="${t === 'date' ? 'date' : 'text'}"${t === 'num' || t === 'int' ? ' inputmode="decimal"' : ''} value="${esc(val ?? '')}"${extra}><span class="err" aria-live="polite"></span></div>`;
+  const sel = (o, k, label, val, opts) => `<div class="fld"><label for="ie-${o}-${k}">${esc(label)}</label><select id="ie-${o}-${k}" data-o="${o}" data-k="${k}" data-t="text">${opts.map(([a, b]) => `<option value="${esc(a)}"${String(a) === String(val ?? '') ? ' selected' : ''}>${esc(b)}</option>`).join('')}</select><span class="err" aria-live="polite"></span></div>`;
+  const curOpts = [['BRL', 'R$ (BRL)'], ['USD', 'US$ (USD)']];
+  const sumLine = r => `<span>${r.date ? fdate(r.date) : '<span style="color:var(--warn)">No date</span>'}</span> · <span>${esc(r.title || 'No description')}</span> · <span>${r.amount != null ? money(r.amount, 0, r.currency) : '<span style="color:var(--warn)">No amount</span>'}</span>`;
+  const recHtml = r => `<details class="ie-rec" data-rec-id="${r.id}"${needsCheck(r) ? ' data-check' : ''} style="border-bottom:1px solid var(--line);padding:10px 0">
+      <summary style="cursor:pointer;list-style-position:outside;display:flex;gap:8px;align-items:baseline;font-size:14px"><span class="ie-sum" style="flex:1;min-width:0">${sumLine(r)}</span>${needsCheck(r) ? '<span class="hint ie-flag" style="color:var(--warn)">check</span>' : ''}</summary>
+      <div style="padding:12px 0 4px">
+        <div class="two">${inp('r:' + r.id, 'date', 'Date', r.date, 'date')}${inp('r:' + r.id, 'mileage', 'Odometer', r.mileage, 'int')}</div>
+        ${inp('r:' + r.id, 'title', 'Description', r.title)}
+        <div class="two">${inp('r:' + r.id, 'amount', 'Amount', r.amount, 'num')}${sel('r:' + r.id, 'currency', 'Currency', r.currency, curOpts)}</div>
+        <div class="two">${sel('r:' + r.id, 'category', 'Category', r.category, Object.entries(CATEGORIES))}${inp('r:' + r.id, 'shop', 'Shop', r.shop)}</div>
+        ${inp('r:' + r.id, 'items', 'Parts and items', r.items)}
+        <button class="linkbtn" type="button" data-del-rec="${r.id}" style="color:var(--danger);padding:4px 0">Remove this record</button>
+      </div></details>`;
+  const readHtml = d => `<div class="two" data-read-id="${d.id}" style="grid-template-columns:1fr 1fr auto;align-items:end">${inp('d:' + d.id, 'date', 'Date', d.date, 'date')}${inp('d:' + d.id, v.meter === 'hours' ? 'hours' : 'odometer', v.meter === 'hours' ? 'Hours' : `Odometer (${d.unit || v.odometer_unit})`, v.meter === 'hours' ? d.hours : d.odometer, v.meter === 'hours' ? 'num' : 'int')}<button class="linkbtn" type="button" data-del-read="${d.id}" aria-label="Remove this reading" title="Remove" style="margin-bottom:22px;color:var(--danger)">Remove</button></div>`;
+  const recs = () => plan.records.filter(r => r.vehicle_id === vid), reads = () => plan.readings.filter(r => r.vehicle_id === vid);
+  const draw = () => {
+    const rs = recs(), ds = reads(), nCheck = rs.filter(needsCheck).length;
+    openPanel(`Edit ${vname(v)}`, `
+    <p class="hint" style="margin:0 0 16px">Fix anything the spreadsheet got wrong. Nothing is saved until you import${merging ? `. <b style="color:var(--fg)">${esc(vname(merging))}</b> is already in your garage, so these details only fill in what's blank there` : ''}.</p>
+    <form id="ie-form" novalidate>
+    <fieldset><legend>Vehicle</legend>
+      <div class="two">${sel('v', 'kind', 'Type', v.kind, bikesOn() || v.kind === 'bike' ? [['car', 'Car'], ['bike', 'Motorcycle']] : [['car', 'Car']])}${inp('v', 'year', 'Year', v.year, 'int')}</div>
+      <div class="two">${inp('v', 'make', 'Make', v.make)}${inp('v', 'model', 'Model', v.model)}</div>
+      <div class="two">${inp('v', 'trim_level', 'Trim or version', v.trim_level)}${inp('v', 'colour', 'Colour', v.colour)}</div>
+      <div class="two">${inp('v', 'plate', 'Plate', v.plate)}${inp('v', 'vin', 'VIN or chassis', v.vin)}</div>
+      <div class="two">${inp('v', 'purchase_date', 'Bought on', v.purchase_date, 'date')}${inp('v', 'purchase_price', 'Price paid', v.purchase_price, 'num')}</div>
+      <div class="two">${sel('v', 'currency', 'Currency', v.currency, curOpts)}${sel('v', 'status', 'Status', v.status, Object.entries(STATUS))}</div>
+      <div class="two">${inp('v', 'odometer', 'Current odometer', v.odometer, 'int')}${sel('v', 'odometer_unit', 'Unit', v.odometer_unit, [['km', 'km'], ['mi', 'mi']])}</div>
+    </fieldset>
+    <fieldset><legend>Service records (${rs.length})</legend>
+      ${rs.length ? `<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 4px"><span class="hint">${nCheck ? `${plural(nCheck, 'record')} missing a date, amount or description` : 'Open a record to change it.'}</span>${nCheck ? `<button class="linkbtn" type="button" id="ie-only" aria-pressed="${onlyCheck}">${onlyCheck ? 'Show all' : 'Show only those'}</button>` : ''}</div>
+      <div id="ie-recs">${rs.filter(r => !onlyCheck || needsCheck(r)).map(recHtml).join('')}</div>` : '<p class="hint" style="margin:0">No service records in the file for this vehicle.</p>'}
+      <button class="btn" type="button" id="ie-add-rec" style="margin-top:12px">${ICON.plus}Add a record</button>
+    </fieldset>
+    ${ds.length ? `<fieldset><legend>Odometer readings (${ds.length})</legend>${ds.map(readHtml).join('')}</fieldset>` : ''}
+    </form>`, `<span class="hint" id="ie-msg" role="alert" style="color:var(--danger)"></span><span class="sp"></span><button class="btn primary" type="button" id="ie-done">Back to the import</button>`);
+    wire();
+  };
+  const objOf = o => o === 'v' ? v : o.startsWith('r:') ? plan.records.find(r => r.id === o.slice(2)) : plan.readings.find(r => r.id === o.slice(2));
+  const parse = (t, val) => {
+    val = val.trim(); if (!val) return { ok: true, v: null };
+    if (t === 'num' || t === 'int') { const n = parseNum(val, /,\d{1,2}$/.test(val) || /^\d{1,3}(\.\d{3})+(,\d+)?$/.test(val)); if (n == null || n < 0) return { ok: false, msg: 'Enter a number, like 1250 or 1250.50.' }; return { ok: true, v: t === 'int' ? Math.round(n) : n }; }
+    return { ok: true, v: val };
+  };
+  const check = el => {
+    const t = el.dataset.t, k = el.dataset.k, r = parse(t, el.value); let msg = r.ok ? '' : r.msg;
+    if (!msg && k === 'year' && r.v != null && (r.v < 1885 || r.v > 2100)) msg = 'Enter a year between 1885 and 2100.';
+    if (!msg && k === 'make' && el.dataset.o === 'v' && !r.v) msg = 'Enter the make, like BMW or Honda.';
+    if (!msg && k === 'title' && !r.v) msg = 'Describe the work, like Oil change.';
+    const box = el.closest('.fld'); box.classList.toggle('bad', !!msg); box.querySelector('.err').textContent = msg; el.setAttribute('aria-invalid', msg ? 'true' : 'false');
+    return { msg, v: r.v };
+  };
+  const wire = () => {
+    const f = $('#ie-form');
+    f.addEventListener('input', e => {
+      const el = e.target; if (!el.dataset.o) return;
+      if (el.tagName === 'SELECT') return; // selects are saved on change
+      if (el.closest('.fld').classList.contains('bad')) check(el);
+      const r = parse(el.dataset.t, el.value); if (!r.ok) return; // half-typed or invalid: keep the last good value, blur shows the error
+      const val = r.v;
+      const o = objOf(el.dataset.o); if (!o) return;
+      o[el.dataset.k] = el.dataset.k === 'make' ? (val || '') : val;
+      if (el.dataset.o.startsWith('r:')) { const d = el.closest('details'); d.querySelector('.ie-sum').innerHTML = sumLine(o); const fl = d.querySelector('.ie-flag'); if (fl) fl.hidden = !needsCheck(o); }
+    });
+    f.addEventListener('change', e => { if (e.target.dataset.o) { const { msg, v: val } = check(e.target); if (!msg) { const o = objOf(e.target.dataset.o); if (o) o[e.target.dataset.k] = val; } } });
+    f.addEventListener('focusout', e => { if (e.target.dataset && e.target.dataset.o && e.target.value) check(e.target); });
+    f.onsubmit = e => e.preventDefault();
+    f.querySelectorAll('[data-del-rec]').forEach(b => b.onclick = () => { plan.records = plan.records.filter(r => r.id !== b.dataset.delRec); const d = b.closest('details'); const next = d.nextElementSibling || d.previousElementSibling; d.remove(); const n = recs().length; f.querySelector('fieldset:nth-of-type(2) legend').textContent = `Service records (${n})`; (next ? next.querySelector('summary') : $('#ie-add-rec')).focus(); toast('Record removed from the import'); });
+    f.querySelectorAll('[data-del-read]').forEach(b => b.onclick = () => { plan.readings = plan.readings.filter(r => r.id !== b.dataset.delRead); const row = b.closest('[data-read-id]'); row.remove(); });
+    const only = $('#ie-only'); if (only) only.onclick = () => { onlyCheck = !onlyCheck; draw(); };
+    $('#ie-add-rec').onclick = () => {
+      const r = { id: crypto.randomUUID(), vehicle_id: vid, date: null, mileage: null, hours: null, shop: null, title: '', items: null, category: 'maintenance', amount: null, currency: v.currency, confidence: 'log', notes: null };
+      plan.records.push(r); onlyCheck = false; draw();
+      const d = document.querySelector(`[data-rec-id="${r.id}"]`); d.open = true; d.scrollIntoView({ block: 'center' }); d.querySelector('input').focus();
+    };
+    $('#ie-done').onclick = () => {
+      // re-check every field that's open or invalid; closed records are checked against their stored values
+      const bad = [...f.querySelectorAll('[data-o]')].filter(el => check(el).msg);
+      const blank = recs().filter(r => !r.title);
+      if (bad.length || blank.length) {
+        $('#ie-msg').textContent = blank.length ? `${plural(blank.length, 'record')} need${blank.length === 1 ? 's' : ''} a description.` : 'Fix the highlighted fields first.';
+        const first = bad[0] || document.querySelector(`[data-rec-id="${blank[0].id}"] input[data-k="title"]`);
+        const d = first.closest('details'); if (d) d.open = true; first.focus(); return;
+      }
+      reviewImport(plan, fname, kind);
+    };
+  };
+  draw();
 }
 
 /* ---------- add a vehicle: type it in, or import a spreadsheet ---------- */
