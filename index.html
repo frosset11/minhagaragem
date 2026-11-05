@@ -459,7 +459,26 @@ const sumBy = (rows, amt = r => r.amount, cur = r => r.currency) => rows.reduce(
 const addSums = (...ms) => ms.reduce((o, m) => { for (const k in m) o[k] = (o[k] || 0) + m[k]; return o; }, {});
 const msum = (m, d) => { const ks = ['BRL', 'USD'].filter(k => m[k]); return ks.length ? ks.map(k => money(m[k], d, k)).join(' + ') : '—'; };
 const num = v => v == null || v === '' ? '—' : (+v).toLocaleString('en-US');
-const fdate = d => { if (!d) return '—'; const [y,m,dd] = d.split('-'); return `${m}/${dd}/${y}`; };
+// Dates are stored as yyyy-mm-dd and shown and typed as dd/mm/yyyy
+const dmy = d => { if (!d) return ''; const [y, m, dd] = String(d).slice(0, 10).split('-'); return dd && m && y ? `${dd}/${m}/${y}` : String(d); };
+const fdate = d => d ? dmy(d) : '—';
+// "25/12/2024", "25-12-24", "25.12.2024", "25122024" → "2024-12-25"; '' when empty; null when not a real date
+function isoFromDmy(t) {
+  t = String(t || '').trim(); if (!t) return '';
+  let x = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2}|\d{4})$/.exec(t) || /^(\d{2})(\d{2})(\d{4})$/.exec(t);
+  if (!x) return null;
+  let d = +x[1], m = +x[2], y = +x[3]; if (x[3].length === 2) y += y > 40 ? 1900 : 2000;
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  if (y < 1885 || y > 2100 || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+const DATE_MSG = 'Enter the date as dd/mm/yyyy, like 25/12/2024.';
+const dateInput = (attrs, value) => `<input ${attrs} type="text" data-date inputmode="numeric" autocomplete="off" maxlength="10" placeholder="dd/mm/yyyy" value="${esc(dmy(value))}">`;
+// type the digits and the slashes appear: 25 → 25/, 2512 → 25/12/
+document.addEventListener('input', e => {
+  const el = e.target; if (!el.matches || !el.matches('input[data-date]') || !/^insert/.test(e.inputType || '')) return;
+  const v = el.value; if (/^\d{2}$/.test(v) || /^\d{1,2}\/\d{2}$/.test(v)) el.value = v + '/';
+}, true);
 const vname = v => v ? [v.year, v.make, v.model, v.colour && S.vehicles.filter(x => x.make === v.make && x.model === v.model).length > 1 ? '(' + v.colour + ')' : ''].filter(Boolean).join(' ') : 'Unknown vehicle';
 const vshort = v => v ? [v.make, v.model].filter(Boolean).join(' ') : '—';
 const readingStr = (odo, unit, hrs) => [odo != null ? num(odo) + ' ' + unit : '', hrs != null ? (+hrs).toLocaleString('en-US') + ' h' : ''].filter(Boolean).join(' · ') || '—';
@@ -942,6 +961,7 @@ function field(name, label, type, value, o = {}) {
   let input;
   if (type === 'select') input = `<select id="${id}" name="${name}">${o.options.map(([v, t]) => `<option value="${esc(v)}"${String(v) === String(value ?? '') ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select>`;
   else if (type === 'textarea') input = `<textarea id="${id}" name="${name}">${esc(value)}</textarea>`;
+  else if (type === 'date') input = dateInput(`id="${id}" name="${name}"`, value);
   else input = `<input id="${id}" name="${name}" type="${type}" value="${esc(value)}"${o.ac ? ` autocomplete="${o.ac}"` : ''}${o.step ? ` step="${o.step}"` : ''}${o.inputmode ? ` inputmode="${o.inputmode}"` : ''}${o.accept ? ` accept="${o.accept}"` : ''}${o.ph ? ` placeholder="${esc(o.ph)}"` : ''}>`;
   return `<div class="fld" data-f="${name}"><label for="${id}">${esc(label)}${o.required ? '' : ' <span class="hint">(optional)</span>'}</label>${input}${o.help ? `<span class="help">${esc(o.help)}</span>` : ''}<span class="err" id="${id}-err" aria-live="polite"></span></div>`;
 }
@@ -949,8 +969,10 @@ function wireForm(sel, rules, onSubmit) {
   const form = $(sel); if (!form) return;
   const touched = new Set();
   const check = (name, show) => {
-    const el = form.elements[name]; if (!el || !rules[name]) return '';
-    const msg = rules[name](el.type === 'file' ? el.files : el.value, form);
+    const el = form.elements[name]; const isDate = !!el?.hasAttribute?.('data-date');
+    if (!el || (!rules[name] && !isDate)) return '';
+    const iso = isDate ? isoFromDmy(el.value) : undefined;
+    const msg = iso === null ? DATE_MSG : rules[name] ? rules[name](el.type === 'file' ? el.files : iso !== undefined ? iso : el.value, form) : '';
     const box = form.querySelector(`[data-f="${name}"]`);
     if (show) { box.classList.toggle('bad', !!msg); box.querySelector('.err').textContent = msg; el.setAttribute('aria-invalid', msg ? 'true' : 'false'); }
     return msg;
@@ -959,13 +981,13 @@ function wireForm(sel, rules, onSubmit) {
   form.addEventListener('focusout', e => { const n = e.target.name; if (n && touched.has(n)) check(n, true); });
   const submit = async e => {
     e.preventDefault();
-    const bad = Object.keys(rules).filter(n => check(n, true));
+    const bad = [...new Set([...Object.keys(rules), ...[...form.querySelectorAll('input[data-date]')].map(x => x.name)])].filter(n => check(n, true));
     form.querySelector('.form-err')?.remove();
     if (bad.length) { form.elements[bad[0]].focus(); return; }
     const btns = [...document.querySelectorAll('#panel button[type=submit], #panel [data-submit]')];
     btns.forEach(b => b.disabled = true);
     try {
-      const vals = Object.fromEntries([...form.elements].filter(x => x.name && (x.type !== 'radio' || x.checked)).map(x => [x.name, x.type === 'checkbox' ? x.checked : x.type === 'file' ? x.files : x.value]));
+      const vals = Object.fromEntries([...form.elements].filter(x => x.name && (x.type !== 'radio' || x.checked)).map(x => [x.name, x.type === 'checkbox' ? x.checked : x.type === 'file' ? x.files : x.hasAttribute('data-date') ? isoFromDmy(x.value) || '' : x.value]));
       await onSubmit(vals);
     } catch (err) {
       form.insertAdjacentHTML('afterbegin', `<div class="form-err" role="alert">${esc(err.message || err)}</div>`);
@@ -1724,7 +1746,7 @@ function editImport(plan, vid, fname, kind) {
   const v = plan.vehicles.find(x => x.id === vid); if (!v) return reviewImport(plan, fname, kind);
   const merging = plan.match.has(vid) && plan.modes.get(vid) !== 'new' ? vById(plan.match.get(vid)) : null;
   let onlyCheck = false;
-  const inp = (o, k, label, val, t = 'text', extra = '') => `<div class="fld" data-f="${o}-${k}"><label for="ie-${o}-${k}">${esc(label)}</label><input id="ie-${o}-${k}" data-o="${o}" data-k="${k}" data-t="${t}" type="${t === 'date' ? 'date' : 'text'}"${t === 'num' || t === 'int' ? ' inputmode="decimal"' : ''} value="${esc(val ?? '')}"${extra}><span class="err" aria-live="polite"></span></div>`;
+  const inp = (o, k, label, val, t = 'text', extra = '') => `<div class="fld" data-f="${o}-${k}"><label for="ie-${o}-${k}">${esc(label)}</label>${t === 'date' ? dateInput(`id="ie-${o}-${k}" data-o="${o}" data-k="${k}" data-t="date"`, val) : `<input id="ie-${o}-${k}" data-o="${o}" data-k="${k}" data-t="${t}" type="text"${t === 'num' || t === 'int' ? ' inputmode="decimal"' : ''} value="${esc(val ?? '')}"${extra}>`}<span class="err" aria-live="polite"></span></div>`;
   const sel = (o, k, label, val, opts) => `<div class="fld"><label for="ie-${o}-${k}">${esc(label)}</label><select id="ie-${o}-${k}" data-o="${o}" data-k="${k}" data-t="text">${opts.map(([a, b]) => `<option value="${esc(a)}"${String(a) === String(val ?? '') ? ' selected' : ''}>${esc(b)}</option>`).join('')}</select><span class="err" aria-live="polite"></span></div>`;
   const curOpts = [['BRL', 'R$ (BRL)'], ['USD', 'US$ (USD)']];
   const sumLine = r => `<span>${r.date ? fdate(r.date) : '<span style="color:var(--warn)">No date</span>'}</span> · <span>${esc(r.title || 'No description')}</span> · <span>${r.amount != null ? money(r.amount, 0, r.currency) : '<span style="color:var(--warn)">No amount</span>'}</span>`;
@@ -1766,6 +1788,7 @@ function editImport(plan, vid, fname, kind) {
   const objOf = o => o === 'v' ? v : o.startsWith('r:') ? plan.records.find(r => r.id === o.slice(2)) : plan.readings.find(r => r.id === o.slice(2));
   const parse = (t, val) => {
     val = val.trim(); if (!val) return { ok: true, v: null };
+    if (t === 'date') { const d = isoFromDmy(val); return d ? { ok: true, v: d } : { ok: false, msg: DATE_MSG }; }
     if (t === 'num' || t === 'int') { const n = parseNum(val, /,\d{1,2}$/.test(val) || /^\d{1,3}(\.\d{3})+(,\d+)?$/.test(val)); if (n == null || n < 0) return { ok: false, msg: 'Enter a number, like 1250 or 1250.50.' }; return { ok: true, v: t === 'int' ? Math.round(n) : n }; }
     return { ok: true, v: val };
   };
