@@ -13,4 +13,4 @@ Vehicles per garage are currently unlimited (`garages.vehicle_limit` is null; mi
 select private.add_vehicle_slots('<garage id>', 5);        -- returns the new vehicle limit
 select private.add_garage_slots('customer@email.com', 1);   -- returns the new garage limit
 ```
-Find a garage id with `select id, name from garages where name ilike '%rosset%';`.
+Find a garage id with `select id, name from garages where name ilike '%part of the name%';`.

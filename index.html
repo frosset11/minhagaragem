@@ -796,7 +796,7 @@ function showOnboarding(msg) {
     try { await createGarage(f); } finally { if ($('#ob-form button[type=submit]')) { btn.disabled = false; btn.textContent = 'Create garage'; } }
   });
 }
-const garageFields = g => `${field('name', 'Garage name', 'text', g.name, { required: true, ph: 'e.g. The Rosset Garage' })}
+const garageFields = g => `${field('name', 'Garage name', 'text', g.name, { required: true, ph: 'e.g. The Weekend Garage' })}
   <div class="two">${field('currency', 'Main currency', 'select', g.currency, { required: true, options: Object.entries(CURRENCIES) })}${field('distance_unit', 'Distance', 'select', g.distance_unit, { required: true, options: [['km', 'Kilometres'], ['mi', 'Miles']] })}</div>`;
 const garageRules = { name: v => !v.trim() ? 'Give your garage a name.' : v.trim().length > 80 ? 'Keep the name under 80 characters.' : '' };
 async function createGarage(f) {
