@@ -48,11 +48,21 @@ export async function stripe(path: string, params?: Record<string, unknown>, met
 }
 export class StripeError extends Error { constructor(msg: string, public code: string) { super(msg); } }
 
+// Stripe Managed Payments (Stripe is the merchant of record and handles sales tax/VAT) needs a digital-goods
+// tax code on every product: SaaS, personal use (browser-based, sold to individuals)
+export const TAX_CODE = 'txcd_10103000';
+
 export async function priceFor(plan: string): Promise<string> {
   const p = PLANS[plan]; if (!p) throw new StripeError('Unknown plan.', 'bad_plan');
-  const found = await stripe('prices', { lookup_keys: [p.lookup], active: true, limit: 1 }, 'GET');
-  if (found.data?.[0]?.id) return found.data[0].id;
-  const product = await stripe('products', { name: p.name, metadata: { app: 'autodex', plan } });
+  const found = await stripe('prices', { lookup_keys: [p.lookup], active: true, limit: 1, expand: ['data.product'] }, 'GET');
+  const hit = found.data?.[0];
+  if (hit?.id) {
+    // products made before the tax code was set get it now
+    const prod = hit.product, code = typeof prod?.tax_code === 'string' ? prod.tax_code : prod?.tax_code?.id;
+    if (prod?.id && code !== TAX_CODE) await stripe(`products/${prod.id}`, { tax_code: TAX_CODE });
+    return hit.id;
+  }
+  const product = await stripe('products', { name: p.name, tax_code: TAX_CODE, metadata: { app: 'autodex', plan } });
   const price = await stripe('prices', { product: product.id, unit_amount: p.amount, currency: 'usd', recurring: { interval: 'month' }, lookup_key: p.lookup, nickname: `${p.name} monthly` });
   return price.id;
 }
