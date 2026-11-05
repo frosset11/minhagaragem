@@ -557,21 +557,33 @@ const sumBy = (rows, amt = r => r.amount, cur = r => r.currency) => rows.reduce(
 const addSums = (...ms) => ms.reduce((o, m) => { for (const k in m) o[k] = (o[k] || 0) + m[k]; return o; }, {});
 const msum = (m, d) => { const ks = ['BRL', 'USD'].filter(k => m[k]); return ks.length ? ks.map(k => money(m[k], d, k)).join(' + ') : '—'; };
 const num = v => v == null || v === '' ? '—' : (+v).toLocaleString('en-US');
-// Dates are stored as yyyy-mm-dd and shown and typed as dd/mm/yyyy
-const dmy = d => { if (!d) return ''; const [y, m, dd] = String(d).slice(0, 10).split('-'); return dd && m && y ? `${dd}/${m}/${y}` : String(d); };
+// Dates are stored as yyyy-mm-dd and shown and typed as dd/mm/yyyy or mm/dd/yyyy, as each person chooses
+// in Account (saved on their account as mg_date_fmt, with this browser as a fallback)
+const DATE_FMTS = { dmy: { ph: 'dd/mm/yyyy', ex: '25/12/2024', name: 'Day first' }, mdy: { ph: 'mm/dd/yyyy', ex: '12/25/2024', name: 'Month first' } };
+let lsDateFmt = 'dmy'; try { lsDateFmt = localStorage.getItem('mg-datefmt') || 'dmy'; } catch (e) {}
+const dateFmt = () => { const f = S.user?.user_metadata?.mg_date_fmt || lsDateFmt; return DATE_FMTS[f] ? f : 'dmy'; };
+function setDateFmt(f) {
+  if (!DATE_FMTS[f]) return;
+  lsDateFmt = f; try { localStorage.setItem('mg-datefmt', f); } catch (e) {}
+  if (S.user) S.user.user_metadata = { ...(S.user.user_metadata || {}), mg_date_fmt: f };
+  if (db && S.user) db.auth.updateUser({ data: { mg_date_fmt: f } }).catch(() => {});
+}
+const dmy = d => { if (!d) return ''; const [y, m, dd] = String(d).slice(0, 10).split('-'); return dd && m && y ? (dateFmt() === 'mdy' ? `${m}/${dd}/${y}` : `${dd}/${m}/${y}`) : String(d); };
 const fdate = d => d ? dmy(d) : '—';
-// "25/12/2024", "25-12-24", "25.12.2024", "25122024" → "2024-12-25"; '' when empty; null when not a real date
+// "25/12/2024", "25-12-24", "25.12.2024", "25122024" → "2024-12-25" (month first when chosen: "12/25/2024");
+// '' when empty; null when not a real date
 function isoFromDmy(t) {
   t = String(t || '').trim(); if (!t) return '';
   let x = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2}|\d{4})$/.exec(t) || /^(\d{2})(\d{2})(\d{4})$/.exec(t);
   if (!x) return null;
-  let d = +x[1], m = +x[2], y = +x[3]; if (x[3].length === 2) y += y > 40 ? 1900 : 2000;
+  const mf = dateFmt() === 'mdy';
+  let d = +x[mf ? 2 : 1], m = +x[mf ? 1 : 2], y = +x[3]; if (x[3].length === 2) y += y > 40 ? 1900 : 2000;
   const dt = new Date(Date.UTC(y, m - 1, d));
   if (y < 1885 || y > 2100 || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
   return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 }
-const DATE_MSG = 'Enter the date as dd/mm/yyyy, like 25/12/2024.';
-const dateInput = (attrs, value) => `<input ${attrs} type="text" data-date inputmode="numeric" autocomplete="off" maxlength="10" placeholder="dd/mm/yyyy" value="${esc(dmy(value))}">`;
+const dateMsg = () => `Enter the date as ${DATE_FMTS[dateFmt()].ph}, like ${DATE_FMTS[dateFmt()].ex}.`;
+const dateInput = (attrs, value) => `<input ${attrs} type="text" data-date inputmode="numeric" autocomplete="off" maxlength="10" placeholder="${DATE_FMTS[dateFmt()].ph}" value="${esc(dmy(value))}">`;
 // type the digits and the slashes appear: 25 → 25/, 2512 → 25/12/
 document.addEventListener('input', e => {
   const el = e.target; if (!el.matches || !el.matches('input[data-date]') || !/^insert/.test(e.inputType || '')) return;
@@ -1003,6 +1015,9 @@ async function openAccount() {
         <p class="hint" style="margin:10px 0 0">Then send them this site's link. When they create an account with that email, ${esc(g.name)} opens for them.</p>
       </form>` : ''}
     </fieldset>` : ''}
+    <fieldset><legend>Preferences</legend>
+      <div class="fld"><label for="pref-date">Date format</label><select id="pref-date">${Object.entries(DATE_FMTS).map(([k, f]) => `<option value="${k}"${dateFmt() === k ? ' selected' : ''}>${f.ph} · ${f.name}, like ${f.ex}</option>`).join('')}</select><span class="help">Just for you, everywhere you sign in. Other people in your garages keep their own.</span></div>
+    </fieldset>
     <fieldset><legend>Your garages</legend>
       ${others.length ? `<div class="rows" style="margin-bottom:12px">${others.map(x => `<button class="row" type="button" data-gsw="${x.id}" style="grid-template-columns:1fr auto"><span class="t">${esc(x.name)}</span><span class="hint">${ROLES[x.role]}</span></button>`).join('')}</div>` : ''}
       <p class="hint" style="margin:0 0 10px">You own ${ownedGarages()} of ${S.garageLimit} garage${S.garageLimit === 1 ? '' : 's'} (${allowText()}) · extra garages ${PRICES.garage} each, paid once${S.allow?.concierge ? '' : `, or ${PLAN_INFO.concierge.garages} included with Concierge`}</p>
@@ -1024,6 +1039,7 @@ async function openAccount() {
     toast('Password saved'); closePanel();
   });
   document.querySelectorAll('[data-gsw]').forEach(b => b.onclick = () => switchGarage(b.dataset.gsw));
+  $('#pref-date').onchange = e => { setDateFmt(e.target.value); render(); toast(`Dates now show as ${DATE_FMTS[dateFmt()].ph}`); };
   $('#g-new-btn').onclick = () => {
     if (ownedGarages() >= S.garageLimit) return openLimit('garage');
     $('#g-new').innerHTML = `<form id="gn-form" novalidate>${garageFields({ name: '', currency: g?.currency || 'BRL', distance_unit: g?.distance_unit || 'km' })}<button class="btn primary" type="submit">Create garage</button> <button class="btn" type="button" id="gn-x">Cancel</button></form>`;
@@ -1141,7 +1157,7 @@ function wireForm(sel, rules, onSubmit) {
     const el = form.elements[name]; const isDate = !!el?.hasAttribute?.('data-date');
     if (!el || (!rules[name] && !isDate)) return '';
     const iso = isDate ? isoFromDmy(el.value) : undefined;
-    const msg = iso === null ? DATE_MSG : rules[name] ? rules[name](el.type === 'file' ? el.files : iso !== undefined ? iso : el.value, form) : '';
+    const msg = iso === null ? dateMsg() : rules[name] ? rules[name](el.type === 'file' ? el.files : iso !== undefined ? iso : el.value, form) : '';
     const box = form.querySelector(`[data-f="${name}"]`);
     if (show) { box.classList.toggle('bad', !!msg); box.querySelector('.err').textContent = msg; el.setAttribute('aria-invalid', msg ? 'true' : 'false'); }
     return msg;
@@ -1371,7 +1387,7 @@ const HELP = [
     ['What is the Portfolio?', 'It treats the collection like investments: what each vehicle cost, what you\'ve spent on it, and what it\'s worth now, with returns per vehicle and for the whole collection.'],
     ['How is market value worked out?', 'From what you add on each vehicle\'s page under Market value: link its FIPE model (the official Brazilian price table, refreshed monthly), add comparable sales or listings, or enter an estimated value yourself.'],
     ['How are reais and dollars handled?', 'Each vehicle keeps its own currency and amounts are never mixed. Where the app shows a total across currencies, it converts at the day\'s exchange rate and says so.'],
-    ['Why are dates shown as dd/mm/yyyy?', 'All dates are shown and typed as day/month/year. In date fields, type the digits and the slashes are added for you, for example 25122024 becomes 25/12/2024.']]],
+    ['Can dates be month first?', 'Yes. Dates are day first (25/12/2024) unless you choose month first (12/25/2024) in Account → Preferences. It\'s your own setting: it applies everywhere you sign in, and doesn\'t change anyone else\'s view. In date fields, type the digits and the slashes are added for you, for example 25122024 becomes 25/12/2024 when dates are day first.']]],
   ['Sharing and your account', [
     ['How do I invite someone?', 'Account → People. Enter their email and choose Editor (can add and change vehicles and records) or Viewer (can only look). They join when they sign up or sign in with that email.'],
     ['What can each role do?', 'Owner: manages the garage, its look and its people. Editor: adds and changes vehicles and records. Viewer: can look, can\'t change anything.'],
@@ -2291,7 +2307,7 @@ function editImport(plan, vid, fname, kind) {
   const objOf = o => o === 'v' ? v : o.startsWith('r:') ? plan.records.find(r => r.id === o.slice(2)) : plan.readings.find(r => r.id === o.slice(2));
   const parse = (t, val) => {
     val = val.trim(); if (!val) return { ok: true, v: null };
-    if (t === 'date') { const d = isoFromDmy(val); return d ? { ok: true, v: d } : { ok: false, msg: DATE_MSG }; }
+    if (t === 'date') { const d = isoFromDmy(val); return d ? { ok: true, v: d } : { ok: false, msg: dateMsg() }; }
     if (t === 'num' || t === 'int') { const n = parseNum(val, /,\d{1,2}$/.test(val) || /^\d{1,3}(\.\d{3})+(,\d+)?$/.test(val)); if (n == null || n < 0) return { ok: false, msg: 'Enter a number, like 1250 or 1250.50.' }; return { ok: true, v: t === 'int' ? Math.round(n) : n }; }
     return { ok: true, v: val };
   };
