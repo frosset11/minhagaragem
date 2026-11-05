@@ -123,6 +123,25 @@ h2{font-size:18px;letter-spacing:-.015em;font-weight:600;margin:0 0 14px}
 .in-share{margin-top:24px;padding-top:18px;border-top:1px solid var(--line)}
 .in-link{flex:1;min-width:0;background:var(--bg);border:1px solid var(--line2);border-radius:var(--r-sm);padding:9px 12px;font-family:'Geist Mono',monospace;font-size:13px;color:var(--fg2)}
 .in-card{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:12px 16px;margin:0 0 20px;font-size:14px}
+.pl-use{background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;margin:0 0 28px;max-width:760px}
+.pl-use h2{margin:0 0 12px;font-size:16px}
+.pl-m{margin:0 0 12px}
+.pl-m-t{display:flex;justify-content:space-between;font-size:14px;margin:0 0 6px}
+.pl-bar{height:6px;border-radius:999px;background:var(--line2);overflow:hidden}
+.pl-bar i{display:block;height:100%;background:var(--fg);border-radius:inherit}
+.pl-bar.near i{background:var(--warn)}
+.pl-bar.full i{background:var(--danger)}
+.pl-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.pl{background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:22px;display:flex;flex-direction:column}
+.pl.on{border-color:var(--fg)}
+.pl h3{margin:0 0 4px;font-size:18px}
+.pl-p{margin:0 0 6px;font-size:15px}
+.pl-p b{font-size:26px;font-weight:600;letter-spacing:-.01em}
+.pl-b{margin:0 0 14px}
+.pl ul{list-style:none;padding:0;margin:0 0 18px;display:flex;flex-direction:column;gap:8px;font-size:14px;flex:1}
+.pl li::before{content:"✓";margin-right:8px;color:var(--fg3)}
+.pl-a{min-height:40px;display:flex;align-items:center}
+.pl-cur{font-size:14px;color:var(--fg2);font-weight:500}
 a.btn{text-decoration:none}
 .tour-dots{display:flex;gap:6px;margin:0 0 22px}
 .tour-dots i{height:4px;flex:1;border-radius:999px;background:var(--line2)}
@@ -701,7 +720,8 @@ async function refreshAuth(session) {
   enterApp();
   if (prev !== S.user.id || window.live.state === 'loading') await load(); else render();
   if (pendingToast) { toast(pendingToast); pendingToast = null; }
-  if (pendingInstall) openPendingInstall(); else maybeTour();
+  if (pendingBilling) { pendingBilling = false; toast('Payment received. Updating your plan…'); waitForPlan(null); }
+  else if (pendingInstall) openPendingInstall(); else maybeTour();
 }
 let pendingToast = null;
 function clearCaches() {
@@ -846,6 +866,7 @@ async function openAccount() {
     ${g ? `<fieldset><legend>Garage</legend>
       ${owner ? `<form id="g-form" novalidate>${garageFields(g)}<button class="btn" type="submit">Save garage</button></form>`
         : `<dl class="kv"><dt>Garage</dt><dd>${esc(g.name)}</dd><dt>Your role</dt><dd>${ROLES[S.role]} · ${esc(ROLE_HELP[S.role])}</dd></dl>`}
+      <p class="hint" style="margin:12px 0 0">Plan: <b style="color:var(--fg)">${PLAN_INFO[curPlan()].name}</b> · <a href="#/plans" data-close-panel>${S.role === 'owner' ? 'See plans and billing' : 'See plans'}</a></p>
       ${isFinite(vLimit()) ? `<p class="hint" style="margin:12px 0 0">Vehicles: ${activeVehicles()} of ${vLimit()} places used (sold ones don't count) · extra places ${PRICES.vehicle} each, paid once</p>` : ''}
     </fieldset>
     ${owner ? `<fieldset><legend>Look</legend><form id="look-form" novalidate>
@@ -1081,6 +1102,7 @@ async function illustrate(v) {
   try {
     const { data, error } = await db.functions.invoke('illustrate', { body: { garage_id: GID(), vehicle_id: v.id } });
     let res = data; if (error) { try { res = await error.context.json(); } catch (x) { res = { message: 'The illustrator couldn\'t be reached. Check your connection and try again.' }; } }
+    if (res?.error === 'limit') { aiLimitPanel(res.message); return; }
     if (!res || !res.ok) throw new Error(res?.message || 'The illustration couldn\'t be made.');
     // 1024 px from the model, stored at 1000 x 1000
     const bin = Uint8Array.from(atob(res.image), c => c.charCodeAt(0));
@@ -1224,7 +1246,8 @@ const HELP = [
     ['What can each role do?', 'Owner: manages the garage, its look and its people. Editor: adds and changes vehicles and records. Viewer: can look, can\'t change anything.'],
     ['How do I change how my garage looks?', 'Account → Look (owners only): upload your logo, pick a background colour, and turn motorcycles on or off. It applies for everyone in the garage.'],
     ['Can I have more than one garage?', 'Your account includes one garage of your own, and you can be invited to any number of others. Switch between them under Account → Your garages.'],
-    ['Are there limits on the AI features?', 'Invoice scans, spreadsheet imports and illustrations each have a monthly allowance per garage that resets on the 1st. If you reach one, the app tells you.'],
+    ['What do the plans include?', 'Every plan has unlimited vehicles, records, readings and people. They differ in the monthly AI allowance per garage: Free has 10 invoice scans, 2 spreadsheet imports and 3 illustrations; Pro (US$5/month) has 50, 10 and 15; Concierge (US$20/month) has 200, 30 and 50. Allowances reset on the 1st. See Account → See plans.'],
+    ['How do I upgrade, change or cancel?', 'The garage\'s owner opens Account → See plans. Upgrading opens a secure Stripe checkout; switching between Pro and Concierge is immediate and charged pro rata. Billing and invoices lets you update your card, download invoices or cancel; the plan stays until the end of the period you paid for.'],
     ['Is my data private?', 'Yes. Your vehicles, records, photos and invoices are visible only to the members of your garage. Photos and invoices are stored privately and shown through temporary links.']]]
 ];
 let helpQ = '';
@@ -1296,6 +1319,89 @@ function installCard() {
   if (!canInstall() || flag('mg_install_hidden') || !(isIOS() || isAndroid() || installEvt)) return '';
   return `<div class="in-card"><span><b>Get AUTODEX on your home screen</b><span class="hint"> · opens full screen, like an app</span></span>
     <span style="display:flex;gap:8px;align-items:center"><button class="btn sm primary" type="button" data-install>Add</button><button class="linkbtn" type="button" data-install-hide aria-label="Hide this">Not now</button></span></div>`;
+}
+
+/* ---------- plans and payments (Stripe) ---------- */
+// Keep in step with LIMITS in supabase/functions/_shared/ai.ts and PLANS in _shared/stripe.ts
+const PLAN_INFO = {
+  free: { name: 'Free', price: 0, scan: 10, import: 2, illustrate: 3, blurb: 'Everything you need to keep your vehicles\' records.' },
+  pro: { name: 'Pro', price: 5, scan: 50, import: 10, illustrate: 15, blurb: 'For an active collection: more scans, imports and illustrations.' },
+  concierge: { name: 'Concierge', price: 20, scan: 200, import: 30, illustrate: 50, blurb: 'For large collections and the people who look after them.' }
+};
+const KIND_LABEL = { scan: 'Invoice scans', import: 'Spreadsheet imports', illustrate: 'Illustrations' };
+const curPlan = () => PLAN_INFO[S.garage?.plan] ? S.garage.plan : 'free';
+S.billing = undefined; S.usage = null;
+async function loadBilling() {
+  if (!db || !GID()) return;
+  const since = new Date(); since.setUTCDate(1); since.setUTCHours(0, 0, 0, 0);
+  const [b, u, g] = await Promise.all([
+    db.from('billing').select('*').eq('garage_id', GID()).maybeSingle(),
+    db.from('usage_events').select('kind').eq('garage_id', GID()).gte('created_at', since.toISOString()),
+    db.from('garages').select('plan').eq('id', GID()).single()
+  ]);
+  S.billing = b.data || null;
+  S.usage = { scan: 0, import: 0, illustrate: 0 }; (u.data || []).forEach(r => { if (r.kind in S.usage) S.usage[r.kind]++; });
+  if (g.data?.plan && S.garage) { S.garage.plan = g.data.plan; S.garages = S.garages.map(x => x.id === GID() ? { ...x, plan: g.data.plan } : x); }
+}
+async function billingCall(body) {
+  const { data, error } = await db.functions.invoke('billing', { body: { garage_id: GID(), ...body } });
+  let res = data; if (error) { try { res = await error.context.json(); } catch (x) { res = { message: 'The payment service couldn\'t be reached. Check your connection and try again.' }; } }
+  if (!res || !res.ok) throw new Error(res?.message || 'That didn\'t work. Try again.');
+  return res;
+}
+async function choosePlan(plan, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Opening checkout…'; }
+  try {
+    const res = await billingCall({ action: 'checkout', plan });
+    if (res.url) { location.href = res.url; return; } // Stripe Checkout
+    if (res.changed === false) { toast(res.message || 'You\'re already on that plan.'); render(); return; }
+    toast(`Switching to ${PLAN_INFO[plan].name}…`); await waitForPlan(plan);
+  } catch (x) { toast(x.message, true); if (btn) render(); }
+}
+async function openPortal(btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Opening…'; }
+  try { const res = await billingCall({ action: 'portal' }); location.href = res.url; } catch (x) { toast(x.message, true); render(); }
+}
+// Stripe tells the server through the webhook, usually within seconds; wait for the plan to change
+async function waitForPlan(plan, tries = 12) {
+  for (let i = 0; i < tries; i++) {
+    await loadBilling();
+    if (plan ? curPlan() === plan : curPlan() !== 'free') { render(); toast(`You're on ${PLAN_INFO[curPlan()].name}. Thank you!`); return; }
+    await new Promise(r => setTimeout(r, 2500));
+  }
+  render(); toast('Payment received. Your plan updates in a moment; refresh if it doesn\'t.');
+}
+function meter(kind) {
+  const lim = PLAN_INFO[curPlan()][kind], used = S.usage?.[kind] ?? 0, pct = Math.min(100, Math.round(used / lim * 100));
+  return `<div class="pl-m"><div class="pl-m-t"><span>${KIND_LABEL[kind]}</span><span class="mono">${used} of ${lim}</span></div><div class="pl-bar${pct >= 100 ? ' full' : pct >= 80 ? ' near' : ''}" role="progressbar" aria-label="${KIND_LABEL[kind]} used" aria-valuemin="0" aria-valuemax="${lim}" aria-valuenow="${used}"><i style="width:${pct}%"></i></div></div>`;
+}
+function viewPlans() {
+  if (S.billing === undefined) { loadBilling().then(render, () => { S.billing = null; render(); }); }
+  const owner = S.role === 'owner', cur = curPlan(), b = S.billing, subd = b && ['active', 'trialing', 'past_due'].includes(b.status || '');
+  const resets = (() => { const d = new Date(); d.setUTCMonth(d.getUTCMonth() + 1, 1); return fdate(d.toISOString().slice(0, 10)); })();
+  const action = k => {
+    if (!owner) return k === cur ? '<span class="pl-cur">Current plan</span>' : '';
+    if (k === cur) return `<span class="pl-cur">Current plan</span>`;
+    if (k === 'free') return subd ? `<button class="btn" type="button" data-portal>Cancel in billing</button>` : '';
+    return `<button class="btn ${PLAN_INFO[k].price > PLAN_INFO[cur].price ? 'primary' : ''}" type="button" data-plan="${k}">${PLAN_INFO[k].price > PLAN_INFO[cur].price ? 'Upgrade to' : 'Switch to'} ${PLAN_INFO[k].name}</button>`;
+  };
+  return `<div class="head"><div><p class="eyebrow">${esc(S.garage?.name || '')}</p><h1>Plans</h1><p class="sub">Every plan includes unlimited vehicles, service records, readings and people. Plans differ in their monthly AI allowance.</p></div>
+      ${owner && b?.stripe_customer_id ? '<button class="btn" type="button" data-portal>Billing and invoices</button>' : ''}</div>
+    ${b?.status === 'past_due' && cur !== 'free' ? `<div class="banner" style="margin-bottom:20px">The last payment didn't go through. ${owner ? `Update your card in <button class="linkbtn" type="button" data-portal style="padding:0">Billing</button> to keep ${PLAN_INFO[cur].name}.` : `The garage's owner can update the card to keep ${PLAN_INFO[cur].name}.`}</div>` : ''}
+    ${subd && b.cancel_at_period_end && cur !== 'free' ? `<div class="banner" style="margin-bottom:20px">${PLAN_INFO[cur].name} ends on ${fdate((b.current_period_end || '').slice(0, 10))}, then the garage moves to Free.${owner ? ` Changed your mind? <button class="linkbtn" type="button" data-plan="${cur}" style="padding:0">Keep ${PLAN_INFO[cur].name}</button>` : ''}</div>` : ''}
+    <section class="pl-use"><h2>This month</h2>${S.usage ? ['scan', 'import', 'illustrate'].map(meter).join('') : '<div class="skel" style="height:90px"></div>'}<p class="hint" style="margin:10px 0 0">Allowances reset on ${resets}.</p></section>
+    <div class="pl-grid">${Object.entries(PLAN_INFO).map(([k, p]) => `<article class="pl${k === cur ? ' on' : ''}">
+      <h3>${p.name}</h3><p class="pl-p"><b>US$${p.price}</b>${p.price ? ' / month' : ''}</p><p class="hint pl-b">${p.blurb}</p>
+      <ul><li>Unlimited vehicles and records</li><li>${p.scan} invoice scans a month</li><li>${p.import} spreadsheet imports a month</li><li>${p.illustrate} illustrations a month</li></ul>
+      <div class="pl-a">${action(k)}</div></article>`).join('')}</div>
+    <p class="hint" style="margin:20px 0 0">${owner ? 'Payments are handled securely by Stripe. Cancel any time from Billing; the plan stays until the end of the period you paid for. Prices in US dollars; your card issuer may add foreign-transaction fees or taxes such as IOF.' : 'Only the garage\'s owner can change its plan.'}</p>`;
+}
+// A monthly allowance ran out: say so and offer the plans
+function aiLimitPanel(msg) {
+  const next = curPlan() === 'free' ? 'pro' : curPlan() === 'pro' ? 'concierge' : null;
+  openPanel('Monthly allowance used', `<p>${esc(msg)}</p>${next ? `<p class="hint">${PLAN_INFO[next].name} (US$${PLAN_INFO[next].price}/month) includes ${PLAN_INFO[next].scan} scans, ${PLAN_INFO[next].import} imports and ${PLAN_INFO[next].illustrate} illustrations a month.</p>` : ''}${S.role === 'owner' ? '' : '<p class="hint">Only the garage\'s owner can change its plan.</p>'}`,
+    `<button class="btn" type="button" id="al-close">Not now</button><span class="sp"></span><a class="btn primary" href="#/plans" id="al-plans">See plans</a>`);
+  $('#al-close').onclick = closePanel; $('#al-plans').onclick = () => setTimeout(closePanel, 0);
 }
 
 /* ---------- views ---------- */
@@ -1675,6 +1781,7 @@ function openScan(vehicleId) {
       const media_type = isPdf ? 'application/pdf' : (send.type || 'image/jpeg');
       const { data, error } = await db.functions.invoke('scan-invoice', { body: { data: await fileToB64(send), media_type, vehicle_id: vehicleId || null, garage_id: GID() } });
       let res = data; if (error) { try { res = await error.context.json(); } catch (e) { res = { message: 'The invoice reader couldn\'t be reached. Check your connection and try again.' }; } }
+      if (res?.error === 'limit') { aiLimitPanel(res.message); return; }
       if (!res || !res.ok) throw new Error(res?.message || 'Couldn\'t read that invoice.');
       openRecordForm(null, vehicleId, { draft: res.draft, file: send });
     } catch (e) {
@@ -1904,6 +2011,7 @@ function openImport(kind, opts = {}) {
       const targetRef = target ? [...refs].find(([, v]) => v.id === target.id)[0] : null;
       const { data, error } = await db.functions.invoke('import-sheet', { body: { garage_id: GID(), filename: file.name, sheets: sheetSummary(book), existing, scope: single ? 'single' : 'all', target: targetRef } });
       let res = data; if (error) { try { res = await error.context.json(); } catch (x) { res = { message: 'The importer couldn\'t be reached. Check your connection and try again.' }; } }
+      if (res?.error === 'limit') { aiLimitPanel(res.message); return; }
       if (!res || !res.ok) throw new Error(res?.message || 'Couldn\'t work out that spreadsheet.');
       const map = single ? singleMap(res.map, target, refs, kind) : res.map;
       const plan = applyMap(book, map, refs);
@@ -2663,6 +2771,7 @@ function openCompleteForm(v) {
 function current() { const h = location.hash.replace(/^#\/?/, '') || 'dashboard'; const [a, b] = h.split('/'); return { a, b }; }
 function render() {
   const { a, b } = current();
+  if (a !== 'plans') S.billing = undefined; // re-read plan and usage whenever Plans opens
   const tab = a === 'costs' ? 'portfolio' : a === 'vehicle' ? (vById(b)?.kind === 'bike' ? 'bikes' : 'cars') : a;
   document.querySelectorAll('.tab').forEach(t => t.toggleAttribute('aria-current', false) || (t.dataset.r === tab && t.setAttribute('aria-current', 'page')));
   $('#n-cars').textContent = S.vehicles.filter(v => v.kind === 'car').length || '';
@@ -2677,8 +2786,9 @@ function render() {
   else if (a === 'costs' || a === 'portfolio') html = viewPortfolio();
   else if (a === 'vehicle') html = viewVehicle(b);
   else if (a === 'help') html = viewHelp();
+  else if (a === 'plans' && S.user) html = viewPlans();
   else html = viewList('car');
-  const titles = { help: 'Help', dashboard: 'Dashboard', cars: 'Cars', bikes: 'Bikes', ledger: 'Service', costs: 'Portfolio', portfolio: 'Portfolio' };
+  const titles = { help: 'Help', plans: 'Plans', dashboard: 'Dashboard', cars: 'Cars', bikes: 'Bikes', ledger: 'Service', costs: 'Portfolio', portfolio: 'Portfolio' };
   document.title = (a === 'vehicle' ? vname(vById(b)) : titles[a] || 'Dashboard') + ' · ' + (S.garage?.name || 'AUTODEX');
   $('#view').innerHTML = banner + html;
   wireView();
@@ -2687,6 +2797,8 @@ function wireView() {
   const V = $('#view');
   V.querySelectorAll('[data-add-v]').forEach(b => b.onclick = () => openAddVehicle(b.dataset.addV));
   V.querySelectorAll('[data-type-v]').forEach(b => b.onclick = () => openVehicleForm(null, b.dataset.typeV));
+  V.querySelectorAll('[data-plan]').forEach(b => b.onclick = () => choosePlan(b.dataset.plan, b));
+  V.querySelectorAll('[data-portal]').forEach(b => b.onclick = () => openPortal(b));
   V.querySelectorAll('[data-install]').forEach(b => b.onclick = installApp);
   V.querySelectorAll('[data-install-hide]').forEach(b => b.onclick = () => { setFlag('mg_install_hidden'); render(); toast('Hidden. It\'s also in Help.'); });
   V.querySelectorAll('[data-tour]').forEach(b => b.onclick = () => openTour(0));
@@ -2729,6 +2841,9 @@ window.addEventListener('hashchange', () => {
   $('#view').focus({ preventScroll: true });
 });
 $('#acct-btn').onclick = openAccount;
+// Back from Stripe Checkout (/?billing=done#/plans): wait for the webhook to move the plan
+let pendingBilling = /[?&]billing=done/.test(location.search);
+if (pendingBilling) history.replaceState(null, '', location.pathname + location.hash);
 // The quicklink /#/install opens the add-to-home-screen sheet, signed in or not
 if (location.hash === '#/install') { history.replaceState(null, '', location.pathname); pendingInstall = true; }
 

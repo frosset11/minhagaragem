@@ -4,9 +4,9 @@ import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 export const MODEL = 'claude-sonnet-5-5';
 // Monthly AI allowance per garage, by plan
 export const LIMITS: Record<string, Record<string, number>> = {
-  free: { scan: 20, import: 3, illustrate: 5 },
-  pro: { scan: 300, import: 30, illustrate: 50 },
-  concierge: { scan: 1000, import: 100, illustrate: 200 }
+  free: { scan: 10, import: 2, illustrate: 3 },        // Free
+  pro: { scan: 50, import: 10, illustrate: 15 },        // Pro, US$5/month
+  concierge: { scan: 200, import: 30, illustrate: 50 }  // Concierge, US$20/month
 };
 export const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
 export const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
