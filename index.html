@@ -117,6 +117,32 @@ h2{font-size:18px;letter-spacing:-.015em;font-weight:600;margin:0 0 14px}
 .ill-bar{width:100%;height:6px;border-radius:999px;background:rgba(255,255,255,.25);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.3)}
 .ill-bar i{display:block;height:100%;width:0;background:#fff;border-radius:inherit;transition:width 1s linear}
 .app .ic img.dim{opacity:.35}
+a.btn{text-decoration:none}
+.tour-dots{display:flex;gap:6px;margin:0 0 22px}
+.tour-dots i{height:4px;flex:1;border-radius:999px;background:var(--line2)}
+.tour-dots i.done{background:var(--fg3)}
+.tour-dots i.on{background:var(--fg)}
+.tour-h{font-size:22px;font-weight:600;letter-spacing:-.01em;margin:0 0 10px}
+.tour-t{color:var(--fg2);font-size:15px;line-height:1.55;margin:0 0 16px}
+.tour-l{margin:0 0 22px;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px}
+.tour-l li{position:relative;padding-left:20px;font-size:14px;line-height:1.5}
+.tour-l li::before{content:"";position:absolute;left:4px;top:.6em;width:6px;height:6px;border-radius:50%;background:var(--fg3)}
+.gs{background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;margin:0 0 32px}
+.gs-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.gs-top h2{margin:0;font-size:16px}
+.gs-bar{height:4px;border-radius:999px;background:var(--line2);margin:14px 0 6px;overflow:hidden}
+.gs-bar i{display:block;height:100%;background:var(--fg);border-radius:inherit}
+.gs-l{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:0 24px}
+.gs-l li{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px;min-height:44px}
+.gs-c{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--line2);display:grid;place-items:center;font-size:12px;flex-shrink:0}
+.gs-l li.ok .gs-c{background:var(--fg);border-color:var(--fg);color:var(--bg)}
+.gs-l li.ok .gs-t{color:var(--fg3);text-decoration:line-through}
+.gs-t{flex:1;min-width:0}
+.help-g{margin:0 0 28px;max-width:760px}
+.help-g h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg3);font-weight:500;margin:0 0 6px}
+.help-a{border-bottom:1px solid var(--line)}
+.help-a summary{cursor:pointer;padding:14px 0;font-weight:500;font-size:15px;list-style-position:outside}
+.help-a p{margin:0 0 16px;color:var(--fg2);line-height:1.6;font-size:14.5px}
 .choice{display:flex;flex-direction:column;gap:8px;margin:-4px 0 16px}
 .choice[hidden]{display:none}
 .choice label{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border:1px solid var(--line2);border-radius:var(--r-sm);cursor:pointer;font-size:14px}
@@ -403,6 +429,7 @@ body.locked .login{display:grid}
     </nav>
     <div class="acct">
       <span class="live" id="live" data-s="loading" title="Database connection"><i></i><span id="live-t">Connecting</span></span>
+      <a class="btn sm" id="help-btn" href="#/help">Help</a>
       <button class="btn sm" id="acct-btn" type="button">Sign in</button>
     </div>
   </div>
@@ -666,6 +693,7 @@ async function refreshAuth(session) {
   enterApp();
   if (prev !== S.user.id || window.live.state === 'loading') await load(); else render();
   if (pendingToast) { toast(pendingToast); pendingToast = null; }
+  maybeTour();
 }
 let pendingToast = null;
 function clearCaches() {
@@ -1063,6 +1091,147 @@ async function illustrate(v) {
   } catch (x) {
     toast(x.message || 'The illustration couldn\'t be made.', true);
   } finally { ILLUS.delete(v.id); render(); }
+}
+
+/* ---------- quick start (first visit), getting-started checklist, help center ---------- */
+// Seen/hidden flags live on the user's account (user_metadata) so they follow them across devices,
+// with this browser as a fallback.
+const flag = k => { try { if (S.user?.user_metadata?.[k]) return true; return localStorage.getItem(`mg-${k}-${S.user?.id}`) === '1'; } catch (e) { return !!S.user?.user_metadata?.[k]; } };
+async function setFlag(k, on = true) {
+  try { localStorage.setItem(`mg-${k}-${S.user?.id}`, on ? '1' : '0'); } catch (e) {}
+  if (S.user) S.user.user_metadata = { ...(S.user.user_metadata || {}), [k]: on };
+  if (db) db.auth.updateUser({ data: { [k]: on } }).catch(() => {});
+}
+const firstV = () => S.vehicles.find(v => v.status !== 'sold') || S.vehicles[0];
+const TOUR = [
+  { eyebrow: 'Welcome', title: 'Your garage, all in one place',
+    text: 'My Garage keeps each car and motorcycle\'s history, costs, mileage and value together, private to the people you invite. This quick start takes about a minute. You can replay it any time from Help.',
+    points: ['Dashboard: the whole collection at a glance', 'Cars and Bikes: a card and a page for every vehicle', 'Service: every record, plus the To-Do', 'Portfolio: what the collection is worth'] },
+  { eyebrow: 'Vehicles', title: 'Add your vehicles',
+    text: 'Use Add vehicle on the Dashboard, Cars or Bikes. Type one in, or import a spreadsheet you already keep.',
+    points: ['Type it in: make, model, year, plate, what you paid', 'Spreadsheet, one vehicle: a single car\'s history, even if the file never names it', 'Spreadsheet, whole collection: any layout, any language. Vehicles already here are recognised, not duplicated', 'You check, and can fix, everything before it\'s saved'],
+    action: ['Add a vehicle', () => openAddVehicle('any')], editor: true },
+  { eyebrow: 'Photos', title: 'Photos and illustrations',
+    text: 'Add a photo when you create or edit a vehicle. You choose: keep the photo, or have it redrawn as a clean illustration that replaces it.',
+    points: ['A front three-quarter view gives the best result', 'Illustrations take about a minute; the photo shows dimmed with a progress bar meanwhile', 'Kept a photo? Make illustration on the vehicle\'s page does it later'] },
+  { eyebrow: 'Service', title: 'Log the service history',
+    text: 'Every vehicle page has its own history. Add records as work happens, or let the app read them for you.',
+    points: ['Add service: date, odometer, work done, shop, amount', 'Scan invoice: take a photo or choose a PDF, and it\'s drafted as a record for you to check', 'Import spreadsheet: bring in years of history at once', 'The Service tab lists every record, with filters by vehicle, category and year'] },
+  { eyebrow: 'Maintenance', title: 'Stay ahead of maintenance',
+    text: 'Log the odometer now and then, and the app tracks how much each vehicle is driven and what\'s due.',
+    points: ['Log reading on a vehicle\'s page builds its mileage chart', 'The To-Do on the Service tab follows a 12-month service clock per vehicle', 'Add needs to plan the next service, then Complete it to turn it into a record'] },
+  { eyebrow: 'Value', title: 'Know what the collection is worth',
+    text: 'The Portfolio treats the collection like investments: what you paid, what you\'ve spent, what it\'s worth now.',
+    points: ['Add what you paid on each vehicle', 'Link its FIPE model (Brazil) to follow the official price table monthly', 'Add comparable sales or listings for a market value', 'Reais and dollars are kept apart; totals convert at the day\'s rate'] },
+  { eyebrow: 'Together', title: 'Share and personalise',
+    text: 'Everything is private to your garage. Under Account you decide who else sees it and how it looks.',
+    points: ['Invite people as editors (add and change) or viewers (look only)', 'Look: your logo, a background colour, and whether to show motorcycles', 'Help, top right, answers most questions'],
+    action: ['Open Account', () => openAccount()], owner: true }
+];
+function openTour(i = 0) {
+  const steps = TOUR.filter(s => (!s.editor || S.editor) && (!s.owner || S.role === 'owner')), st = steps[i], last = i === steps.length - 1;
+  openPanel('Quick start', `
+    <div class="tour">
+      <div class="tour-dots" aria-hidden="true">${steps.map((_, k) => `<i${k === i ? ' class="on"' : k < i ? ' class="done"' : ''}></i>`).join('')}</div>
+      <p class="eyebrow" style="margin:0 0 6px">${i + 1} of ${steps.length} · ${esc(st.eyebrow)}</p>
+      <h3 class="tour-h">${esc(st.title)}</h3>
+      <p class="tour-t">${esc(st.text)}</p>
+      <ul class="tour-l">${st.points.map(p => `<li>${esc(p)}</li>`).join('')}</ul>
+      ${st.action && S.editor ? `<button class="btn" type="button" id="tour-act">${esc(st.action[0])}</button>` : ''}
+    </div>`,
+    `${i ? '<button class="btn" type="button" id="tour-back">Back</button>' : '<button class="btn" type="button" id="tour-skip">Skip</button>'}<span class="sp"></span><button class="btn primary" type="button" id="tour-next">${last ? 'Start using My Garage' : 'Next'}</button>`);
+  setFlag('mg_tour_done');
+  $('#tour-next').onclick = () => last ? (closePanel(), render()) : openTour(i + 1);
+  if ($('#tour-back')) $('#tour-back').onclick = () => openTour(i - 1);
+  if ($('#tour-skip')) $('#tour-skip').onclick = () => { closePanel(); render(); };
+  if ($('#tour-act')) $('#tour-act').onclick = () => st.action[1]();
+  setTimeout(() => $('#tour-next')?.focus(), 80);
+}
+// After sign-in: first visit to a garage → quick start
+function maybeTour() { if (S.user && S.garage && !flag('mg_tour_done') && !$('#panel').classList.contains('on')) setTimeout(() => openTour(0), 500); }
+
+// Dashboard checklist: ticks itself as features get used; hidden when done or dismissed
+function checklist() {
+  if (!S.editor || flag('mg_list_hidden')) return '';
+  const v = firstV();
+  const items = [
+    ['Add your first vehicle', S.vehicles.length > 0, 'add'],
+    ['Give it a photo or an illustration', S.vehicles.some(x => x.photo_url), 'photo'],
+    ['Log a service record', S.records.length > 0, 'record'],
+    ['Scan an invoice', S.records.some(r => r.invoice_url), 'scan'],
+    ['Log an odometer reading', S.readings.length > 0, 'reading'],
+    ['Add what you paid', S.vehicles.some(x => x.purchase_price != null), 'paid'],
+    ...(S.role === 'owner' ? [['Make the garage yours (logo, colour, people)', !!(S.garage?.logo_url || (S.garage?.bg_color && S.garage.bg_color !== DEFAULT_BG)), 'look']] : [])
+  ];
+  const done = items.filter(x => x[1]).length;
+  if (done === items.length) return '';
+  const next = items.find(x => !x[1]);
+  return `<section class="gs" aria-labelledby="gs-h">
+    <div class="gs-top"><div><h2 id="gs-h">Getting started</h2><p class="hint" style="margin:2px 0 0">${done} of ${items.length} done</p></div>
+      <div style="display:flex;gap:8px;align-items:center"><button class="btn sm" type="button" data-tour>Quick start</button><button class="linkbtn" type="button" data-gs-hide>Hide</button></div></div>
+    <div class="gs-bar" aria-hidden="true"><i style="width:${Math.round(done / items.length * 100)}%"></i></div>
+    <ul class="gs-l">${items.map(([t, ok, k]) => `<li class="${ok ? 'ok' : ''}"><span class="gs-c" aria-hidden="true">${ok ? '✓' : ''}</span><span class="gs-t">${esc(t)}<span class="vh">${ok ? ' (done)' : ''}</span></span>${!ok && (k === 'add' || v) ? `<button class="btn sm${next && next[2] === k ? ' primary' : ''}" type="button" data-gs="${k}">${k === 'add' ? 'Add' : k === 'look' ? 'Open' : 'Do it'}</button>` : ''}</li>`).join('')}</ul>
+  </section>`;
+}
+function gsDo(k) {
+  const v = firstV();
+  if (k === 'add') return openAddVehicle('any');
+  if (k === 'photo' || k === 'paid') return openVehicleForm(v);
+  if (k === 'record') return openRecordForm(null, v.id);
+  if (k === 'scan') return openScan(v.id);
+  if (k === 'reading') return openReadingForm(v);
+  if (k === 'look') return openAccount();
+}
+
+// Help center (#/help): searchable answers, grouped by topic
+const HELP = [
+  ['Getting started', [
+    ['What is My Garage?', 'A private logbook for cars and motorcycles: each vehicle\'s service history, costs, odometer readings and value, shared only with the people you invite. Your garage is visible to its members and no one else.'],
+    ['How do I add a vehicle?', 'Click Add vehicle on the Dashboard (or Add car / Add bike on those tabs). Choose Type it in to fill in the details yourself, or Import a spreadsheet. Only the make is required; everything else can be added later with Edit details on the vehicle\'s page.'],
+    ['How do I import a spreadsheet?', 'Add vehicle → Import a spreadsheet, or Import spreadsheet on a vehicle\'s page. Choose One vehicle (then pick which car, or a new one) or My whole collection. Excel, OpenOffice and CSV files work, in any language and layout; from Google Sheets use File → Download → Microsoft Excel. You see everything before it\'s saved.'],
+    ['Can I fix what the spreadsheet import got wrong?', 'Yes. On the Check the import screen, open Edit details and records under any vehicle to change its details, fix or remove records and readings, or add missing ones. Records missing a date, amount or description are marked to check. Nothing is saved until you click Import.'],
+    ['Will importing duplicate vehicles or records?', 'No. Vehicles already in the garage are matched by VIN, plate or make, model and year, and their history is added to them. Records already logged (same date and amount) are skipped. If a match is wrong, choose Different vehicle on the review screen.'],
+    ['Can I replay the quick start?', 'Yes: use Replay the quick start at the top of this page, or Quick start in the Getting started card on the Dashboard.']]],
+  ['Photos and illustrations', [
+    ['How do illustrations work?', 'When you add a photo, choose Turn it into an illustration. In about a minute it\'s redrawn as a clean vector-style illustration on a light grey background, and it replaces the photo. Meanwhile the photo shows dimmed with a progress bar. A front three-quarter view works best.'],
+    ['Can I keep my original photo?', 'Yes. Choose Keep my photo as it is when uploading. You can still create an illustration later with Make illustration on the vehicle\'s page.'],
+    ['Which photo formats work?', 'JPG, PNG and WebP. On iPhone, photos picked from the library are converted to JPG automatically.']]],
+  ['Service history', [
+    ['How do I add a service record?', 'Open the vehicle and click Add service. Enter the date, odometer, what was done, the shop and the amount. Records appear on the vehicle\'s page and on the Service tab.'],
+    ['How does invoice scanning work?', 'Click Scan invoice on a vehicle\'s page and take a photo or choose a photo or PDF of the invoice. It\'s read automatically and drafted as a service record; check the details, then save. The invoice stays attached to the record.'],
+    ['How do I log the odometer?', 'Click Log reading on the vehicle\'s page whenever you check it. Readings build the mileage chart and the Driven this year figures. Service records with an odometer value count too.'],
+    ['What is the To-Do?', 'On the Service tab, the To-Do follows a 12-month service clock for each vehicle and shows what\'s overdue, due or coming up. Add needs lists what the next service should include; Complete turns it into a service record.'],
+    ['How do I find a record?', 'The Service tab lists every record. Filter by vehicle, category or year, or search.']]],
+  ['Value and costs', [
+    ['What is the Portfolio?', 'It treats the collection like investments: what each vehicle cost, what you\'ve spent on it, and what it\'s worth now, with returns per vehicle and for the whole collection.'],
+    ['How is market value worked out?', 'From what you add on each vehicle\'s page under Market value: link its FIPE model (the official Brazilian price table, refreshed monthly), add comparable sales or listings, or enter an estimated value yourself.'],
+    ['How are reais and dollars handled?', 'Each vehicle keeps its own currency and amounts are never mixed. Where the app shows a total across currencies, it converts at the day\'s exchange rate and says so.'],
+    ['Why are dates shown as dd/mm/yyyy?', 'All dates are shown and typed as day/month/year. In date fields, type the digits and the slashes are added for you, for example 25122024 becomes 25/12/2024.']]],
+  ['Sharing and your account', [
+    ['How do I invite someone?', 'Account → People. Enter their email and choose Editor (can add and change vehicles and records) or Viewer (can only look). They join when they sign up or sign in with that email.'],
+    ['What can each role do?', 'Owner: manages the garage, its look and its people. Editor: adds and changes vehicles and records. Viewer: can look, can\'t change anything.'],
+    ['How do I change how my garage looks?', 'Account → Look (owners only): upload your logo, pick a background colour, and turn motorcycles on or off. It applies for everyone in the garage.'],
+    ['Can I have more than one garage?', 'Your account includes one garage of your own, and you can be invited to any number of others. Switch between them under Account → Your garages.'],
+    ['Are there limits on the AI features?', 'Invoice scans, spreadsheet imports and illustrations each have a monthly allowance per garage that resets on the 1st. If you reach one, the app tells you.'],
+    ['Is my data private?', 'Yes. Your vehicles, records, photos and invoices are visible only to the members of your garage. Photos and invoices are stored privately and shown through temporary links.']]]
+];
+let helpQ = '';
+function viewHelp() {
+  const q = helpQ.trim().toLowerCase();
+  const groups = HELP.map(([g, items]) => [g, items.filter(([t, a]) => !q || (t + ' ' + a).toLowerCase().includes(q))]).filter(([, items]) => items.length);
+  const n = groups.reduce((a, [, items]) => a + items.length, 0);
+  return `<div class="head"><div><p class="eyebrow">Help center</p><h1>How can we help?</h1><p class="sub">Answers about every part of My Garage.</p></div>
+      ${S.user && S.garage ? '<button class="btn" type="button" data-tour>Replay the quick start</button>' : ''}</div>
+    <div class="fld help-s" style="max-width:560px"><label for="help-q">Search help</label><input id="help-q" type="search" value="${esc(helpQ)}" placeholder="e.g. invoice, illustration, invite" autocomplete="off"></div>
+    <p class="hint" id="help-n" aria-live="polite" style="margin:-4px 0 20px">${q ? `${n} answer${n === 1 ? '' : 's'}` : ''}</p>
+    ${n ? groups.map(([g, items]) => `<section class="help-g"><h2>${esc(g)}</h2>${items.map(([t, a]) => `<details class="help-a"${q ? ' open' : ''}><summary>${esc(t)}</summary><p>${esc(a)}</p></details>`).join('')}</section>`).join('')
+      : `<div class="empty"><h2>No answers match "${esc(helpQ)}"</h2><p>Try another word, or browse all topics.</p><button class="btn" type="button" id="help-clear">Show all topics</button></div>`}
+    <p class="hint" style="margin:32px 0 0">Still stuck? ${CONTACT_EMAIL ? `<a href="mailto:${esc(CONTACT_EMAIL)}?subject=My%20Garage%20help">Email us</a> and we'll help.` : 'Contact us and we\'ll help.'}</p>`;
+}
+function wireHelp() {
+  const i = $('#help-q'); if (!i) return;
+  i.oninput = () => { helpQ = i.value; const pos = i.selectionStart; render(); const j = $('#help-q'); j.focus(); j.setSelectionRange(pos, pos); };
+  const c = $('#help-clear'); if (c) c.onclick = () => { helpQ = ''; render(); $('#help-q').focus(); };
 }
 
 /* ---------- views ---------- */
@@ -1974,7 +2143,8 @@ function viewDashboard() {
       <button type="button" data-import><span class="n">Fastest</span><b>Import a spreadsheet</b><span>Excel, Google Sheets export or CSV, in any language and layout. We find the vehicles, service history and odometer readings, and you check them before anything is saved.</span></button>
       <button type="button" data-type-v="car"><span class="n">One at a time</span><b>Add a vehicle</b><span>Type in a ${bikesOn() ? 'car or a bike' : 'car'}, with its photo, specs and what you paid. Then add service records or scan invoices on its page.</span></button>
       ${S.role === 'owner' ? `<button type="button" data-signin><span class="n">Together</span><b>Invite people</b><span>Family or co-owners can add records too, or just look. You choose who edits.</span></button>` : ''}
-    </div>` : ''}`;
+    </div>` : ''}
+    <p class="hint" style="margin:20px 0 0">New here? <button class="linkbtn" type="button" data-tour style="padding:0">Take the one-minute quick start</button> or browse <a href="#/help">Help</a>.</p>`;
   const owned = S.vehicles.filter(v => v.status !== 'sold');
   const cars = owned.filter(v => v.kind === 'car').length, bikes = owned.length - cars;
   const value = addSums(...owned.map(v => { const m = valuation(v).value; return m != null ? { [v.currency || 'USD']: m } : paid(v); }));
@@ -2018,7 +2188,7 @@ function viewDashboard() {
   const recent = S.records.filter(r => r.date).slice(0, 6);
   const c5 = `<section class="cc"><div class="cc-h"><div><h3>Recent service</h3><p>Latest entries in the history</p></div><a class="btn sm" href="#/ledger">Service</a></div>
     <div class="list">${recent.map(r => `<a class="li" href="#/vehicle/${r.vehicle_id}"><span style="min-width:0"><span class="t" style="display:block">${esc(r.title)}</span><span class="m" style="display:block">${esc(vname(vById(r.vehicle_id)))} · ${fdate(r.date)}</span></span><span class="r">${r.amount != null ? money(r.amount, 0, r.currency) : (S.user ? '—' : '')}</span></a>`).join('')}</div></section>`;
-  return head + kpis + garage + `<div class="charts">${c1}${c3}${spendCards.join('')}${c4}${c5}</div>`;
+  return head + checklist() + kpis + garage + `<div class="charts">${c1}${c3}${spendCards.join('')}${c4}${c5}</div>`;
 }
 
 /* ---------- readings ---------- */
@@ -2442,8 +2612,9 @@ function render() {
   else if (a === 'ledger') html = viewLedger();
   else if (a === 'costs' || a === 'portfolio') html = viewPortfolio();
   else if (a === 'vehicle') html = viewVehicle(b);
+  else if (a === 'help') html = viewHelp();
   else html = viewList('car');
-  const titles = { dashboard: 'Dashboard', cars: 'Cars', bikes: 'Bikes', ledger: 'Service', costs: 'Portfolio', portfolio: 'Portfolio' };
+  const titles = { help: 'Help', dashboard: 'Dashboard', cars: 'Cars', bikes: 'Bikes', ledger: 'Service', costs: 'Portfolio', portfolio: 'Portfolio' };
   document.title = (a === 'vehicle' ? vname(vById(b)) : titles[a] || 'Dashboard') + ' · ' + (S.garage?.name || 'My Garage');
   $('#view').innerHTML = banner + html;
   wireView();
@@ -2452,6 +2623,10 @@ function wireView() {
   const V = $('#view');
   V.querySelectorAll('[data-add-v]').forEach(b => b.onclick = () => openAddVehicle(b.dataset.addV));
   V.querySelectorAll('[data-type-v]').forEach(b => b.onclick = () => openVehicleForm(null, b.dataset.typeV));
+  V.querySelectorAll('[data-tour]').forEach(b => b.onclick = () => openTour(0));
+  V.querySelectorAll('[data-gs]').forEach(b => b.onclick = () => gsDo(b.dataset.gs));
+  V.querySelectorAll('[data-gs-hide]').forEach(b => b.onclick = () => { setFlag('mg_list_hidden'); render(); toast('Hidden. The quick start is always in Help.'); });
+  wireHelp();
   V.querySelectorAll('[data-import-v]').forEach(b => b.onclick = () => openImport(vById(b.dataset.importV)?.kind, { vehicleId: b.dataset.importV, scope: 'single' }));
   V.querySelectorAll('[data-illus]').forEach(b => b.onclick = () => illustrate(vById(b.dataset.illus)));
   V.querySelectorAll('[data-edit-v]').forEach(b => b.onclick = () => openVehicleForm(vById(b.dataset.editV)));
