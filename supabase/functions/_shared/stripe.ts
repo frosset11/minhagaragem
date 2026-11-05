@@ -52,8 +52,13 @@ export class StripeError extends Error { constructor(msg: string, public code: s
 // tax code on every product: SaaS, personal use (browser-based, sold to individuals)
 export const TAX_CODE = 'txcd_10103000';
 
+// An extra garage for an account: US$20, paid once (Concierge owners get 3 included, counted in the database)
+export const EXTRA_GARAGE = { lookup: 'autodex_extra_garage', amount: 2000, name: 'AUTODEX extra garage' };
+export const MAX_GARAGES_PER_BUY = 5;
+
 export async function priceFor(plan: string): Promise<string> {
-  const p = PLANS[plan]; if (!p) throw new StripeError('Unknown plan.', 'bad_plan');
+  const p = plan === 'garage' ? EXTRA_GARAGE : PLANS[plan]; if (!p) throw new StripeError('Unknown plan.', 'bad_plan');
+  const once = plan === 'garage';
   const found = await stripe('prices', { lookup_keys: [p.lookup], active: true, limit: 1, expand: ['data.product'] }, 'GET');
   const hit = found.data?.[0];
   if (hit?.id) {
@@ -63,6 +68,6 @@ export async function priceFor(plan: string): Promise<string> {
     return hit.id;
   }
   const product = await stripe('products', { name: p.name, tax_code: TAX_CODE, metadata: { app: 'autodex', plan } });
-  const price = await stripe('prices', { product: product.id, unit_amount: p.amount, currency: 'usd', recurring: { interval: 'month' }, lookup_key: p.lookup, nickname: `${p.name} monthly` });
+  const price = await stripe('prices', { product: product.id, unit_amount: p.amount, currency: 'usd', recurring: once ? undefined : { interval: 'month' }, lookup_key: p.lookup, nickname: once ? `${p.name}, one-time` : `${p.name} monthly` });
   return price.id;
 }

@@ -634,7 +634,32 @@ async function shrinkLogo(file, max = 512) {
 // Until online payment exists, extra places are added by an admin (see supabase/migrations/0004_allowances.sql).
 const PRICES = { vehicle: '$1', garage: '$20' };
 const CONTACT_EMAIL = ''; // shown on the "full" screens when set
-S.garageLimit = 1;
+S.garageLimit = 1; S.allow = null;
+// Garages this account may own: 1 included + bought (US$20 each, once) + 3 while it owns a Concierge garage
+async function loadAllowance() {
+  const r = await db.rpc('garage_allowance');
+  if (r.data) { S.allow = r.data; S.garageLimit = r.data.total; }
+  return S.allow;
+}
+const allowText = () => {
+  const a = S.allow || { included: 1, bought: Math.max(0, S.garageLimit - 1), concierge: 0 };
+  return [`${a.included} included`, a.concierge ? `${a.concierge} with Concierge` : '', a.bought ? `${a.bought} bought` : ''].filter(Boolean).join(', ');
+};
+async function buyGarage(btn, qty = 1) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Opening checkout…'; }
+  try { const res = await billingCall({ action: 'garage', quantity: qty }); location.href = res.url; }
+  catch (x) { toast(x.message, true); if (btn) { btn.disabled = false; btn.textContent = `Buy an extra garage · ${PRICES.garage}`; } }
+}
+// Back from paying for a garage: wait for the webhook to add it
+async function waitForGarage(tries = 12) {
+  const before = S.garageLimit;
+  for (let i = 0; i < tries; i++) {
+    await loadAllowance();
+    if (S.garageLimit > before || ownedGarages() < S.garageLimit) { toast('Payment received. You can create your new garage now.'); openAccount(); return; }
+    await new Promise(r => setTimeout(r, 2500));
+  }
+  toast('Payment received. Your extra garage appears in a moment; refresh if it doesn\'t.');
+}
 const activeVehicles = () => S.vehicles.filter(v => v.status !== 'sold').length;
 const vLimit = () => S.garage?.vehicle_limit ?? Infinity; // null = unlimited
 const vFull = () => activeVehicles() >= vLimit();
@@ -655,11 +680,14 @@ function openLimit(kind) {
     ? `<p>${esc(S.garage?.name || 'This garage')} holds ${vLimit()} vehicles, and all ${vLimit()} places are in use. Sold vehicles don't count, so marking one as sold frees its place.</p>
        <p>Extra places are <b>${PRICES.vehicle} per vehicle</b>, paid once.</p>
        <p class="hint">${S.role === 'owner' ? ask('More vehicle places for ' + (S.garage?.name || 'my garage')) : 'Ask the owner of this garage to add more places.'}</p>`
-    : `<p>Your account includes ${S.garageLimit} garage${S.garageLimit === 1 ? '' : 's'} of your own, and ${S.garageLimit === 1 ? 'it\'s' : 'they\'re all'} in use. Garages you were invited to don't count.</p>
-       <p>Each extra garage is <b>${PRICES.garage}</b>, paid once.</p>
-       <p class="hint">${ask('Another garage for ' + (S.user?.email || 'my account'))}</p>`;
-  openPanel(kind === 'vehicle' ? 'This garage is full' : 'Add another garage', body, `<span class="sp"></span><button class="btn" type="button" id="lim-ok">Got it</button>`);
+    : `<p>Your account can own ${S.garageLimit} garage${S.garageLimit === 1 ? '' : 's'} (${allowText()}), and ${S.garageLimit === 1 ? 'it\'s' : 'they\'re all'} in use. Garages you were invited to don't count.</p>
+       <p>Each extra garage is <b>${PRICES.garage}</b>, paid once. It's yours to keep, whatever plan you're on.</p>
+       ${S.allow?.concierge ? '' : `<p class="hint">On Concierge, ${PLAN_INFO.concierge.garages} extra garages are included at no extra cost.</p>`}`;
+  const garage = kind !== 'vehicle';
+  openPanel(garage ? 'Add another garage' : 'This garage is full', body, `<span class="sp"></span>${garage && !S.allow?.concierge ? '<button class="btn" type="button" id="lim-plans">See plans</button>' : ''}<button class="btn${garage ? '' : ' primary'}" type="button" id="lim-ok">${garage ? 'Not now' : 'Got it'}</button>${garage ? `<button class="btn primary" type="button" id="lim-buy">Buy an extra garage · ${PRICES.garage}</button>` : ''}`);
   $('#lim-ok').onclick = closePanel;
+  if ($('#lim-buy')) $('#lim-buy').onclick = e => buyGarage(e.currentTarget);
+  if ($('#lim-plans')) $('#lim-plans').onclick = () => { closePanel(); location.hash = '#/plans'; };
 }
 
 /* ---------- data (everything is scoped to the garage that's open) ---------- */
@@ -735,6 +763,7 @@ async function refreshAuth(session) {
   if (prev !== S.user.id || window.live.state === 'loading') await load(); else render();
   if (pendingToast) { toast(pendingToast); pendingToast = null; }
   if (pendingBilling) { pendingBilling = false; toast('Payment received. Updating your plan…'); waitForPlan(null); }
+  else if (pendingGarage) { pendingGarage = false; toast('Payment received. Adding your garage…'); waitForGarage(); }
   else if (pendingInstall) openPendingInstall(); else maybeTour();
 }
 let pendingToast = null;
@@ -750,8 +779,7 @@ async function loadGarages() {
     S.garages = cached;
   } else {
     S.garages = (data || []).filter(m => m.garage).map(m => ({ ...m.garage, role: m.role })).sort((a, b) => a.name.localeCompare(b.name));
-    const acc = await db.from('accounts').select('garage_limit').maybeSingle();
-    S.garageLimit = acc.data?.garage_limit ?? 1;
+    await loadAllowance();
     try { localStorage.setItem('mg-garages-' + S.user.id, JSON.stringify(S.garages)); } catch (e) {}
   }
   let want = null; try { want = localStorage.getItem('mg-garage'); } catch (e) {}
@@ -866,6 +894,7 @@ function authMsg(err) {
 /* ---------- account, garage settings and people ---------- */
 async function openAccount() {
   if (!S.user) return showLogin();
+  await loadAllowance().catch(() => {}); // a plan change can move the garage allowance
   const g = S.garage, owner = S.role === 'owner';
   let members = [], invites = [];
   if (g) {
@@ -914,7 +943,7 @@ async function openAccount() {
     </fieldset>` : ''}
     <fieldset><legend>Your garages</legend>
       ${others.length ? `<div class="rows" style="margin-bottom:12px">${others.map(x => `<button class="row" type="button" data-gsw="${x.id}" style="grid-template-columns:1fr auto"><span class="t">${esc(x.name)}</span><span class="hint">${ROLES[x.role]}</span></button>`).join('')}</div>` : ''}
-      <p class="hint" style="margin:0 0 10px">You own ${ownedGarages()} of ${S.garageLimit} garage${S.garageLimit === 1 ? '' : 's'} included with your account · extra garages ${PRICES.garage} each, paid once</p>
+      <p class="hint" style="margin:0 0 10px">You own ${ownedGarages()} of ${S.garageLimit} garage${S.garageLimit === 1 ? '' : 's'} (${allowText()}) · extra garages ${PRICES.garage} each, paid once${S.allow?.concierge ? '' : `, or ${PLAN_INFO.concierge.garages} included with Concierge`}</p>
       <div id="g-new"><button class="btn" type="button" id="g-new-btn">${ICON.plus}Create another garage</button></div>
     </fieldset>
     <dl class="kv"><dt>Signed in as</dt><dd>${esc(S.user.email)}</dd></dl>
@@ -1188,7 +1217,7 @@ function tourPlans() {
   const owner = S.role === 'owner', cur = curPlan();
   const row = (k, p) => `<div class="tp${k === cur ? ' on' : ''}">
       <div class="tp-h"><b>${p.name}</b><span>${p.price ? `<b>US$${p.price}</b> / month` : '<b>US$0</b>'}</span></div>
-      <ul><li>Unlimited vehicles, records and people</li><li><b>${p.scan}</b> invoice scans a month</li><li><b>${p.import}</b> spreadsheet imports a month</li><li><b>${p.illustrate}</b> illustrations a month</li></ul>
+      <ul><li>Unlimited vehicles, records and people</li><li><b>${p.scan}</b> invoice scans a month</li><li><b>${p.import}</b> spreadsheet imports a month</li><li><b>${p.illustrate}</b> illustrations a month</li><li>${p.garages ? `<b>${p.garages}</b> extra garages included` : `Extra garages ${PRICES.garage} each, paid once`}</li></ul>
       ${owner ? (k === cur ? `<span class="pl-cur">Your plan now</span>` : k === 'free' ? '' : `<button class="btn${k === 'pro' ? ' primary' : ''}" type="button" data-tour-plan="${k}">Choose ${p.name}</button>`) : (k === cur ? '<span class="pl-cur">Your garage\'s plan</span>' : '')}
     </div>`;
   return `<p class="tour-t">Every plan includes everything in the tour, with unlimited vehicles. Plans differ in how much of the AI features you get each month: reading invoices, importing spreadsheets and drawing illustrations.</p>
@@ -1363,7 +1392,7 @@ function installCard() {
 const PLAN_INFO = {
   free: { name: 'Free', price: 0, scan: 10, import: 2, illustrate: 3, blurb: 'Everything you need to keep your vehicles\' records.' },
   pro: { name: 'Pro', price: 5, scan: 50, import: 10, illustrate: 15, blurb: 'For an active collection: more scans, imports and illustrations.' },
-  concierge: { name: 'Concierge', price: 20, scan: 200, import: 30, illustrate: 50, blurb: 'For large collections and the people who look after them.' }
+  concierge: { name: 'Concierge', price: 20, scan: 200, import: 30, illustrate: 50, garages: 3, blurb: 'For large collections and the people who look after them.' }
 };
 const KIND_LABEL = { scan: 'Invoice scans', import: 'Spreadsheet imports', illustrate: 'Illustrations' };
 const curPlan = () => PLAN_INFO[S.garage?.plan] ? S.garage.plan : 'free';
@@ -1429,7 +1458,7 @@ function viewPlans() {
     <section class="pl-use"><h2>This month</h2>${S.usage ? ['scan', 'import', 'illustrate'].map(meter).join('') : '<div class="skel" style="height:90px"></div>'}<p class="hint" style="margin:10px 0 0">Allowances reset on ${resets}.</p></section>
     <div class="pl-grid">${Object.entries(PLAN_INFO).map(([k, p]) => `<article class="pl${k === cur ? ' on' : ''}">
       <h3>${p.name}</h3><p class="pl-p"><b>US$${p.price}</b>${p.price ? ' / month' : ''}</p><p class="hint pl-b">${p.blurb}</p>
-      <ul><li>Unlimited vehicles and records</li><li>${p.scan} invoice scans a month</li><li>${p.import} spreadsheet imports a month</li><li>${p.illustrate} illustrations a month</li></ul>
+      <ul><li>Unlimited vehicles and records</li><li>${p.scan} invoice scans a month</li><li>${p.import} spreadsheet imports a month</li><li>${p.illustrate} illustrations a month</li><li>${p.garages ? `${p.garages} extra garages included` : `Extra garages ${PRICES.garage} each, paid once`}</li></ul>
       <div class="pl-a">${action(k)}</div></article>`).join('')}</div>
     <p class="hint" style="margin:20px 0 0">${owner ? 'Payments are handled securely by Stripe. Cancel any time from Billing; the plan stays until the end of the period you paid for. Prices in US dollars; your card issuer may add foreign-transaction fees or taxes such as IOF.' : 'Only the garage\'s owner can change its plan.'}</p>`;
 }
@@ -2880,7 +2909,8 @@ window.addEventListener('hashchange', () => {
 $('#acct-btn').onclick = openAccount;
 // Back from Stripe Checkout (/?billing=done#/plans): wait for the webhook to move the plan
 let pendingBilling = /[?&]billing=done/.test(location.search);
-if (pendingBilling) history.replaceState(null, '', location.pathname + location.hash);
+let pendingGarage = /[?&]billing=garage/.test(location.search);
+if (pendingBilling || pendingGarage) history.replaceState(null, '', location.pathname + location.hash);
 // The quicklink /#/install opens the add-to-home-screen sheet, signed in or not
 if (location.hash === '#/install') { history.replaceState(null, '', location.pathname); pendingInstall = true; }
 

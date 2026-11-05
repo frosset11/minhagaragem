@@ -1,9 +1,10 @@
 // Owners start, change or manage their garage's AUTODEX subscription.
 //   checkout: Stripe Checkout for a plan (or, with a subscription already running, switches its plan)
 //   portal:   Stripe's customer portal (card, invoices, cancel)
+//   garage:   Stripe Checkout for extra garages on the account (US$20 each, one-time)
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 import { cors, json } from '../_shared/ai.ts';
-import { PLANS, StripeError, planFromLookup, priceFor, stripe } from '../_shared/stripe.ts';
+import { MAX_GARAGES_PER_BUY, PLANS, StripeError, planFromLookup, priceFor, stripe } from '../_shared/stripe.ts';
 
 const SITE = Deno.env.get('SITE_URL') || 'https://autodex-garage.vercel.app';
 // Only send people back to this site (or a local copy while developing)
@@ -12,15 +13,37 @@ const siteOf = (origin: string | null) => origin && (/^https:\/\/[a-z0-9-]+(\.[a
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   try {
-    const body = await req.json().catch(() => ({})) as { garage_id?: string; action?: string; plan?: string };
+    const body = await req.json().catch(() => ({})) as { garage_id?: string; action?: string; plan?: string; quantity?: number };
     const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } });
     const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
     const { data: u } = await sb.auth.getUser();
     if (!u?.user) return json({ error: 'signed_out', message: 'Your sign-in expired. Sign in again and retry.' }, 401);
+    const site = siteOf(req.headers.get('origin'));
+
+    // An extra garage belongs to the account, not to a garage: its own Stripe customer on accounts
+    if (body.action === 'garage') {
+      const qty = Math.max(1, Math.min(MAX_GARAGES_PER_BUY, Math.floor(Number(body.quantity) || 1)));
+      let { data: acc } = await admin.from('accounts').select('stripe_customer_id').eq('user_id', u.user.id).maybeSingle();
+      let customer = acc?.stripe_customer_id as string | undefined;
+      if (!customer) {
+        const c = await stripe('customers', { email: u.user.email, description: 'AUTODEX account', metadata: { user_id: u.user.id } });
+        customer = c.id;
+        const { error } = await admin.from('accounts').upsert({ user_id: u.user.id, stripe_customer_id: customer }, { onConflict: 'user_id' });
+        if (error) throw error;
+      }
+      const price = await priceFor('garage');
+      const meta = { kind: 'garage_slots', user_id: u.user.id, quantity: String(qty) };
+      const s = await stripe('checkout/sessions', {
+        mode: 'payment', customer, client_reference_id: u.user.id,
+        line_items: [{ price, quantity: qty }], metadata: meta,
+        success_url: `${site}/?billing=garage#/dashboard`, cancel_url: `${site}/#/dashboard`
+      });
+      return json({ ok: true, url: s.url });
+    }
+
     if (typeof body.garage_id !== 'string' || !/^[0-9a-f-]{36}$/.test(body.garage_id)) return json({ error: 'bad_garage', message: 'Open a garage first.' }, 400);
     const { data: m } = await sb.from('garage_members').select('role').eq('garage_id', body.garage_id).eq('user_id', u.user.id).maybeSingle();
     if (m?.role !== 'owner') return json({ error: 'forbidden', message: 'Only the garage\'s owner can change its plan.' }, 403);
-    const site = siteOf(req.headers.get('origin'));
 
     // the garage's Stripe customer, created once
     let { data: bill } = await admin.from('billing').select('*').eq('garage_id', body.garage_id).maybeSingle();

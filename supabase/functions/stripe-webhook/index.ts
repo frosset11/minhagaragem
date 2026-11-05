@@ -46,7 +46,15 @@ Deno.serve(async (req) => {
   if (seen) return new Response('already handled');
   try {
     const o = event.data?.object || {};
-    if (event.type === 'checkout.session.completed' && o.mode === 'subscription' && o.subscription) {
+    if (['checkout.session.completed', 'checkout.session.async_payment_succeeded'].includes(event.type) && o.mode === 'payment' && o.metadata?.kind === 'garage_slots') {
+      // extra garages: added once per paid session (grant_garage_slots ignores a session it has seen)
+      if (o.payment_status === 'paid') {
+        const qty = Number(o.metadata.quantity) || 1;
+        const { data, error } = await admin.rpc('grant_garage_slots', { p_user: o.metadata.user_id || o.client_reference_id, p_session: o.id, p_qty: qty, p_amount: o.amount_total ?? null, p_currency: o.currency ?? null });
+        if (error) throw error;
+        console.log('garage slots', o.id, qty, '->', data);
+      }
+    } else if (event.type === 'checkout.session.completed' && o.mode === 'subscription' && o.subscription) {
       if (o.client_reference_id) await admin.from('billing').upsert({ garage_id: o.client_reference_id, stripe_customer_id: o.customer, updated_at: new Date().toISOString() });
       await apply(await stripe(`subscriptions/${o.subscription}`, undefined, 'GET'));
     } else if (['customer.subscription.created', 'customer.subscription.updated'].includes(event.type)) {
