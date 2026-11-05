@@ -38,6 +38,7 @@ body{font-family:var(--sans);font-size:15px;line-height:1.5;-webkit-font-smoothi
 button,input,select,textarea{font:inherit;color:inherit}
 a{color:inherit}
 .mono{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+[hidden]{display:none!important}
 .vh{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 :focus-visible{outline:2px solid var(--fg);outline-offset:2px;border-radius:6px}
 #view:focus,#view:focus-visible{outline:none}
@@ -567,7 +568,7 @@ const PRICES = { vehicle: '$1', garage: '$20' };
 const CONTACT_EMAIL = ''; // shown on the "full" screens when set
 S.garageLimit = 1;
 const activeVehicles = () => S.vehicles.filter(v => v.status !== 'sold').length;
-const vLimit = () => S.garage?.vehicle_limit ?? 5;
+const vLimit = () => S.garage?.vehicle_limit ?? Infinity; // null = unlimited
 const vFull = () => activeVehicles() >= vLimit();
 const ownedGarages = () => S.garages.filter(g => g.role === 'owner').length;
 function limitMsg(err) {
@@ -806,7 +807,7 @@ async function openAccount() {
     ${g ? `<fieldset><legend>Garage</legend>
       ${owner ? `<form id="g-form" novalidate>${garageFields(g)}<button class="btn" type="submit">Save garage</button></form>`
         : `<dl class="kv"><dt>Garage</dt><dd>${esc(g.name)}</dd><dt>Your role</dt><dd>${ROLES[S.role]} · ${esc(ROLE_HELP[S.role])}</dd></dl>`}
-      <p class="hint" style="margin:12px 0 0">Vehicles: ${activeVehicles()} of ${vLimit()} places used (sold ones don't count) · extra places ${PRICES.vehicle} each, paid once</p>
+      ${isFinite(vLimit()) ? `<p class="hint" style="margin:12px 0 0">Vehicles: ${activeVehicles()} of ${vLimit()} places used (sold ones don't count) · extra places ${PRICES.vehicle} each, paid once</p>` : ''}
     </fieldset>
     ${owner ? `<fieldset><legend>Look</legend><form id="look-form" novalidate>
       <div class="fld" data-f="logo"><label for="f-logo">Garage logo <span class="hint">(optional)</span></label>
@@ -1127,7 +1128,7 @@ function viewVehicle(id) {
           <div><dt>Owned</dt><dd>${owned != null ? (owned >= 365 ? (owned / 365).toFixed(1) + ' <small>yrs</small>' : owned + ' <small>days</small>') : '—'}</dd></div>
           <div><dt>Records</dt><dd>${recs.length}</dd></div>
         </dl>
-        <div class="actions">${S.editor ? `<button class="btn primary" type="button" data-scan="${v.id}">Scan invoice</button><button class="btn" type="button" data-add-r="${v.id}">${ICON.plus}Add service</button><button class="btn" type="button" data-log="${v.id}">${ICON.plus}Log reading</button><button class="btn" type="button" data-edit-v="${v.id}">Edit details</button>${v.photo_url && !isIllus(v) ? `<button class="btn" type="button" data-illus="${v.id}"${ILLUS.has(v.id) ? ' disabled' : ''}>${ILLUS.has(v.id) ? 'Drawing…' : 'Make illustration'}</button>` : ''}` : (S.user ? '' : lockNote())}</div>
+        <div class="actions">${S.editor ? `<button class="btn primary" type="button" data-scan="${v.id}">Scan invoice</button><button class="btn" type="button" data-add-r="${v.id}">${ICON.plus}Add service</button><button class="btn" type="button" data-log="${v.id}">${ICON.plus}Log reading</button><button class="btn" type="button" data-edit-v="${v.id}">Edit details</button><button class="btn" type="button" data-import-v="${v.id}">Import spreadsheet</button>${v.photo_url && !isIllus(v) ? `<button class="btn" type="button" data-illus="${v.id}"${ILLUS.has(v.id) ? ' disabled' : ''}>${ILLUS.has(v.id) ? 'Drawing…' : 'Make illustration'}</button>` : ''}` : (S.user ? '' : lockNote())}</div>
       </div>
     </div>
     ${vehicleCharts(v)}
@@ -1623,16 +1624,40 @@ function applyMap(book, map, refs) {
   }
   return out;
 }
-function openImport(kind) {
+// One vehicle's file: every row belongs to that vehicle (already in the garage, or new from the file)
+function singleMap(map, target, refs, kind) {
+  const ref = target ? [...refs].find(([, v]) => v.id === target.id)?.[0] : null;
+  let v = (map.vehicles || [])[0] || (target
+    ? { key: '__single__', other_keys: [], kind: target.kind, year: target.year, make: target.make, model: target.model, status: 'owned' }
+    : { key: '__single__', other_keys: [], kind: kind === 'bike' ? 'bike' : 'car', make: '', status: 'owned' });
+  v = { ...v, existing: ref || null };
+  return { ...map, vehicles: [v],
+    history: (map.history || []).map(h => ({ ...h, vehicle_key: v.key, vehicle_col: null })),
+    readings: (map.readings || []).map(m => ({ ...m, vehicle_key: v.key, vehicle_col: null })) };
+}
+// kind: 'car' | 'bike' | undefined; opts.vehicleId preselects one vehicle
+function openImport(kind, opts = {}) {
+  const pre = opts.vehicleId ? vById(opts.vehicleId) : null;
+  const scope = opts.scope || 'single';
   openPanel('Import a spreadsheet', `
-    <p class="hint" style="margin:0 0 18px">Excel (.xlsx, .xls), OpenOffice (.ods) or CSV. Any language, any layout: one vehicle or many, one tab per vehicle, one big list, or separate tabs for vehicles and service history. ${S.vehicles.length ? 'Vehicles already in this garage are recognised, so their history is added to them instead of making a copy. ' : ''}You'll see everything before it's saved.</p>
-    <div id="im-pick"><label class="btn primary" style="height:48px;width:100%">Choose a spreadsheet<input id="im-file" type="file" accept=".xlsx,.xls,.xlsm,.ods,.csv,.tsv,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="vh"></label>
+    <p class="hint" style="margin:0 0 14px">Excel (.xlsx, .xls), OpenOffice (.ods) or CSV, in any language and layout. You'll see everything, and can fix it, before it's saved.</p>
+    <div id="im-pick">
+      <div class="choice" role="radiogroup" aria-label="What's in the file">
+        <label><input type="radio" name="im-scope" value="single"${scope === 'single' ? ' checked' : ''}><span><b>One vehicle</b><small>The service history, costs or odometer readings of a single car or bike.</small></span></label>
+        <label><input type="radio" name="im-scope" value="all"${scope === 'all' ? ' checked' : ''}><span><b>My whole collection</b><small>Several vehicles in one file, with their history: one tab per vehicle, one big list, or separate tabs.${S.vehicles.length ? ' Vehicles already here are recognised, not duplicated.' : ''}</small></span></label>
+      </div>
+      <div class="fld" id="im-target-f"${scope === 'single' ? '' : ' hidden'}><label for="im-target">Which vehicle is it for?</label>
+        <select id="im-target">${S.vehicles.filter(v => v.status !== 'sold' || v.id === pre?.id).map(v => `<option value="${v.id}"${v.id === pre?.id ? ' selected' : ''}>${esc(vname(v))}</option>`).join('')}<option value=""${pre ? '' : ' selected'}>A new ${kind === 'bike' ? 'bike' : kind === 'car' || !bikesOn() ? 'car' : 'vehicle'}: details from the file</option></select></div>
+      <label class="btn primary" style="height:48px;width:100%">Choose a spreadsheet<input id="im-file" type="file" accept=".xlsx,.xls,.xlsm,.ods,.csv,.tsv,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="vh"></label>
       <p class="hint" style="margin:12px 0 0">Google Sheets: File → Download → Microsoft Excel, then choose that file here.</p></div>
     <div id="im-busy" hidden><div class="skel" style="height:14px;width:60%;margin-bottom:12px"></div><div class="skel" style="height:14px;width:85%;margin-bottom:12px"></div><div class="skel" style="height:14px;width:40%"></div><p class="hint" style="margin:18px 0 0" id="im-msg">Reading the spreadsheet…</p></div>
     <div id="im-err"></div>`, `<button class="btn" type="button" id="im-type">Type it in instead</button>`);
+  const scopeNow = () => document.querySelector('input[name="im-scope"]:checked')?.value || 'all';
+  document.querySelectorAll('input[name="im-scope"]').forEach(r => r.onchange = () => { $('#im-target-f').hidden = scopeNow() !== 'single'; });
   $('#im-type').onclick = () => openVehicleForm(null, kind === 'bike' && bikesOn() ? 'bike' : 'car');
   $('#im-file').onchange = async e => {
     const file = e.target.files[0]; if (!file) return;
+    const single = scopeNow() === 'single', target = single && $('#im-target').value ? vById($('#im-target').value) : null;
     $('#im-err').innerHTML = '';
     if (file.size > 15e6) { $('#im-err').innerHTML = '<div class="form-err" style="margin-top:16px">That file is over 15 MB. Remove photos or unused tabs and try again.</div>'; return; }
     $('#im-pick').hidden = true; $('#im-busy').hidden = false; $('#im-type').disabled = true;
@@ -1643,11 +1668,17 @@ function openImport(kind) {
       $('#im-msg').textContent = `Working out the layout of ${book.length} tab${book.length === 1 ? '' : 's'}… this takes 20–40 seconds.`;
       const refs = new Map(S.vehicles.map((v, i) => ['G' + (i + 1), v]));
       const existing = [...refs].map(([ref, v]) => ({ ref, kind: v.kind, year: v.year, make: v.make, model: v.model, trim: v.trim_level, colour: v.colour, plate: v.plate, vin: v.vin, nickname: v.nickname }));
-      const { data, error } = await db.functions.invoke('import-sheet', { body: { garage_id: GID(), filename: file.name, sheets: sheetSummary(book), existing } });
+      const targetRef = target ? [...refs].find(([, v]) => v.id === target.id)[0] : null;
+      const { data, error } = await db.functions.invoke('import-sheet', { body: { garage_id: GID(), filename: file.name, sheets: sheetSummary(book), existing, scope: single ? 'single' : 'all', target: targetRef } });
       let res = data; if (error) { try { res = await error.context.json(); } catch (x) { res = { message: 'The importer couldn\'t be reached. Check your connection and try again.' }; } }
       if (!res || !res.ok) throw new Error(res?.message || 'Couldn\'t work out that spreadsheet.');
-      const plan = applyMap(book, res.map, refs);
+      const map = single ? singleMap(res.map, target, refs, kind) : res.map;
+      const plan = applyMap(book, map, refs);
+      if (single && target) { plan.match = new Map([[plan.vehicles[0].id, target.id]]); plan.forced = true; }
       if (!plan.vehicles.length) throw new Error('No vehicles were found in that spreadsheet. ' + (plan.warnings[0] || 'Check it lists your cars or bikes.'));
+      if (single && !plan.records.length && !plan.readings.length && target) throw new Error('No service records or readings were found in that spreadsheet for ' + vname(target) + '. ' + (plan.warnings[0] || ''));
+      // a new vehicle whose make the file doesn't give: go straight to its details
+      if (single && !target && (!plan.vehicles[0].make || plan.vehicles[0].make === 'Unknown')) { plan.vehicles[0].make = ''; editImport(plan, plan.vehicles[0].id, file.name, kind); return; }
       reviewImport(plan, file.name, kind);
     } catch (x) {
       $('#im-busy').hidden = true; $('#im-pick').hidden = false; $('#im-file').value = ''; $('#im-type').disabled = false;
@@ -1683,7 +1714,7 @@ function reviewImport(plan, fname, kind) {
     <div class="rows" id="im-list">${plan.vehicles.map(v => { const ex = plan.match.has(v.id) ? vById(plan.match.get(v.id)) : null; return `<div class="row" style="grid-template-columns:auto 1fr auto;align-items:start">
       <input type="checkbox" data-iv="${v.id}" id="iv-${v.id}"${plan.keep.has(v.id) ? ' checked' : ''} style="margin-top:3px" aria-label="Import ${esc(vname(v))}">
       <span class="tm"><label for="iv-${v.id}" class="t" style="display:block;cursor:pointer">${esc(vname(ex || v))}</label><span class="m" style="display:block">${ex ? 'In your garage · ' : ''}${v.kind === 'bike' ? 'Bike' : 'Car'}${v.plate ? ' · ' + esc(v.plate) : ''}${v.odometer != null ? ' · ' + num(v.odometer) + ' ' + v.odometer_unit : ''}${v.purchase_price ? ' · paid ' + money(v.purchase_price, 0, v.currency) : ''}</span>
-        ${ex ? `<label class="vh" for="im-m-${v.id}">What to do with ${esc(vname(v))}</label><span class="fld" style="display:block;margin-top:8px"><select id="im-m-${v.id}" data-im-mode="${v.id}"><option value="merge">Same vehicle: add its history</option><option value="new"${plan.modes.get(v.id) === 'new' ? ' selected' : ''}>Different vehicle: add it as new</option></select></span>` : ''}
+        ${ex && !plan.forced ? `<label class="vh" for="im-m-${v.id}">What to do with ${esc(vname(v))}</label><span class="fld" style="display:block;margin-top:8px"><select id="im-m-${v.id}" data-im-mode="${v.id}"><option value="merge">Same vehicle: add its history</option><option value="new"${plan.modes.get(v.id) === 'new' ? ' selected' : ''}>Different vehicle: add it as new</option></select></span>` : ''}
         <span style="display:flex;gap:12px;align-items:center;margin-top:6px"><button class="linkbtn" type="button" data-im-edit="${v.id}" style="padding:4px 0">Edit details and records</button>${toCheck(plan, v.id) ? `<span class="hint" style="color:var(--warn)">${toCheck(plan, v.id)} to check</span>` : ''}</span></span>
       <span class="hint" style="text-align:right" data-im-n="${v.id}">${plural(count(plan.records, v.id), 'record')}<br>${plural(count(plan.readings, v.id), 'reading')}${count(plan.records, v.id) ? '<br>' + spentOf(v.id) : ''}</span></div>`; }).join('')}</div>`,
     `<button class="btn" type="button" id="im-back">Choose another file</button><span class="sp"></span><button class="btn primary" type="button" id="im-go">Import</button>`);
@@ -1764,7 +1795,7 @@ function editImport(plan, vid, fname, kind) {
   const recs = () => plan.records.filter(r => r.vehicle_id === vid), reads = () => plan.readings.filter(r => r.vehicle_id === vid);
   const draw = () => {
     const rs = recs(), ds = reads(), nCheck = rs.filter(needsCheck).length;
-    openPanel(`Edit ${vname(v)}`, `
+    openPanel(`Edit ${vname(v) || `the new ${v.kind === 'bike' ? 'bike' : 'car'}`}`, `
     <p class="hint" style="margin:0 0 16px">Fix anything the spreadsheet got wrong. Nothing is saved until you import${merging ? `. <b style="color:var(--fg)">${esc(vname(merging))}</b> is already in your garage, so these details only fill in what's blank there` : ''}.</p>
     <form id="ie-form" novalidate>
     <fieldset><legend>Vehicle</legend>
@@ -2421,6 +2452,7 @@ function wireView() {
   const V = $('#view');
   V.querySelectorAll('[data-add-v]').forEach(b => b.onclick = () => openAddVehicle(b.dataset.addV));
   V.querySelectorAll('[data-type-v]').forEach(b => b.onclick = () => openVehicleForm(null, b.dataset.typeV));
+  V.querySelectorAll('[data-import-v]').forEach(b => b.onclick = () => openImport(vById(b.dataset.importV)?.kind, { vehicleId: b.dataset.importV, scope: 'single' }));
   V.querySelectorAll('[data-illus]').forEach(b => b.onclick = () => illustrate(vById(b.dataset.illus)));
   V.querySelectorAll('[data-edit-v]').forEach(b => b.onclick = () => openVehicleForm(vById(b.dataset.editV)));
   V.querySelectorAll('[data-add-r]').forEach(b => b.onclick = () => openRecordForm(null, b.dataset.addR));
@@ -2434,7 +2466,7 @@ function wireView() {
   V.querySelectorAll('[data-read]').forEach(b => b.onclick = () => { const r = S.readings.find(x => x.id === b.dataset.read); openReadingForm(vById(r.vehicle_id), r); });
   V.querySelectorAll('.lc').forEach(wireLine);
   V.querySelectorAll('[data-scan]').forEach(b => b.onclick = () => openScan(b.dataset.scan || null));
-  V.querySelectorAll('[data-import]').forEach(b => b.onclick = () => openImport());
+  V.querySelectorAll('[data-import]').forEach(b => b.onclick = () => openImport(undefined, { scope: S.vehicles.length ? 'single' : 'all' }));
   V.querySelectorAll('[data-tf]').forEach(b => b.onclick = () => { TF.k = b.dataset.tf; render(); });
   V.querySelectorAll('[data-task]').forEach(b => b.onclick = () => { const v = b.dataset.task ? vById(b.dataset.task) : null; openTaskForm(v, v ? openTask(v) : null); });
   V.querySelectorAll('[data-complete]').forEach(b => b.onclick = () => openCompleteForm(vById(b.dataset.complete)));

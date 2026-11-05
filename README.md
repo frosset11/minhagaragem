@@ -7,7 +7,7 @@ A private garage for car and motorcycle owners: vehicles, service history, odome
 - **AI:** `supabase/functions/scan-invoice` and `import-sheet` call Claude with the platform's `ANTHROPIC_API_KEY` secret, capped per garage per month (`_shared/ai.ts`, `LIMITS`) and logged in `usage_events`.
 
 ## Allowances (until online payment exists)
-Each garage holds 5 active vehicles (sold ones don't count) and each account owns 1 garage. Extra places are US$1 per vehicle and US$20 per garage, one-time. After a customer pays, run in the Supabase SQL editor:
+Vehicles per garage are currently unlimited (`garages.vehicle_limit` is null; migration 0006). Each account owns 1 garage. Extra places are US$1 per vehicle and US$20 per garage, one-time. After a customer pays, run in the Supabase SQL editor:
 
 ```sql
 select private.add_vehicle_slots('<garage id>', 5);        -- returns the new vehicle limit

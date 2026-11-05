@@ -77,7 +77,7 @@ const SCHEMA = {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   try {
-    const body = await req.json().catch(() => ({})) as { garage_id?: string; filename?: string; sheets?: unknown[]; existing?: unknown[] };
+    const body = await req.json().catch(() => ({})) as { garage_id?: string; filename?: string; sheets?: unknown[]; existing?: unknown[]; scope?: string; target?: string };
     if (!Array.isArray(body.sheets) || !body.sheets.length) return json({ error: 'empty', message: 'That file looks empty.' }, 400);
     const payload = JSON.stringify(body.sheets);
     if (payload.length > 400_000) return json({ error: 'too_big', message: 'That spreadsheet is too wide to read. Remove unused tabs or columns and try again.' }, 400);
@@ -92,6 +92,11 @@ Deno.serve(async (req) => {
     const existingText = existing.length
       ? `\nThe garage already has these vehicles:\n${JSON.stringify(existing)}\nWhen a vehicle in the file is one of these (same plate or VIN, or clearly the same make, model and year), set existing to its ref and use the same make, model and year. Leave existing empty for anything new. Never give two file vehicles the same ref.\n`
       : '';
+    // "One vehicle" imports: the owner said the whole file is about a single vehicle
+    const target = typeof body.target === 'string' ? existing.find(e => e.ref === body.target) : null;
+    const scopeText = body.scope === 'single'
+      ? `\nThe owner says this whole file is about ONE vehicle${target ? ` (already in the garage as ${target.ref}: ${[target.year, target.make, target.model].filter(Boolean).join(' ')})` : ''}. Return exactly one vehicle${target ? ` with existing set to ${target.ref}` : ''}, filled from whatever the file says about it, and treat every history and readings row as belonging to it.\n`
+      : '';
 
     const prompt = `A car and motorcycle owner uploaded the spreadsheet "${String(body.filename || '').slice(0, 120)}" to load their collection into a garage app. Below is each tab: its rows (each row an array of cells, row 0 first; a tab with many rows shows only its first rows) and, for long tabs, every distinct value per column.
 
@@ -102,7 +107,7 @@ Return a map of the file:
 - Keep text as written (don't translate); the app shows the user's own words.
 - Default currency is ${garage?.currency || 'BRL'} and default distance unit is ${garage?.distance_unit || 'km'} unless the file says otherwise.
 - warnings: up to 5 short notes in ${lang} about anything you couldn't place.
-${existingText}
+${existingText}${scopeText}
 Tabs:
 ${payload}`;
     const out = await askClaude(g.key, [{ type: 'text', text: prompt }], SCHEMA, 16000);
