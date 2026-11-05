@@ -66,6 +66,7 @@ a{color:inherit}
 .start b{font-size:16px;font-weight:600}
 .start span{color:var(--fg2);font-size:14px;line-height:1.5}
 .start .n{font-family:'Geist Mono',monospace;color:var(--fg3);font-size:12px}
+.start.stack{grid-template-columns:1fr;margin-top:0}
 .tabs{display:flex;gap:4px;flex:1;min-width:0}
 .tab{padding:8px 14px;border-radius:999px;text-decoration:none;color:var(--fg2);font-weight:500;font-size:14px;white-space:nowrap;transition:color var(--t-fast),background var(--t-fast)}
 .tab:hover{color:var(--fg)}
@@ -1377,7 +1378,7 @@ const loadXlsx = () => xlsxReady || (xlsxReady = new Promise((ok, no) => {
   s.onerror = () => { xlsxReady = null; no(new Error('The spreadsheet reader didn\'t load. Check your connection and try again.')); };
   document.head.appendChild(s);
 }));
-const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+const plural = (n, w) => `${n} ${n === 1 ? w : w.endsWith('y') ? w.slice(0, -1) + 'ies' : w + 's'}`;
 const pad2 = n => String(n).padStart(2, '0');
 const isoOf = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 const cellText = c => c == null ? '' : c instanceof Date ? isoOf(c) : String(c).trim();
@@ -1436,8 +1437,34 @@ function parseNum(c, comma) {
 }
 const curOf = (c, dflt) => { const t = cellText(c).toUpperCase(); return /R\$|BRL|REAL/.test(t) ? 'BRL' : /US\$|USD|\$|DOLAR|DOLLAR/.test(t) ? 'USD' : dflt; };
 const keyOf = t => cellText(t).toLowerCase().replace(/\s+/g, ' ');
-// Turn the AI's map plus the full rows into vehicles, records and readings
-function applyMap(book, map) {
+// Matching against vehicles already in the garage
+const idNorm = t => String(t || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+const loose = t => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+const sameMake = (a, b) => { a = loose(a); b = loose(b); return !!a && !!b && (a === b || a.startsWith(b) || b.startsWith(a)); };
+// two vehicles can't be the same when their VINs, plates, years or types disagree
+const clash = (a, b) => a.kind !== b.kind || (idNorm(a.vin) && idNorm(b.vin) && idNorm(a.vin) !== idNorm(b.vin)) || (idNorm(a.plate) && idNorm(b.plate) && idNorm(a.plate) !== idNorm(b.plate)) || (a.year && b.year && +a.year !== +b.year);
+function findExisting(v, claimed) {
+  const pool = S.vehicles.filter(x => !claimed.has(x.id));
+  const vin = idNorm(v.vin), plate = idNorm(v.plate);
+  if (vin.length >= 6) { const m = pool.find(x => idNorm(x.vin) === vin); if (m) return m; }
+  if (plate.length >= 4) { const m = pool.find(x => idNorm(x.plate) === plate && x.kind === v.kind); if (m) return m; }
+  const ok = pool.filter(x => !clash(x, v) && sameMake(x.make, v.make) && loose(x.model) && loose(x.model) === loose(v.model));
+  if (ok.length > 1 && v.colour) { const c = ok.filter(x => loose(x.colour) === loose(v.colour)); if (c.length === 1) return c[0]; }
+  return ok.length === 1 ? ok[0] : null;
+}
+// What the sheet adds to a vehicle that's already there: blanks filled in, a newer odometer
+function patchFor(ex, v) {
+  const p = {};
+  for (const k of ['year', 'model', 'trim_level', 'colour', 'plate', 'vin', 'purchase_date', 'purchase_price']) if ((ex[k] == null || ex[k] === '') && v[k] != null && v[k] !== '') p[k] = v[k];
+  if (v.odometer != null && v.odometer_unit === ex.odometer_unit && (ex.odometer == null || v.odometer > ex.odometer)) { p.odometer = v.odometer; if (v.odometer_date) p.odometer_date = v.odometer_date; }
+  if (v.hours != null && (ex.hours == null || v.hours > +ex.hours)) p.hours = v.hours;
+  return p;
+}
+const sameAmt = (a, b) => (a == null && b == null) || (a != null && b != null && Math.abs(+a - +b) < 0.01);
+const dupRecord = (r, vid) => S.records.some(x => x.vehicle_id === vid && (x.date || null) === (r.date || null) && sameAmt(x.amount, r.amount) && (r.amount != null || loose(x.title) === loose(r.title)));
+const dupReading = (r, vid) => S.readings.some(x => x.vehicle_id === vid && (x.date || null) === (r.date || null) && (x.odometer ?? null) === (r.odometer ?? null) && (x.hours == null ? null : +x.hours) === (r.hours ?? null));
+// Turn the AI's map plus the full rows into vehicles, records and readings. refs: "G1" → garage vehicle sent to the AI
+function applyMap(book, map, refs) {
   const out = { vehicles: [], records: [], readings: [], skipped: 0, warnings: [...(map.warnings || [])] };
   const dflt = S.garage?.currency || 'BRL', unitD = S.garage?.distance_unit || 'km';
   const byKey = new Map();
@@ -1453,6 +1480,15 @@ function applyMap(book, map) {
     };
     out.vehicles.push(row);
     [v.key, ...(v.other_keys || [])].filter(Boolean).forEach(k => byKey.set(keyOf(k), row));
+  });
+  // Which imported vehicles are already in the garage: the AI's pick first (checked), then VIN, plate, make/model/year
+  out.match = new Map(); const claimed = new Set();
+  (map.vehicles || []).forEach((v, i) => {
+    const row = out.vehicles[i];
+    let m = refs && v.existing ? refs.get(v.existing) : null;
+    if (m && (claimed.has(m.id) || clash(m, row))) m = null;
+    m = m || findExisting(row, claimed);
+    if (m) { out.match.set(row.id, m.id); claimed.add(m.id); }
   });
   const findSheet = n => book.find(s => s.name === n) || book.find(s => s.name.toLowerCase() === String(n || '').toLowerCase());
   const at = (r, i) => i == null || i < 0 ? null : r[i];
@@ -1502,70 +1538,109 @@ function applyMap(book, map) {
   }
   return out;
 }
-function openImport() {
+function openImport(kind) {
   openPanel('Import a spreadsheet', `
-    <p class="hint" style="margin:0 0 18px">Excel (.xlsx, .xls), OpenOffice (.ods) or CSV. Any language, any layout: one tab per vehicle, one big list, or separate tabs for vehicles and service history. You'll see everything before it's saved.</p>
+    <p class="hint" style="margin:0 0 18px">Excel (.xlsx, .xls), OpenOffice (.ods) or CSV. Any language, any layout: one vehicle or many, one tab per vehicle, one big list, or separate tabs for vehicles and service history. ${S.vehicles.length ? 'Vehicles already in this garage are recognised, so their history is added to them instead of making a copy. ' : ''}You'll see everything before it's saved.</p>
     <div id="im-pick"><label class="btn primary" style="height:48px;width:100%">Choose a spreadsheet<input id="im-file" type="file" accept=".xlsx,.xls,.xlsm,.ods,.csv,.tsv,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="vh"></label>
       <p class="hint" style="margin:12px 0 0">Google Sheets: File → Download → Microsoft Excel, then choose that file here.</p></div>
     <div id="im-busy" hidden><div class="skel" style="height:14px;width:60%;margin-bottom:12px"></div><div class="skel" style="height:14px;width:85%;margin-bottom:12px"></div><div class="skel" style="height:14px;width:40%"></div><p class="hint" style="margin:18px 0 0" id="im-msg">Reading the spreadsheet…</p></div>
-    <div id="im-err"></div>`, '');
+    <div id="im-err"></div>`, `<button class="btn" type="button" id="im-type">Type it in instead</button>`);
+  $('#im-type').onclick = () => openVehicleForm(null, kind === 'bike' && bikesOn() ? 'bike' : 'car');
   $('#im-file').onchange = async e => {
     const file = e.target.files[0]; if (!file) return;
     $('#im-err').innerHTML = '';
     if (file.size > 15e6) { $('#im-err').innerHTML = '<div class="form-err" style="margin-top:16px">That file is over 15 MB. Remove photos or unused tabs and try again.</div>'; return; }
-    $('#im-pick').hidden = true; $('#im-busy').hidden = false;
+    $('#im-pick').hidden = true; $('#im-busy').hidden = false; $('#im-type').disabled = true;
     try {
       await loadXlsx();
       const book = readBook(await file.arrayBuffer());
       if (!book.length) throw new Error('That file looks empty. Check it has your vehicles in it.');
       $('#im-msg').textContent = `Working out the layout of ${book.length} tab${book.length === 1 ? '' : 's'}… this takes 20–40 seconds.`;
-      const { data, error } = await db.functions.invoke('import-sheet', { body: { garage_id: GID(), filename: file.name, sheets: sheetSummary(book) } });
+      const refs = new Map(S.vehicles.map((v, i) => ['G' + (i + 1), v]));
+      const existing = [...refs].map(([ref, v]) => ({ ref, kind: v.kind, year: v.year, make: v.make, model: v.model, trim: v.trim_level, colour: v.colour, plate: v.plate, vin: v.vin, nickname: v.nickname }));
+      const { data, error } = await db.functions.invoke('import-sheet', { body: { garage_id: GID(), filename: file.name, sheets: sheetSummary(book), existing } });
       let res = data; if (error) { try { res = await error.context.json(); } catch (x) { res = { message: 'The importer couldn\'t be reached. Check your connection and try again.' }; } }
       if (!res || !res.ok) throw new Error(res?.message || 'Couldn\'t work out that spreadsheet.');
-      const plan = applyMap(book, res.map);
+      const plan = applyMap(book, res.map, refs);
       if (!plan.vehicles.length) throw new Error('No vehicles were found in that spreadsheet. ' + (plan.warnings[0] || 'Check it lists your cars or bikes.'));
-      reviewImport(plan, file.name);
+      reviewImport(plan, file.name, kind);
     } catch (x) {
-      $('#im-busy').hidden = true; $('#im-pick').hidden = false; $('#im-file').value = '';
+      $('#im-busy').hidden = true; $('#im-pick').hidden = false; $('#im-file').value = ''; $('#im-type').disabled = false;
       $('#im-err').innerHTML = `<div class="form-err" role="alert" style="margin-top:16px">${esc(x.message)}</div>`;
     }
   };
 }
-function reviewImport(plan, fname) {
+// Settle the plan for what's ticked: vehicles to add, history moved onto matched vehicles (minus what's already there)
+function resolveImport(plan, keep, modes) {
+  const target = new Map(), out = { vehicles: [], records: [], readings: [], patches: [], dupes: 0 };
+  for (const v of plan.vehicles) {
+    if (!keep.has(v.id)) continue;
+    const ex = plan.match.has(v.id) && modes.get(v.id) !== 'new' ? vById(plan.match.get(v.id)) : null;
+    if (ex) { target.set(v.id, ex.id); const p = patchFor(ex, v); if (Object.keys(p).length) out.patches.push([ex.id, p]); }
+    else { target.set(v.id, v.id); out.vehicles.push(v); }
+  }
+  for (const [list, into, dup] of [[plan.records, out.records, dupRecord], [plan.readings, out.readings, dupReading]]) for (const r of list) {
+    const vid = target.get(r.vehicle_id); if (!vid) continue;
+    if (vid !== r.vehicle_id && dup(r, vid)) { out.dupes++; continue; }
+    into.push(vid === r.vehicle_id ? r : { ...r, vehicle_id: vid });
+  }
+  return out;
+}
+function reviewImport(plan, fname, kind) {
   const count = (list, id) => list.filter(x => x.vehicle_id === id).length;
   const spentOf = id => msum(sumBy(plan.records.filter(r => r.vehicle_id === id)));
+  const matched = plan.vehicles.filter(v => plan.match.has(v.id)).length;
   openPanel('Check the import', `
-    <p class="hint" style="margin:0 0 14px">From <b style="color:var(--fg)">${esc(fname)}</b>: ${plan.vehicles.length} vehicle${plan.vehicles.length === 1 ? '' : 's'}, ${plan.records.length} service record${plan.records.length === 1 ? '' : 's'} and ${plan.readings.length} odometer reading${plan.readings.length === 1 ? '' : 's'}. Untick anything you don't want; you can edit every detail afterwards.</p>
-    ${plan.warnings.length || plan.skipped ? `<div class="banner" style="margin-bottom:16px"><b>Worth a look</b><ul style="margin:6px 0 0;padding-left:18px">${plan.skipped ? `<li>${plan.skipped} row${plan.skipped === 1 ? '' : 's'} didn't match a vehicle and will be left out.</li>` : ''}${plan.warnings.slice(0, 8).map(w => `<li>${esc(w)}</li>`).join('')}</ul></div>` : ''}
-    <div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 8px"><span class="hint" id="im-sel"></span><button class="linkbtn" type="button" id="im-all">Untick all</button></div>
-    <div class="rows" id="im-list">${plan.vehicles.map(v => `<label class="row" style="cursor:pointer;grid-template-columns:auto 1fr auto;align-items:center">
-      <input type="checkbox" data-iv="${v.id}" checked>
-      <span class="tm"><span class="t" style="display:block">${esc(vname(v))}</span><span class="m" style="display:block">${v.kind === 'bike' ? 'Bike' : 'Car'}${v.plate ? ' · ' + esc(v.plate) : ''}${v.odometer != null ? ' · ' + num(v.odometer) + ' ' + v.odometer_unit : ''}${v.purchase_price ? ' · paid ' + money(v.purchase_price, 0, v.currency) : ''}</span></span>
-      <span class="hint" style="text-align:right">${plural(count(plan.records, v.id), 'record')}<br>${plural(count(plan.readings, v.id), 'reading')}${count(plan.records, v.id) ? '<br>' + spentOf(v.id) : ''}</span></label>`).join('')}</div>`,
+    <p class="hint" style="margin:0 0 14px">From <b style="color:var(--fg)">${esc(fname)}</b>: ${plural(plan.vehicles.length, 'vehicle')}, ${plural(plan.records.length, 'service record')} and ${plural(plan.readings.length, 'odometer reading')}.${matched ? ` ${matched === plan.vehicles.length ? (matched === 1 ? 'It is' : 'They are all') : matched + (matched === 1 ? ' is' : ' are')} already in this garage, so ${matched === 1 ? 'its' : 'their'} history is added to ${matched === 1 ? 'it' : 'them'} and records already there are skipped.` : ''} Untick anything you don't want; you can edit every detail afterwards.</p>
+    ${plan.warnings.length || plan.skipped ? `<div class="banner" style="margin-bottom:16px"><b>Worth a look</b><ul style="margin:6px 0 0;padding-left:18px">${plan.skipped ? `<li>${plural(plan.skipped, 'row')} didn't match a vehicle and will be left out.</li>` : ''}${plan.warnings.slice(0, 8).map(w => `<li>${esc(w)}</li>`).join('')}</ul></div>` : ''}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 8px"><span class="hint" id="im-sel" aria-live="polite"></span><button class="linkbtn" type="button" id="im-all">Untick all</button></div>
+    <div class="rows" id="im-list">${plan.vehicles.map(v => { const ex = plan.match.has(v.id) ? vById(plan.match.get(v.id)) : null; return `<div class="row" style="grid-template-columns:auto 1fr auto;align-items:start">
+      <input type="checkbox" data-iv="${v.id}" id="iv-${v.id}" checked style="margin-top:3px" aria-label="Import ${esc(vname(v))}">
+      <span class="tm"><label for="iv-${v.id}" class="t" style="display:block;cursor:pointer">${esc(vname(ex || v))}</label><span class="m" style="display:block">${ex ? 'In your garage · ' : ''}${v.kind === 'bike' ? 'Bike' : 'Car'}${v.plate ? ' · ' + esc(v.plate) : ''}${v.odometer != null ? ' · ' + num(v.odometer) + ' ' + v.odometer_unit : ''}${v.purchase_price ? ' · paid ' + money(v.purchase_price, 0, v.currency) : ''}</span>
+        ${ex ? `<label class="vh" for="im-m-${v.id}">What to do with ${esc(vname(v))}</label><span class="fld" style="display:block;margin-top:8px"><select id="im-m-${v.id}" data-im-mode="${v.id}"><option value="merge">Same vehicle: add its history</option><option value="new">Different vehicle: add it as new</option></select></span>` : ''}</span>
+      <span class="hint" style="text-align:right" data-im-n="${v.id}">${plural(count(plan.records, v.id), 'record')}<br>${plural(count(plan.readings, v.id), 'reading')}${count(plan.records, v.id) ? '<br>' + spentOf(v.id) : ''}</span></div>`; }).join('')}</div>`,
     `<button class="btn" type="button" id="im-back">Choose another file</button><span class="sp"></span><button class="btn primary" type="button" id="im-go">Import</button>`);
   const sel = () => new Set([...document.querySelectorAll('[data-iv]:checked')].map(x => x.dataset.iv));
+  const modes = () => new Map([...document.querySelectorAll('[data-im-mode]')].map(x => [x.dataset.imMode, x.value]));
   const room = Math.max(0, vLimit() - activeVehicles());
+  let res;
   const upd = () => {
-    const keep = sel(), n = keep.size, active = plan.vehicles.filter(v => keep.has(v.id) && v.status !== 'sold').length, over = active > room;
-    $('#im-sel').textContent = `${n} of ${plan.vehicles.length} selected` + (over ? ` · this garage has room for ${room} more (sold ones don't count). Untick ${active - room}, or add places at ${PRICES.vehicle} each.` : '');
+    const keep = sel(), n = keep.size; res = resolveImport(plan, keep, modes());
+    const active = res.vehicles.filter(v => v.status !== 'sold').length, over = active > room, merging = n - res.vehicles.length;
+    // per-vehicle counts reflect records that are already in the garage
+    plan.vehicles.forEach(v => { const el = document.querySelector(`[data-im-n="${v.id}"]`); const tgt = plan.match.has(v.id) && modes().get(v.id) !== 'new' ? plan.match.get(v.id) : v.id; if (!el || !plan.match.has(v.id)) return;
+      const nr = keep.has(v.id) ? res.records.filter(r => r.vehicle_id === tgt).length : count(plan.records, v.id), nd = keep.has(v.id) ? res.readings.filter(r => r.vehicle_id === tgt).length : count(plan.readings, v.id);
+      el.innerHTML = `${plural(nr, 'new record')}<br>${plural(nd, 'new reading')}`; });
+    $('#im-sel').textContent = `${n} of ${plan.vehicles.length} selected` + (res.dupes ? ` · ${plural(res.dupes, 'entry')} already in the garage, skipped` : '') + (over ? ` · this garage has room for ${room} more (sold ones don't count). Untick ${active - room}, or add places at ${PRICES.vehicle} each.` : '');
     $('#im-sel').style.color = over ? 'var(--warn)' : '';
-    $('#im-go').textContent = n ? `Import ${n} vehicle${n === 1 ? '' : 's'}` : 'Import'; $('#im-go').disabled = !n || over; $('#im-all').textContent = n ? 'Untick all' : 'Tick all';
+    const nothing = !res.vehicles.length && !res.records.length && !res.readings.length && !res.patches.length;
+    $('#im-go').textContent = !n ? 'Import' : res.vehicles.length && merging ? `Add ${plural(res.vehicles.length, 'vehicle')}, update ${merging}` : res.vehicles.length ? `Import ${plural(res.vehicles.length, 'vehicle')}` : nothing ? 'Nothing new to add' : `Add history to ${plural(merging, 'vehicle')}`;
+    $('#im-go').disabled = !n || over || nothing; $('#im-all').textContent = n ? 'Untick all' : 'Tick all';
   };
-  document.querySelectorAll('[data-iv]').forEach(x => x.onchange = upd); upd();
+  document.querySelectorAll('[data-iv],[data-im-mode]').forEach(x => x.onchange = upd); upd();
   $('#im-all').onclick = () => { const on = !sel().size; document.querySelectorAll('[data-iv]').forEach(x => x.checked = on); upd(); };
-  $('#im-back').onclick = openImport;
+  $('#im-back').onclick = () => openImport(kind);
   $('#im-go').onclick = async () => {
-    const keep = sel(), b = $('#im-go'); b.disabled = true; $('#im-back').disabled = true;
-    const vs = plan.vehicles.filter(v => keep.has(v.id)), rs = plan.records.filter(r => keep.has(r.vehicle_id)), ds = plan.readings.filter(r => keep.has(r.vehicle_id));
+    const b = $('#im-go'); b.disabled = true; $('#im-back').disabled = true;
+    document.querySelectorAll('[data-iv],[data-im-mode]').forEach(x => x.disabled = true);
+    const { vehicles: vs, records: rs, readings: ds, patches } = res;
     const steps = [['vehicles', vs], ['service_records', rs], ['odometer_readings', ds]];
-    const total = vs.length + rs.length + ds.length; let done = 0;
+    const total = vs.length + rs.length + ds.length + patches.length; let done = 0;
     try {
       for (const [t, list] of steps) for (let i = 0; i < list.length; i += 200) {
         const { error } = await db.from(t).upsert(list.slice(i, i + 200), { onConflict: 'id', ignoreDuplicates: true }); // ids are set here, so a retry never duplicates
         if (error) throw new Error(limitMsg(error) || `Stopped while saving ${t === 'vehicles' ? 'vehicles' : t === 'service_records' ? 'service records' : 'readings'}: ${error.message}`);
         done += Math.min(200, list.length - i); b.textContent = `Saving… ${Math.round(done / total * 100)}%`;
       }
-      closePanel(); toast(`Imported ${vs.length} vehicle${vs.length === 1 ? '' : 's'} and ${rs.length} record${rs.length === 1 ? '' : 's'}`);
+      for (const [id, p] of patches) { // fill in blanks on vehicles that were already here
+        const { error } = await db.from('vehicles').update(p).eq('id', id);
+        if (error) throw new Error(`Stopped while updating ${vname(vById(id))}: ${error.message}`);
+        done++;
+      }
+      const newIds = new Set(vs.map(v => v.id)), mergedIds = [...new Set([...rs, ...ds].map(r => r.vehicle_id).filter(id => !newIds.has(id)).concat(patches.map(([id]) => id)))];
+      const into = mergedIds.length === 1 ? vname(vById(mergedIds[0])) : plural(mergedIds.length, 'vehicle');
+      closePanel();
+      toast(vs.length ? `Imported ${plural(vs.length, 'vehicle')} and ${plural(rs.length, 'record')}${mergedIds.length ? `, and added history to ${into}` : ''}` : `Added ${plural(rs.length, 'record')} and ${plural(ds.length, 'reading')} to ${into}`);
       await load();
     } catch (x) {
       b.disabled = false; $('#im-back').disabled = false; b.textContent = 'Try again';
@@ -1573,6 +1648,20 @@ function reviewImport(plan, fname) {
       $('#panel-b').scrollTop = 0;
     }
   };
+}
+
+/* ---------- add a vehicle: type it in, or import a spreadsheet ---------- */
+function openAddVehicle(kind) {
+  const word = kind === 'bike' ? 'bike' : kind === 'car' || !bikesOn() ? 'car' : 'vehicle';
+  const manualKind = kind === 'bike' && bikesOn() ? 'bike' : 'car';
+  openPanel(`Add a ${word}`, `
+    <div class="start stack">
+      <button type="button" id="av-type"><span class="n">One at a time</span><b>Type it in</b><span>Make, model, photo, specs and what you paid. Add service records or scan invoices on its page afterwards.</span></button>
+      <button type="button" id="av-sheet"><span class="n">From a file</span><b>Import a spreadsheet</b><span>Excel, Google Sheets export or CSV, for one vehicle or many, with its service history and odometer readings. ${S.vehicles.length ? 'Vehicles already in this garage are recognised and their history added to them. ' : ''}You check everything before it's saved.</span></button>
+    </div>
+    ${vFull() ? `<p class="hint" style="margin:16px 0 0">This garage is full (${vLimit()} vehicles, sold ones don't count). You can still import history for vehicles already here.</p>` : ''}`, '');
+  $('#av-type').onclick = () => openVehicleForm(null, manualKind);
+  $('#av-sheet').onclick = () => openImport(kind);
 }
 
 /* ---------- charts ---------- */
@@ -1657,13 +1746,13 @@ function spendByYear(recs, cur, years) {
   return years.map(y => { const l = recs.filter(r => r.currency === cur && (r.date || '').startsWith(y)); const v = l.reduce((a, r) => a + (+r.amount || 0), 0); return { label: "'" + String(y).slice(2), year: y, value: v, n: l.length, tip: `${y}: ${money(v, 0, cur)} across ${l.length} record${l.length === 1 ? '' : 's'}` }; });
 }
 function viewDashboard() {
-  const head = `<div class="head"><div><p class="eyebrow">${esc(S.garage?.name || '')}</p><h1>Garage</h1></div>${S.editor ? `<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" data-import>Import spreadsheet</button><button class="btn primary" type="button" data-add-v="car">${ICON.plus}Add vehicle</button></div>` : lockNote()}</div>`;
+  const head = `<div class="head"><div><p class="eyebrow">${esc(S.garage?.name || '')}</p><h1>Garage</h1></div>${S.editor ? `<button class="btn primary" type="button" data-add-v="any">${ICON.plus}Add ${bikesOn() ? 'vehicle' : 'car'}</button>` : lockNote()}</div>`;
   if (window.live.state === 'loading') return head + `<div class="skel" style="height:110px;margin-bottom:44px"></div><div class="garage">${'<div class="skel" style="aspect-ratio:1;border-radius:24%"></div>'.repeat(12)}</div>`;
   if (!S.vehicles.length) return `<div class="head"><div><p class="eyebrow">${esc(S.garage?.name || '')}</p><h1>Let's fill your garage</h1>
       <p class="sub">${S.editor ? 'Start from what you already have. Everything can be edited afterwards.' : 'Nothing here yet. The garage\'s editors will add the vehicles.'}</p></div></div>
     ${S.editor ? `<div class="start">
       <button type="button" data-import><span class="n">Fastest</span><b>Import a spreadsheet</b><span>Excel, Google Sheets export or CSV, in any language and layout. We find the vehicles, service history and odometer readings, and you check them before anything is saved.</span></button>
-      <button type="button" data-add-v="car"><span class="n">One at a time</span><b>Add a vehicle</b><span>Type in a ${bikesOn() ? 'car or a bike' : 'car'}, with its photo, specs and what you paid. Then add service records or scan invoices on its page.</span></button>
+      <button type="button" data-type-v="car"><span class="n">One at a time</span><b>Add a vehicle</b><span>Type in a ${bikesOn() ? 'car or a bike' : 'car'}, with its photo, specs and what you paid. Then add service records or scan invoices on its page.</span></button>
       ${S.role === 'owner' ? `<button type="button" data-signin><span class="n">Together</span><b>Invite people</b><span>Family or co-owners can add records too, or just look. You choose who edits.</span></button>` : ''}
     </div>` : ''}`;
   const owned = S.vehicles.filter(v => v.status !== 'sold');
@@ -2141,7 +2230,8 @@ function render() {
 }
 function wireView() {
   const V = $('#view');
-  V.querySelectorAll('[data-add-v]').forEach(b => b.onclick = () => openVehicleForm(null, b.dataset.addV));
+  V.querySelectorAll('[data-add-v]').forEach(b => b.onclick = () => openAddVehicle(b.dataset.addV));
+  V.querySelectorAll('[data-type-v]').forEach(b => b.onclick = () => openVehicleForm(null, b.dataset.typeV));
   V.querySelectorAll('[data-edit-v]').forEach(b => b.onclick = () => openVehicleForm(vById(b.dataset.editV)));
   V.querySelectorAll('[data-add-r]').forEach(b => b.onclick = () => openRecordForm(null, b.dataset.addR));
   V.querySelectorAll('[data-rec]').forEach(b => b.onclick = () => openRecord(S.records.find(r => r.id === b.dataset.rec)));
@@ -2154,7 +2244,7 @@ function wireView() {
   V.querySelectorAll('[data-read]').forEach(b => b.onclick = () => { const r = S.readings.find(x => x.id === b.dataset.read); openReadingForm(vById(r.vehicle_id), r); });
   V.querySelectorAll('.lc').forEach(wireLine);
   V.querySelectorAll('[data-scan]').forEach(b => b.onclick = () => openScan(b.dataset.scan || null));
-  V.querySelectorAll('[data-import]').forEach(b => b.onclick = openImport);
+  V.querySelectorAll('[data-import]').forEach(b => b.onclick = () => openImport());
   V.querySelectorAll('[data-tf]').forEach(b => b.onclick = () => { TF.k = b.dataset.tf; render(); });
   V.querySelectorAll('[data-task]').forEach(b => b.onclick = () => { const v = b.dataset.task ? vById(b.dataset.task) : null; openTaskForm(v, v ? openTask(v) : null); });
   V.querySelectorAll('[data-complete]').forEach(b => b.onclick = () => openCompleteForm(vById(b.dataset.complete)));

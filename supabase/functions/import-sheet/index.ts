@@ -8,6 +8,7 @@ const VEHICLE = {
   type: 'object',
   properties: {
     key: { type: 'string', description: 'the exact text that identifies this vehicle in the history/readings vehicle column (copy it verbatim from the distinct values), or its name on the vehicles tab' },
+    existing: str('when this is one of the vehicles already in the garage: its ref from that list (e.g. "G2"), otherwise null'),
     other_keys: { type: 'array', items: { type: 'string' }, description: 'other exact spellings used for the same vehicle elsewhere in the file' },
     kind: { type: 'string', enum: ['car', 'bike'] },
     year: int('model year'), make: { type: 'string', description: 'manufacturer, e.g. Honda (add it when only the model is written, like CBX)' },
@@ -19,7 +20,7 @@ const VEHICLE = {
     status: { type: 'string', enum: ['owned', 'project', 'stored', 'sold'] },
     notes: str('anything else useful about the vehicle from the file, short')
   },
-  required: ['key', 'other_keys', 'kind', 'year', 'make', 'model', 'trim_level', 'colour', 'plate', 'vin', 'currency', 'purchase_date', 'purchase_price', 'odometer', 'odometer_unit', 'meter', 'hours', 'status', 'notes'],
+  required: ['key', 'existing', 'other_keys', 'kind', 'year', 'make', 'model', 'trim_level', 'colour', 'plate', 'vin', 'currency', 'purchase_date', 'purchase_price', 'odometer', 'odometer_unit', 'meter', 'hours', 'status', 'notes'],
   additionalProperties: false
 };
 const HISTORY = {
@@ -66,7 +67,7 @@ const SCHEMA = {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   try {
-    const body = await req.json().catch(() => ({})) as { garage_id?: string; filename?: string; sheets?: unknown[] };
+    const body = await req.json().catch(() => ({})) as { garage_id?: string; filename?: string; sheets?: unknown[]; existing?: unknown[] };
     if (!Array.isArray(body.sheets) || !body.sheets.length) return json({ error: 'empty', message: 'That file looks empty.' }, 400);
     const payload = JSON.stringify(body.sheets);
     if (payload.length > 400_000) return json({ error: 'too_big', message: 'That spreadsheet is too wide to read. Remove unused tabs or columns and try again.' }, 400);
@@ -74,6 +75,13 @@ Deno.serve(async (req) => {
     if ('fail' in g) return g.fail;
     const { data: garage } = await g.sb.from('garages').select('currency,distance_unit,lang').eq('id', body.garage_id).single();
     const lang = garage?.lang === 'pt' ? 'Brazilian Portuguese' : 'English';
+    // Vehicles already in the garage (sent by the app as short refs), so the sheet can add to them instead of duplicating
+    const existing = (Array.isArray(body.existing) ? body.existing : []).slice(0, 300)
+      .filter((e): e is Record<string, unknown> => !!e && typeof e === 'object' && typeof (e as { ref?: unknown }).ref === 'string')
+      .map(e => Object.fromEntries(['ref', 'kind', 'year', 'make', 'model', 'trim', 'colour', 'plate', 'vin', 'nickname'].filter(k => e[k] != null && e[k] !== '').map(k => [k, String(e[k]).slice(0, 60)])));
+    const existingText = existing.length
+      ? `\nThe garage already has these vehicles:\n${JSON.stringify(existing)}\nWhen a vehicle in the file is one of these (same plate or VIN, or clearly the same make, model and year), set existing to its ref and use the same make, model and year. Leave existing null for anything new. Never give two file vehicles the same ref.\n`
+      : '';
 
     const prompt = `A car and motorcycle owner uploaded the spreadsheet "${String(body.filename || '').slice(0, 120)}" to load their collection into a garage app. Below is each tab: its rows (each row an array of cells, row 0 first; a tab with many rows shows only its first rows) and, for long tabs, every distinct value per column.
 
@@ -84,7 +92,7 @@ Return a map of the file:
 - Keep text as written (don't translate); the app shows the user's own words.
 - Default currency is ${garage?.currency || 'BRL'} and default distance unit is ${garage?.distance_unit || 'km'} unless the file says otherwise.
 - warnings: up to 5 short notes in ${lang} about anything you couldn't place.
-
+${existingText}
 Tabs:
 ${payload}`;
     const out = await askClaude(g.key, [{ type: 'text', text: prompt }], SCHEMA, 16000);
