@@ -1731,11 +1731,12 @@ function editImport(plan, vid, fname, kind) {
     f.onsubmit = e => e.preventDefault();
     f.querySelectorAll('[data-del-rec]').forEach(b => b.onclick = () => { plan.records = plan.records.filter(r => r.id !== b.dataset.delRec); const d = b.closest('details'); const next = d.nextElementSibling || d.previousElementSibling; d.remove(); const n = recs().length; f.querySelector('fieldset:nth-of-type(2) legend').textContent = `Service records (${n})`; (next ? next.querySelector('summary') : $('#ie-add-rec')).focus(); toast('Record removed from the import'); });
     f.querySelectorAll('[data-del-read]').forEach(b => b.onclick = () => { plan.readings = plan.readings.filter(r => r.id !== b.dataset.delRead); const row = b.closest('[data-read-id]'); row.remove(); });
-    const only = $('#ie-only'); if (only) only.onclick = () => { onlyCheck = !onlyCheck; draw(); };
+    const only = $('#ie-only'); if (only) only.onclick = () => { onlyCheck = !onlyCheck; draw(); setTimeout(() => $('#ie-only')?.focus(), 80); };
     $('#ie-add-rec').onclick = () => {
       const r = { id: crypto.randomUUID(), vehicle_id: vid, date: null, mileage: null, hours: null, shop: null, title: '', items: null, category: 'maintenance', amount: null, currency: v.currency, confidence: 'log', notes: null };
       plan.records.push(r); onlyCheck = false; draw();
-      const d = document.querySelector(`[data-rec-id="${r.id}"]`); d.open = true; d.scrollIntoView({ block: 'center' }); d.querySelector('input').focus();
+      const d = document.querySelector(`[data-rec-id="${r.id}"]`); d.open = true; d.scrollIntoView({ block: 'center' });
+      setTimeout(() => d.querySelector('input').focus(), 80); // after openPanel's own first-field focus
     };
     $('#ie-done').onclick = () => {
       // re-check every field that's open or invalid; closed records are checked against their stored values
