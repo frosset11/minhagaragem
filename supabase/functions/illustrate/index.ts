@@ -95,7 +95,10 @@ Deno.serve(async (req) => {
     if (!res.ok) {
       let reason = ''; try { reason = JSON.parse(text)?.error?.message || ''; } catch (_) { reason = text.slice(0, 200); }
       console.error('openai', res.status, text.slice(0, 1000));
-      const message = res.status === 429 ? 'Too many illustrations at once. Wait a minute and try again.'
+      const code = (() => { try { const e = JSON.parse(text)?.error; return `${e?.type || ''} ${e?.code || ''}`; } catch (_) { return ''; } })();
+      // 429 also means "out of credit" (insufficient_quota): that's on the platform's account, not the user
+      const message = /insufficient_quota|credit|billing/i.test(code) ? 'Illustrations are unavailable right now. Try again later.'
+        : res.status === 429 ? 'Too many illustrations at once. Wait a minute and try again.'
         : res.status >= 500 ? 'The illustrator is busy right now. Try again in a minute.'
         : /safety|moderation/i.test(reason) ? 'That photo couldn\'t be illustrated. Try a different photo of the vehicle.'
         : `The illustrator couldn't take this request (${res.status}). Try again, or contact support if it keeps happening.`;
