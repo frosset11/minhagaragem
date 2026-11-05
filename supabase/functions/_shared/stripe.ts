@@ -17,8 +17,25 @@ function form(obj: Record<string, unknown>, prefix = '', out = new URLSearchPara
   }
   return out;
 }
+// Find a secret by its usual name, or any env var whose name mentions stripe and whose value looks right
+export function stripeSecret(names: string[], prefix: RegExp): string | null {
+  for (const n of names) { const v = Deno.env.get(n)?.trim(); if (v && prefix.test(v)) return v; }
+  try {
+    const all = Object.entries(Deno.env.toObject());
+    // sk_test_/sk_live_/whsec_ values are Stripe's own, so a match under any name is safe to use
+    const hit = all.find(([k, v]) => /stripe/i.test(k) && prefix.test((v || '').trim())) || all.find(([, v]) => prefix.test((v || '').trim()));
+    if (hit) return hit[1].trim();
+    // names only, never values: enough to tell a missing secret from a misnamed or wrong one
+    console.error('stripe secret not found. Names mentioning stripe:', all.map(([k]) => k).filter(k => /stripe/i.test(k)).join(', ') || '(none)',
+      '| holding a publishable key (pk_):', all.filter(([, v]) => /^pk_/.test((v || '').trim())).map(([k]) => k).join(', ') || '(none)');
+  } catch (_) { /* env listing not allowed */ }
+  return null;
+}
+export const secretKey = () => stripeSecret(['STRIPE_SECRET_KEY', 'STRIPE_SECRET', 'STRIPE_KEY', 'STRIPE_API_KEY'], /^(sk|rk)_(test|live)_/);
+export const webhookSecret = () => stripeSecret(['STRIPE_WEBHOOK_SECRET', 'STRIPE_WEBHOOK_SIGNING_SECRET', 'STRIPE_SIGNING_SECRET', 'STRIPE_WHSEC'], /^whsec_/);
+
 export async function stripe(path: string, params?: Record<string, unknown>, method = params ? 'POST' : 'GET') {
-  const key = Deno.env.get('STRIPE_SECRET_KEY');
+  const key = secretKey();
   if (!key) throw new StripeError('Payments aren\'t set up yet.', 'missing_key');
   const qs = method === 'GET' && params ? '?' + form(params).toString() : '';
   const res = await fetch(`https://api.stripe.com/v1/${path}${qs}`, {

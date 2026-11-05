@@ -1,7 +1,7 @@
 // Stripe tells us about subscriptions here; we keep billing and garages.plan in step.
 // Deployed with verify_jwt off: Stripe signs each request instead (STRIPE_WEBHOOK_SECRET).
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
-import { planFromLookup, stripe } from '../_shared/stripe.ts';
+import { planFromLookup, stripe, webhookSecret } from '../_shared/stripe.ts';
 
 const enc = new TextEncoder();
 async function verify(payload: string, header: string, secret: string) {
@@ -37,7 +37,8 @@ async function apply(sub: Record<string, any>, deleted = false) {
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('ok');
-  const secret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
+  const secret = webhookSecret();
+  if (!secret) console.error('STRIPE_WEBHOOK_SECRET missing');
   const payload = await req.text();
   if (!secret || !(await verify(payload, req.headers.get('stripe-signature') || '', secret))) return new Response('bad signature', { status: 400 });
   const event = JSON.parse(payload);
