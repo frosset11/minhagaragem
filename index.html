@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#121314">
-<title>My Garage</title>
+<title>AUTODEX</title>
 <link rel="icon" href="/favicon.ico?v=1" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png?v=1">
 <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16.png?v=1">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=1">
 <link rel="manifest" href="/site.webmanifest?v=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="My Garage">
+<meta name="apple-mobile-web-app-title" content="AUTODEX">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -419,7 +419,7 @@ body.locked .login{display:grid}
 <body class="locked">
 <header class="top">
   <div class="top-in">
-    <a class="brand" href="#/dashboard" aria-label="My Garage — Dashboard"><img id="brand-logo" src="/icons/icon-192.png?v=1" alt=""><b id="brand-name">My Garage</b><span class="brand-g" id="brand-g"></span></a>
+    <a class="brand" href="#/dashboard" aria-label="AUTODEX — Dashboard"><img id="brand-logo" src="/icons/icon-192.png?v=1" alt=""><b id="brand-name">AUTODEX</b><span class="brand-g" id="brand-g"></span></a>
     <nav class="tabs" aria-label="Sections">
       <a class="tab" href="#/dashboard" data-r="dashboard">Dashboard</a>
       <a class="tab" href="#/cars" data-r="cars">Cars<span class="n" id="n-cars"></span></a>
@@ -435,7 +435,7 @@ body.locked .login{display:grid}
   </div>
 </header>
 
-<section id="login" class="login" aria-label="Sign in"><div class="login-card"><img class="login-ic" src="/icons/icon-192.png?v=1" alt=""><h1>My Garage</h1></div></section>
+<section id="login" class="login" aria-label="Sign in"><div class="login-card"><img class="login-ic" src="/icons/icon-192.png?v=1" alt=""><h1>AUTODEX</h1></div></section>
 <main id="view" tabindex="-1"></main>
 
 <div class="scrim" id="scrim"></div>
@@ -731,11 +731,11 @@ async function switchGarage(id) {
 let loginMode = 'in', pendingLoginMsg = null;
 function showLogin(msg) {
   document.body.classList.add('locked'); closePanel();
-  document.title = 'Sign in · My Garage';
+  document.title = 'Sign in · AUTODEX';
   const up = loginMode === 'up';
   $('#login').innerHTML = `<div class="login-card">
     <img class="login-ic" src="/icons/icon-192.png?v=1" alt="">
-    <h1>My Garage</h1>
+    <h1>AUTODEX</h1>
     <p class="sub">${up ? 'Create your account. Then set up your garage, or open one you were invited to.' : 'Manage your garage, all in one place'}</p>
     <form id="auth-form" novalidate>
       ${msg ? `<div class="form-err" role="alert">${esc(msg)}</div>` : ''}
@@ -764,7 +764,7 @@ function showLogin(msg) {
 // First visit: no garage yet. Create one (or wait for an invite).
 function showOnboarding(msg) {
   document.body.classList.add('locked'); closePanel();
-  document.title = 'Set up your garage · My Garage';
+  document.title = 'Set up your garage · AUTODEX';
   $('#login').innerHTML = `<div class="login-card" style="max-width:440px">
     <img class="login-ic" src="/icons/icon-192.png?v=1" alt="">
     <h1>Set up your garage</h1>
@@ -841,7 +841,7 @@ async function openAccount() {
       <div class="fld" data-f="logo"><label for="f-logo">Garage logo <span class="hint">(optional)</span></label>
         ${media(g.logo_url) ? `<img class="logo-pv" src="${esc(media(g.logo_url))}" alt="Current logo">` : ''}
         <input id="f-logo" name="logo" type="file" accept="image/png,image/jpeg,image/webp">
-        <span class="help">Replaces the My Garage name at the top left, for everyone in this garage. A PNG with a transparent background works best.</span>
+        <span class="help">Replaces the AUTODEX name at the top left, for everyone in this garage. A PNG with a transparent background works best.</span>
         ${g.logo_url ? `<label class="check"><input type="checkbox" name="logo_remove"> Remove the logo</label>` : ''}
         <span class="err" id="f-logo-err" aria-live="polite"></span></div>
       <div class="fld" data-f="bg_color"><label for="f-bgc">Background colour</label>
@@ -1105,7 +1105,7 @@ async function setFlag(k, on = true) {
 const firstV = () => S.vehicles.find(v => v.status !== 'sold') || S.vehicles[0];
 const TOUR = [
   { eyebrow: 'Welcome', title: 'Your garage, all in one place',
-    text: 'My Garage keeps each car and motorcycle\'s history, costs, mileage and value together, private to the people you invite. This quick start takes about a minute. You can replay it any time from Help.',
+    text: 'AUTODEX keeps each car and motorcycle\'s history, costs, mileage and value together, private to the people you invite. This quick start takes about a minute. You can replay it any time from Help.',
     points: ['Dashboard: the whole collection at a glance', 'Cars and Bikes: a card and a page for every vehicle', 'Service: every record, plus the To-Do', 'Portfolio: what the collection is worth'] },
   { eyebrow: 'Vehicles', title: 'Add your vehicles',
     text: 'Use Add vehicle on the Dashboard, Cars or Bikes. Type one in, or import a spreadsheet you already keep.',
@@ -1139,7 +1139,7 @@ function openTour(i = 0) {
       <ul class="tour-l">${st.points.map(p => `<li>${esc(p)}</li>`).join('')}</ul>
       ${st.action && S.editor ? `<button class="btn" type="button" id="tour-act">${esc(st.action[0])}</button>` : ''}
     </div>`,
-    `${i ? '<button class="btn" type="button" id="tour-back">Back</button>' : '<button class="btn" type="button" id="tour-skip">Skip</button>'}<span class="sp"></span><button class="btn primary" type="button" id="tour-next">${last ? 'Start using My Garage' : 'Next'}</button>`);
+    `${i ? '<button class="btn" type="button" id="tour-back">Back</button>' : '<button class="btn" type="button" id="tour-skip">Skip</button>'}<span class="sp"></span><button class="btn primary" type="button" id="tour-next">${last ? 'Start using AUTODEX' : 'Next'}</button>`);
   setFlag('mg_tour_done');
   $('#tour-next').onclick = () => last ? (closePanel(), render()) : openTour(i + 1);
   if ($('#tour-back')) $('#tour-back').onclick = () => openTour(i - 1);
@@ -1186,7 +1186,7 @@ function gsDo(k) {
 // Help center (#/help): searchable answers, grouped by topic
 const HELP = [
   ['Getting started', [
-    ['What is My Garage?', 'A private logbook for cars and motorcycles: each vehicle\'s service history, costs, odometer readings and value, shared only with the people you invite. Your garage is visible to its members and no one else.'],
+    ['What is AUTODEX?', 'A private logbook for cars and motorcycles: each vehicle\'s service history, costs, odometer readings and value, shared only with the people you invite. Your garage is visible to its members and no one else.'],
     ['How do I add a vehicle?', 'Click Add vehicle on the Dashboard (or Add car / Add bike on those tabs). Choose Type it in to fill in the details yourself, or Import a spreadsheet. Only the make is required; everything else can be added later with Edit details on the vehicle\'s page.'],
     ['How do I import a spreadsheet?', 'Add vehicle → Import a spreadsheet, or Import spreadsheet on a vehicle\'s page. Choose One vehicle (then pick which car, or a new one) or My whole collection. Excel, OpenOffice and CSV files work, in any language and layout; from Google Sheets use File → Download → Microsoft Excel. You see everything before it\'s saved.'],
     ['Can I fix what the spreadsheet import got wrong?', 'Yes. On the Check the import screen, open Edit details and records under any vehicle to change its details, fix or remove records and readings, or add missing ones. Records missing a date, amount or description are marked to check. Nothing is saved until you click Import.'],
@@ -1220,7 +1220,7 @@ function viewHelp() {
   const q = helpQ.trim().toLowerCase();
   const groups = HELP.map(([g, items]) => [g, items.filter(([t, a]) => !q || (t + ' ' + a).toLowerCase().includes(q))]).filter(([, items]) => items.length);
   const n = groups.reduce((a, [, items]) => a + items.length, 0);
-  return `<div class="head"><div><p class="eyebrow">Help center</p><h1>How can we help?</h1><p class="sub">Answers about every part of My Garage.</p></div>
+  return `<div class="head"><div><p class="eyebrow">Help center</p><h1>How can we help?</h1><p class="sub">Answers about every part of AUTODEX.</p></div>
       ${S.user && S.garage ? '<button class="btn" type="button" data-tour>Replay the quick start</button>' : ''}</div>
     <div class="fld help-s" style="max-width:560px"><label for="help-q">Search help</label><input id="help-q" type="search" value="${esc(helpQ)}" placeholder="e.g. invoice, illustration, invite" autocomplete="off"></div>
     <p class="hint" id="help-n" aria-live="polite" style="margin:-4px 0 20px">${q ? `${n} answer${n === 1 ? '' : 's'}` : ''}</p>
@@ -2615,7 +2615,7 @@ function render() {
   else if (a === 'help') html = viewHelp();
   else html = viewList('car');
   const titles = { help: 'Help', dashboard: 'Dashboard', cars: 'Cars', bikes: 'Bikes', ledger: 'Service', costs: 'Portfolio', portfolio: 'Portfolio' };
-  document.title = (a === 'vehicle' ? vname(vById(b)) : titles[a] || 'Dashboard') + ' · ' + (S.garage?.name || 'My Garage');
+  document.title = (a === 'vehicle' ? vname(vById(b)) : titles[a] || 'Dashboard') + ' · ' + (S.garage?.name || 'AUTODEX');
   $('#view').innerHTML = banner + html;
   wireView();
 }
