@@ -5,7 +5,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 import { cors, json } from '../_shared/ai.ts';
 import { PLANS, StripeError, planFromLookup, priceFor, stripe } from '../_shared/stripe.ts';
 
-const SITE = Deno.env.get('SITE_URL') || 'https://minhagaragem.vercel.app';
+const SITE = Deno.env.get('SITE_URL') || 'https://autodex-garage.vercel.app';
 // Only send people back to this site (or a local copy while developing)
 const siteOf = (origin: string | null) => origin && (/^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.vercel\.app$/.test(origin) || origin === SITE || /^http:\/\/localhost(:\d+)?$/.test(origin)) ? origin : SITE;
 
