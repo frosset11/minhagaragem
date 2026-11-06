@@ -23,7 +23,7 @@ const VEHICLE = {
     kind: { type: 'string', enum: ['car', 'bike'] },
     year: int('model year'), make: { type: 'string', description: 'manufacturer, e.g. Honda (add it when only the model is written, like CBX)' },
     model: str('model'), trim_level: str('version or trim'), colour: str('colour'), plate: str('licence plate'), vin: str('VIN or chassis number'),
-    currency: oneOrNull(['BRL', 'USD'], 'currency of its prices'),
+    currency: str('ISO 4217 code of its prices, e.g. BRL, USD, EUR'),
     purchase_date: str('YYYY-MM-DD'), purchase_price: num('price paid, plain number'),
     odometer: num('current odometer if given'), odometer_unit: oneOrNull(['km', 'mi'], 'odometer unit'),
     meter: { type: 'string', enum: ['distance', 'hours', 'both'] }, hours: num('engine hours if given'),
@@ -42,7 +42,7 @@ const HISTORY = {
     date_col: col('the date'), mileage_col: col('the odometer reading'), hours_col: col('engine hours'),
     shop_col: col('the shop or supplier'), title_col: col('the description of the work'), items_col: col('parts or detailed items'),
     category_col: col('the type/category of expense'), amount_col: col('the amount paid'), currency_col: col('the currency'), notes_col: col('notes'),
-    default_currency: oneOrNull(['BRL', 'USD'], 'currency when there is no currency column'),
+    default_currency: str('ISO 4217 code when there is no currency column, e.g. BRL, USD, EUR'),
     default_category: { type: 'string', enum: CATEGORIES },
     category_map: { type: 'array', description: 'one entry for every distinct value of the category column', items: { type: 'object', properties: { value: { type: 'string' }, category: { type: 'string', enum: CATEGORIES } }, required: ['value', 'category'], additionalProperties: false } },
     reading_values: { type: 'array', items: { type: 'string' }, description: 'values of the category or description column that mark a row as just an odometer reading, not a service (e.g. "Leitura de odômetro")' }
@@ -105,7 +105,7 @@ Return a map of the file:
 - history: each tab that lists services, maintenance, repairs, parts, taxes, insurance or other costs per vehicle. Give 0-based column indexes. Map every distinct category value to one of: ${CATEGORIES.join(', ')}. List in reading_values any category/description values that mark a row as only an odometer reading.
 - readings: tabs that only log odometer or hour readings.
 - Keep text as written (don't translate); the app shows the user's own words.
-- Default currency is ${garage?.currency || 'BRL'} and default distance unit is ${garage?.distance_unit || 'km'} unless the file says otherwise.
+- Default currency is ${garage?.currency || 'USD'} and default distance unit is ${garage?.distance_unit || 'km'} unless the file says otherwise.
 - warnings: up to 5 short notes in ${lang} about anything you couldn't place.
 ${existingText}${scopeText}
 Tabs:

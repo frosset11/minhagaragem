@@ -16,7 +16,7 @@ const SCHEMA = {
     mileage_unit: oneOrNull(['mi', 'km'], 'unit of the odometer reading'),
     hours: num('engine hours if printed'),
     amount: num('final total charged including taxes and labour'),
-    currency: oneOrNull(['USD', 'BRL'], 'currency of the total'),
+    currency: str('ISO 4217 code of the total, e.g. BRL, USD, EUR, GBP, CAD; null if unclear'),
     invoice_number: str('invoice or nota fiscal number'),
     plate: str('license plate if printed'),
     vin: str('VIN / chassis number if printed'),
@@ -40,14 +40,14 @@ Deno.serve(async (req) => {
 
     const [{ data: vehicles }, { data: garage }] = await Promise.all([
       g.sb.from('vehicles').select('id,kind,year,make,model,trim_level,colour,plate,vin,odometer,odometer_unit,currency').eq('garage_id', body.garage_id).neq('status', 'sold'),
-      g.sb.from('garages').select('lang').eq('id', body.garage_id).single()
+      g.sb.from('garages').select('lang,currency').eq('id', body.garage_id).single()
     ]);
     if (!vehicles || !vehicles.length) return json({ error: 'no_vehicles', message: 'Add a vehicle to this garage first, then scan its invoices.' }, 400);
     const lang = garage?.lang === 'pt' ? 'Brazilian Portuguese' : 'English';
 
     const list = vehicles.map(v => `${v.id} | ${[v.year, v.make, v.model, v.trim_level].filter(Boolean).join(' ')}${v.colour ? ' (' + v.colour + ')' : ''}${v.plate ? ' | plate ' + v.plate : ''}${v.vin ? ' | VIN ' + v.vin : ''} | odometer in ${v.odometer_unit}${v.odometer != null ? ' (last ' + v.odometer + ')' : ''} | ${v.currency}`).join('\n');
     const hint = body.vehicle_id ? `The owner opened this from vehicle ${body.vehicle_id}; choose it unless the invoice clearly names a different vehicle.` : 'Pick the vehicle the invoice is for, using plate, VIN, make/model and mileage. Use null if you cannot tell.';
-    const prompt = `This is a service invoice, receipt or Brazilian nota fiscal for a car or motorcycle. Read it and return the JSON.\n\nRules:\n- Write title, items and warnings in ${lang}; keep proper names (shops, part brands) as printed.\n- amount is the final total actually charged (after discounts, including taxes and labour). Brazilian numbers use "1.234,56" = 1234.56.\n- currency: BRL for R$, USD for $/US$.\n- date as YYYY-MM-DD; Brazilian dates are DD/MM/YYYY.\n- mileage only if an odometer/KM/miles reading is printed; never guess.\n- items: one entry per part or labour line, short.\n- category: maintenance for routine service, repair for fixing faults, parts for parts-only purchases, tyres for tyres, registration for licensing/taxes, inspection for inspections.\n- Put anything uncertain in warnings. Use null for anything not on the invoice.\n\n${hint}\n\nVehicles (id | vehicle | plate | VIN | odometer unit | currency):\n${list}`;
+    const prompt = `This is a service invoice, receipt or Brazilian nota fiscal for a car or motorcycle. Read it and return the JSON.\n\nRules:\n- Write title, items and warnings in ${lang}; keep proper names (shops, part brands) as printed.\n- amount is the final total actually charged (after discounts, including taxes and labour). Numbers may use "1.234,56" = 1234.56 (comma decimals) or "1,234.56".\n- currency: the ISO 4217 code (R$ = BRL, US$ = USD, € = EUR, £ = GBP, C$ = CAD, A$ = AUD, MX$ = MXN). A plain $ means ${garage?.currency && /^(USD|CAD|AUD|NZD|MXN|ARS|CLP|COP|UYU)$/.test(garage.currency) ? garage.currency : 'USD'}; with no symbol, assume ${garage?.currency || 'USD'}.\n- date as YYYY-MM-DD; dates are usually DD/MM/YYYY outside the US and MM/DD/YYYY in the US.\n- mileage only if an odometer/KM/miles reading is printed; never guess.\n- items: one entry per part or labour line, short.\n- category: maintenance for routine service, repair for fixing faults, parts for parts-only purchases, tyres for tyres, registration for licensing/taxes, inspection for inspections.\n- Put anything uncertain in warnings. Use null for anything not on the invoice.\n\n${hint}\n\nVehicles (id | vehicle | plate | VIN | odometer unit | currency):\n${list}`;
     const fileBlock = media === 'application/pdf'
       ? { type: 'document', source: { type: 'base64', media_type: media, data: body.data } }
       : { type: 'image', source: { type: 'base64', media_type: media, data: body.data } };
@@ -61,6 +61,7 @@ Deno.serve(async (req) => {
     if (!CATEGORIES.includes(String(d.category))) d.category = 'maintenance';
     if (!Array.isArray(d.items)) d.items = [];
     if (!Array.isArray(d.warnings)) d.warnings = [];
+    d.currency = typeof d.currency === 'string' && /^[A-Z]{3}$/.test(d.currency.trim().toUpperCase()) ? d.currency.trim().toUpperCase() : null;
     return json({ ok: true, draft: d });
   } catch (e) {
     console.error(e);

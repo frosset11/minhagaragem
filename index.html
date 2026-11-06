@@ -598,7 +598,35 @@ const CATEGORIES = {
   insurance:'Insurance', other:'Other'
 };
 const CONFIDENCE = { printed:'Printed invoice', hand:'Handwritten (best read)', est:'Estimated', report:'Report only, no invoice', cf:'Carfax', log:"Owner's records" };
-const CURRENCIES = { USD:'US dollars (US$)', BRL:'Brazilian reais (R$)' };
+// Each garage has a country: it sets the default currency, distance unit and date format, and turns on
+// what only makes sense there (the FIPE price table and IPVA/licenciamento for Brazil, the NHTSA name for the US).
+// [code, name, currency, distance unit, date format]
+const COUNTRY_LIST = [
+  ['AR', 'Argentina', 'ARS', 'km', 'dmy'], ['AU', 'Australia', 'AUD', 'km', 'dmy'], ['AT', 'Austria', 'EUR', 'km', 'dmy'], ['BE', 'Belgium', 'EUR', 'km', 'dmy'],
+  ['BR', 'Brazil', 'BRL', 'km', 'dmy'], ['CA', 'Canada', 'CAD', 'km', 'dmy'], ['CL', 'Chile', 'CLP', 'km', 'dmy'], ['CO', 'Colombia', 'COP', 'km', 'dmy'],
+  ['DK', 'Denmark', 'DKK', 'km', 'dmy'], ['FR', 'France', 'EUR', 'km', 'dmy'], ['DE', 'Germany', 'EUR', 'km', 'dmy'], ['IE', 'Ireland', 'EUR', 'km', 'dmy'],
+  ['IT', 'Italy', 'EUR', 'km', 'dmy'], ['JP', 'Japan', 'JPY', 'km', 'dmy'], ['MX', 'Mexico', 'MXN', 'km', 'dmy'], ['NL', 'Netherlands', 'EUR', 'km', 'dmy'],
+  ['NZ', 'New Zealand', 'NZD', 'km', 'dmy'], ['NO', 'Norway', 'NOK', 'km', 'dmy'], ['PY', 'Paraguay', 'PYG', 'km', 'dmy'], ['PE', 'Peru', 'PEN', 'km', 'dmy'],
+  ['PL', 'Poland', 'PLN', 'km', 'dmy'], ['PT', 'Portugal', 'EUR', 'km', 'dmy'], ['ZA', 'South Africa', 'ZAR', 'km', 'dmy'], ['ES', 'Spain', 'EUR', 'km', 'dmy'],
+  ['SE', 'Sweden', 'SEK', 'km', 'dmy'], ['CH', 'Switzerland', 'CHF', 'km', 'dmy'], ['AE', 'United Arab Emirates', 'AED', 'km', 'dmy'], ['GB', 'United Kingdom', 'GBP', 'mi', 'dmy'],
+  ['US', 'United States', 'USD', 'mi', 'mdy'], ['UY', 'Uruguay', 'UYU', 'km', 'dmy']
+];
+const COUNTRY = Object.fromEntries(COUNTRY_LIST.map(([c, name, cur, unit, date]) => [c, { name, cur, unit, date }]));
+const CUR_CODES = [...new Set([...COUNTRY_LIST.map(x => x[2]), 'USD', 'EUR', 'GBP', 'CNY', 'HKD', 'SGD', 'INR', 'KRW', 'TRY', 'CZK', 'HUF', 'ILS', 'THB'])];
+const curName = c => { try { return new Intl.DisplayNames(['en'], { type: 'currency' }).of(c) || c; } catch (e) { return c; } };
+const CURRENCIES = Object.fromEntries(CUR_CODES.map(c => [c, `${curName(c)} (${c})`]).sort((a, b) => a[1].localeCompare(b[1])));
+const gCountry = () => S.garage?.country || null;
+const inBR = () => gCountry() === 'BR', inUS = () => gCountry() === 'US';
+const gCur = () => S.garage?.currency || 'USD';
+// the browser's country, for a sensible first guess when creating a garage
+const guessCountry = () => { try { const r = (navigator.languages || [navigator.language]).map(l => (new Intl.Locale(l).maximize().region || '')).find(x => COUNTRY[x]); return r || ''; } catch (e) { return ''; } };
+// choosing a country fills its currency and distance unit (still editable)
+document.addEventListener('change', e => {
+  if (!e.target.matches || !e.target.matches('select[name="country"]')) return;
+  const f = e.target.form, c = COUNTRY[e.target.value]; if (!f || !c) return;
+  if (f.elements.currency) f.elements.currency.value = c.cur;
+  if (f.elements.distance_unit) f.elements.distance_unit.value = c.unit;
+});
 const METERS = { distance:'Odometer', hours:'Hour meter', both:'Odometer and hour meter' };
 const STATUS = { owned:'Owned', project:'Project', stored:'Stored', sold:'Sold' };
 
@@ -616,17 +644,22 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const FMT = {};
 const fmtFor = (cur, d) => FMT[cur + d] || (FMT[cur + d] = new Intl.NumberFormat('en-US', { style:'currency', currency:cur, currencyDisplay:'symbol', minimumFractionDigits: d ? 2 : 0, maximumFractionDigits: d ? 2 : 0 }));
-const money = (v, d, cur = 'USD') => v == null || v === '' ? '—' : fmtFor(cur || 'USD', !!d).format(+v).replace(/^\$/, 'US$');
+// a plain $ is US dollars only inside the US; elsewhere it's written US$
+const money = (v, d, cur = 'USD') => { if (v == null || v === '') return '—'; const t = fmtFor(cur || 'USD', !!d).format(+v); return (cur || 'USD') === 'USD' && !inUS() ? t.replace(/^(-?)\$/, '$1US$') : t; };
+const symOf = c => { if (c === 'USD') return inUS() ? '$' : 'US$'; try { return fmtFor(c, false).formatToParts(0).find(p => p.type === 'currency')?.value || c; } catch (e) { return c; } };
+const curFirst = list => [...new Set(list)].sort((a, b) => (b === gCur()) - (a === gCur()) || a.localeCompare(b));
+const recCurs = recs => curFirst(recs.filter(r => +r.amount).map(r => r.currency || gCur()));
 // sums kept per currency, never converted
 const sumBy = (rows, amt = r => r.amount, cur = r => r.currency) => rows.reduce((m, r) => { const a = +amt(r) || 0; if (a) m[cur(r) || 'USD'] = (m[cur(r) || 'USD'] || 0) + a; return m; }, {});
 const addSums = (...ms) => ms.reduce((o, m) => { for (const k in m) o[k] = (o[k] || 0) + m[k]; return o; }, {});
-const msum = (m, d) => { const ks = ['BRL', 'USD'].filter(k => m[k]); return ks.length ? ks.map(k => money(m[k], d, k)).join(' + ') : '—'; };
+const msum = (m, d) => { const ks = curFirst(Object.keys(m).filter(k => m[k])); return ks.length ? ks.map(k => money(m[k], d, k)).join(' + ') : '—'; };
 const num = v => v == null || v === '' ? '—' : (+v).toLocaleString('en-US');
 // Dates are stored as yyyy-mm-dd and shown and typed as dd/mm/yyyy or mm/dd/yyyy, as each person chooses
 // in Account (saved on their account as mg_date_fmt, with this browser as a fallback)
 const DATE_FMTS = { dmy: { ph: 'dd/mm/yyyy', ex: '25/12/2024', name: 'Day first' }, mdy: { ph: 'mm/dd/yyyy', ex: '12/25/2024', name: 'Month first' } };
-let lsDateFmt = 'dmy'; try { lsDateFmt = localStorage.getItem('mg-datefmt') || 'dmy'; } catch (e) {}
-const dateFmt = () => { const f = S.user?.user_metadata?.mg_date_fmt || lsDateFmt; return DATE_FMTS[f] ? f : 'dmy'; };
+let lsDateFmt = null; try { lsDateFmt = localStorage.getItem('mg-datefmt'); } catch (e) {}
+// the person's own choice, else the garage country's usual order
+const dateFmt = () => { const f = S.user?.user_metadata?.mg_date_fmt || lsDateFmt || COUNTRY[gCountry()]?.date; return DATE_FMTS[f] ? f : 'dmy'; };
 function setDateFmt(f) {
   if (!DATE_FMTS[f]) return;
   lsDateFmt = f; try { localStorage.setItem('mg-datefmt', f); } catch (e) {}
@@ -989,7 +1022,7 @@ function showOnboarding(msg) {
     <p class="sub">Give it a name and pick how you count money and distance. You can change these later.</p>
     <form id="ob-form" novalidate>
       ${msg ? `<div class="form-err" role="alert">${esc(msg)}</div>` : ''}
-      ${garageFields({ name: '', currency: 'BRL', distance_unit: 'km' })}
+      ${garageFields(newGarageDefaults())}
       <button class="btn primary" type="submit" style="width:100%;height:44px;margin-top:4px">Create garage</button>
     </form>
     <p class="hint" style="margin:18px 0 0;text-align:center">Joining someone else's garage? Ask them to invite <b style="color:var(--fg)">${esc(S.user.email)}</b>, then <button type="button" class="linkbtn" id="ob-reload">check again</button>.</p>
@@ -1004,10 +1037,13 @@ function showOnboarding(msg) {
   });
 }
 const garageFields = g => `${field('name', 'Garage name', 'text', g.name, { required: true, ph: 'e.g. The Weekend Garage' })}
+  ${field('country', 'Country', 'select', g.country || '', { required: true, options: [['', 'Choose a country'], ...COUNTRY_LIST.map(([c, n]) => [c, n]), ['OTHER', 'Another country']], help: 'Sets the currency, distance and date format, and turns on the options that apply where you are.' })}
   <div class="two">${field('currency', 'Main currency', 'select', g.currency, { required: true, options: Object.entries(CURRENCIES) })}${field('distance_unit', 'Distance', 'select', g.distance_unit, { required: true, options: [['km', 'Kilometres'], ['mi', 'Miles']] })}</div>`;
-const garageRules = { name: v => !v.trim() ? 'Give your garage a name.' : v.trim().length > 80 ? 'Keep the name under 80 characters.' : '' };
+const garageRules = { name: v => !v.trim() ? 'Give your garage a name.' : v.trim().length > 80 ? 'Keep the name under 80 characters.' : '', country: v => !v ? 'Choose the country, or Another country.' : '' };
+const countryVal = v => COUNTRY[v] ? v : null;
+const newGarageDefaults = (from) => { const c = from?.country || guessCountry(); const k = COUNTRY[c]; return { name: '', country: c || '', currency: from?.currency || k?.cur || 'USD', distance_unit: from?.distance_unit || k?.unit || 'km' }; };
 async function createGarage(f) {
-  const { data: id, error } = await db.rpc('create_garage', { p_name: f.name.trim(), p_currency: f.currency, p_unit: f.distance_unit, p_lang: 'en' });
+  const { data: id, error } = await db.rpc('create_garage', { p_name: f.name.trim(), p_currency: f.currency, p_unit: f.distance_unit, p_lang: 'en', p_country: countryVal(f.country) });
   if (error) throw new Error(limitMsg(error) || 'Couldn\'t create the garage: ' + error.message);
   try { localStorage.setItem('mg-garage', id); } catch (e) {}
   await loadGarages();
@@ -1116,16 +1152,17 @@ async function openAccount() {
   $('#pref-date').onchange = e => { setDateFmt(e.target.value); render(); toast(`Dates now show as ${DATE_FMTS[dateFmt()].ph}`); };
   $('#g-new-btn').onclick = () => {
     if (ownedGarages() >= S.garageLimit) return openLimit('garage');
-    $('#g-new').innerHTML = `<form id="gn-form" novalidate>${garageFields({ name: '', currency: g?.currency || 'BRL', distance_unit: g?.distance_unit || 'km' })}<button class="btn primary" type="submit">Create garage</button> <button class="btn" type="button" id="gn-x">Cancel</button></form>`;
+    $('#g-new').innerHTML = `<form id="gn-form" novalidate>${garageFields(newGarageDefaults(g))}<button class="btn primary" type="submit">Create garage</button> <button class="btn" type="button" id="gn-x">Cancel</button></form>`;
     $('#gn-x').onclick = openAccount; $('#f-name').focus();
     wireForm('#gn-form', garageRules, createGarage);
   };
   if (!g) return;
   if (owner) {
     wireForm('#g-form', garageRules, async f => {
-      const u = await db.from('garages').update({ name: f.name.trim(), currency: f.currency, distance_unit: f.distance_unit }).eq('id', g.id).select().single();
+      const u = await db.from('garages').update({ name: f.name.trim(), currency: f.currency, distance_unit: f.distance_unit, country: countryVal(f.country) }).eq('id', g.id).select().single();
       if (u.error) throw new Error('Couldn\'t save: ' + u.error.message);
       const ng = { ...u.data, role: S.role }; S.garages = S.garages.map(x => x.id === g.id ? ng : x); pickGarage(ng);
+      if (ng.currency !== S.fx?.base) await loadFx().catch(() => {});
       toast('Garage saved'); render(); openAccount();
     });
     const look = $('#look-form');
@@ -1356,7 +1393,7 @@ const TOUR = [
     points: ['Log reading on a vehicle\'s page builds its mileage chart', 'The To-Do on the Service tab follows a 12-month service clock per vehicle', 'Add needs to plan the next service, then Complete it to turn it into a record'] },
   { eyebrow: 'Value', title: 'Know what the collection is worth',
     text: 'The Portfolio treats the collection like investments: what you paid, what you\'ve spent, what it\'s worth now.',
-    points: ['Add what you paid on each vehicle', 'Link its FIPE model (Brazil) to follow the official price table monthly', 'Add comparable sales or listings for a market value', 'Reais and dollars are kept apart; totals convert at the day\'s rate'] },
+    points: ['Add what you paid on each vehicle', 'Add comparable sales or listings for a market value', 'Or enter your own estimate', 'Each vehicle keeps its own currency'] },
   { eyebrow: 'Together', title: 'Share and personalise',
     text: 'Everything is private to your garage. Under Account you decide who else sees it and how it looks.',
     points: ['Invite people as editors (add and change) or viewers (look only)', 'Look: your logo, a background colour, and whether to show motorcycles', 'Help, top right, answers most questions'],
@@ -1438,7 +1475,7 @@ function gsDo(k) {
 }
 
 // Help center (#/help): searchable answers, grouped by topic
-const HELP = [
+const helpData = () => [
   ['Getting started', [
     ['What is AUTODEX?', 'A private logbook for cars and motorcycles: each vehicle\'s service history, costs, odometer readings and value, shared only with the people you invite. Your garage is visible to its members and no one else.'],
     ['How do I add a vehicle?', 'Click Add vehicle on the Dashboard (or Add car / Add bike on those tabs). Choose Type it in to fill in the details yourself, or Import a spreadsheet. Only the make is required; everything else can be added later with Edit details on the vehicle\'s page.'],
@@ -1460,13 +1497,14 @@ const HELP = [
     ['How do I find a record?', 'The Service tab lists every record. Filter by vehicle, category or year, or search.']]],
   ['Value and costs', [
     ['What is the Portfolio?', 'It treats the collection like investments: what each vehicle cost, what you\'ve spent on it, and what it\'s worth now, with returns per vehicle and for the whole collection.'],
-    ['How is market value worked out?', 'From what you add on each vehicle\'s page under Market value: link its FIPE model (the official Brazilian price table, refreshed monthly), add comparable sales or listings, or enter an estimated value yourself.'],
-    ['How are reais and dollars handled?', 'Each vehicle keeps its own currency and amounts are never mixed. Where the app shows a total across currencies, it converts at the day\'s exchange rate and says so.'],
+    ['How is market value worked out?', `From what you add on each vehicle\'s page under Market value: comparable sales or listings of the same model${inBR() ? ', the FIPE price table (refreshed monthly)' : ''}, or an estimated value of your own.`],
+    ['How are currencies handled?', 'Each vehicle keeps its own currency, and amounts in different currencies are never mixed. The garage\'s main currency is set in Account; collection totals show in it.'],
+    ['How do I set my country?', 'Account → Garage → Country. It sets the main currency, distance unit and date format (all still editable), and turns on what applies where you are.'],
     ['Can dates be month first?', 'Yes. Dates are day first (25/12/2024) unless you choose month first (12/25/2024) in Account → Preferences. It\'s your own setting: it applies everywhere you sign in, and doesn\'t change anyone else\'s view. In date fields, type the digits and the slashes are added for you, for example 25122024 becomes 25/12/2024 when dates are day first.']]],
   ['Details, reminders and the dossier', [
-    ['How do I fill in a car\'s details quickly?', 'In Add car or Edit details, use Fill in for me: scan the registration document (a Brazilian CRLV, or a US title or registration card), a photo of the VIN plate or windscreen sticker, the number plate, or the car itself. Empty fields are filled for you to check; anything you typed is kept, and differences are listed so you can choose. Owner details on documents are never read or stored. Each scan uses one from the month\'s allowance.'],
-    ['What does the VIN decoder do?', 'Type or paste a 17-character VIN (cars from 1981 on) and it\'s looked up in the US government\'s NHTSA database for free: year, make, model, body, engine, transmission, drivetrain and where it was built. For classics and older or non-US chassis numbers, press Decode with AI; the result is marked Likely, check it, with how the number was read.'],
-    ['How do reminders work?', 'Add a reminder on a vehicle\'s page, the Service page or the Dashboard: service by date and/or by odometer (e.g. every 12 months or 10,000 km), annual tax (IPVA), licensing, insurance, inspection, or anything else. Distance reminders follow the vehicle\'s latest odometer reading. Press Done and a repeating reminder moves to its next date and distance.'],
+    ['How do I fill in a car\'s details quickly?', `In Add car or Edit details, use Fill in for me: scan the registration document${inBR() ? ' (CRLV)' : inUS() ? ' (title or registration card)' : ''}, a photo of the VIN plate or windscreen sticker, the number plate, or the car itself. Empty fields are filled for you to check; anything you typed is kept, and differences are listed so you can choose. Owner details on documents are never read or stored. Each scan uses one from the month\'s allowance.`],
+    ['What does the VIN decoder do?', `Type or paste a 17-character VIN (cars from 1981 on) and it\'s looked up in ${inUS() ? 'the NHTSA database' : 'a VIN database'} for free: year, make, model, body, engine, transmission, drivetrain and where it was built. For classics and other chassis numbers, press Decode with AI; the result is marked Likely, check it, with how the number was read.`],
+    ['How do reminders work?', `Add a reminder on a vehicle\'s page, the Service page or the Dashboard: service by date and/or by odometer (e.g. every 12 months or 10,000 km), ${inBR() ? 'IPVA, licenciamento' : 'vehicle tax, registration renewal'}, insurance, inspection, or anything else. Distance reminders follow the vehicle\'s latest odometer reading. Press Done and a repeating reminder moves to its next date and distance.`],
     ['Can I get a notification on my phone?', 'Yes. Press Turn on phone alerts (next to Reminders, or Account → Preferences) and allow notifications. You\'ll get one two weeks before a reminder\'s date, on the day, and weekly while it\'s overdue. On iPhone, add AUTODEX to the home screen first and turn alerts on from there.'],
     ['What is the dossier?', 'A clean document for each vehicle: specs, history and provenance, the full service history and mileage. Open it from the vehicle\'s page (Dossier and share), tick what to include (amounts, purchase price and value, receipts, VIN, plate, notes) and press Download PDF. Add previous owners, restorations, events and awards under History and provenance to tell its story.'],
     ['How does the share link work?', 'On the dossier, press Create a share link and send it to a buyer or insurer. It opens the dossier read-only, without signing in, showing only what you ticked; where the car is kept and anything else in your garage are never shown. You can see how often it was opened, and Stop sharing turns the link off at once.']]],
@@ -1482,7 +1520,7 @@ const HELP = [
 let helpQ = '';
 function viewHelp() {
   const q = helpQ.trim().toLowerCase();
-  const groups = HELP.map(([g, items]) => [g, items.filter(([t, a]) => !q || (t + ' ' + a).toLowerCase().includes(q))]).filter(([, items]) => items.length);
+  const groups = helpData().map(([g, items]) => [g, items.filter(([t, a]) => !q || (t + ' ' + a).toLowerCase().includes(q))]).filter(([, items]) => items.length);
   const n = groups.reduce((a, [, items]) => a + items.length, 0);
   return `<div class="head"><div><p class="eyebrow">Help center</p><h1>How can we help?</h1><p class="sub">Answers about every part of AUTODEX.</p></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">${!isStandalone() ? '<button class="btn" type="button" data-install>Add to home screen</button>' : ''}${S.user && S.garage ? '<button class="btn" type="button" data-tour>Replay the quick start</button>' : ''}</div></div>
@@ -1702,7 +1740,7 @@ function viewVehicle(id) {
     </div>
     ${vehicleCharts(v)}
     ${S.user ? marketSection(v) : ''}
-    <div class="section"><h2>Specifications</h2>${dl(spec)}${v.specs_source ? `<p class="hint" style="margin:10px 0 0">Some details from ${esc(v.specs_source === 'NHTSA' ? 'the NHTSA VIN database' : v.specs_source)}.</p>` : ''}</div>
+    <div class="section"><h2>Specifications</h2>${dl(spec)}${v.specs_source ? `<p class="hint" style="margin:10px 0 0">Some details from ${esc(v.specs_source === 'NHTSA' ? FILL_SRC.nhtsa : v.specs_source)}.</p>` : ''}</div>
     <div class="section"><h2>Ownership</h2>${dl(own)}</div>
     ${historySection(v)}
     ${S.user ? remindersSection(v.id) : ''}
@@ -1789,15 +1827,15 @@ function costsBody() {
       <tfoot><tr><td>All vehicles</td><td class="n">${msum(T.p)}</td><td class="n">${msum(T.s)}</td><td class="n">${msum(addSums(T.p, T.s))}</td><td class="n">${T.n}</td><td class="n"></td></tr></tfoot>
     </table></div>
     ${byCat.length ? `<div class="section"><h2>By category</h2><div class="tbl-wrap"><table>
-      <thead><tr><th scope="col">Category</th><th scope="col" class="n">Records</th><th scope="col" class="n">Spent (R$)</th><th scope="col" class="n">Spent (US$)</th></tr></thead>
-      <tbody>${byCat.sort((a, b) => (b[1].BRL || 0) - (a[1].BRL || 0) || (b[1].USD || 0) - (a[1].USD || 0)).map(([k, s, n]) => `<tr><td>${CATEGORIES[k]}</td><td class="n">${n}</td><td class="n">${s.BRL ? money(s.BRL, 1, 'BRL') : '—'}</td><td class="n">${s.USD ? money(s.USD, 1, 'USD') : '—'}</td></tr>`).join('')}</tbody>
+      <thead><tr><th scope="col">Category</th><th scope="col" class="n">Records</th>${recCurs(S.records).map(c => `<th scope="col" class="n">Spent (${SYM[c]})</th>`).join('')}</tr></thead>
+      <tbody>${byCat.sort((a, b) => recCurs(S.records).reduce((d, c) => d || (b[1][c] || 0) - (a[1][c] || 0), 0)).map(([k, s, n]) => `<tr><td>${CATEGORIES[k]}</td><td class="n">${n}</td>${recCurs(S.records).map(c => `<td class="n">${s[c] ? money(s[c], 1, c) : '—'}</td>`).join('')}</tr>`).join('')}</tbody>
     </table></div></div>` : ''}`;
 }
 
 /* ---------- fill in a vehicle: VIN lookup, chassis decode, photo and document reads ---------- */
 const FILL_LABELS = { year: 'year', build_year: 'year of manufacture', make: 'make', model: 'model', trim_level: 'trim', series: 'series', colour: 'colour', vin: 'VIN', plate: 'plate',
   engine: 'engine', power: 'power', transmission: 'transmission', drivetrain: 'drivetrain', body: 'body', plant: 'where it was built' };
-const FILL_SRC = { nhtsa: 'the NHTSA VIN database', chassis: 'an AI reading of the chassis number', document: 'the registration document', vin: 'the VIN plate', plate: 'the photo', car: 'the photo of the car' };
+const FILL_SRC = { get nhtsa() { return inUS() ? 'the NHTSA VIN database' : 'the VIN database'; }, chassis: 'an AI reading of the chassis number', document: 'the registration document', vin: 'the VIN plate', plate: 'the photo', car: 'the photo of the car' };
 async function vread(body) {
   const { data, error } = await db.functions.invoke('vehicle-read', { body: { garage_id: GID(), ...body } });
   let res = data; if (error) { try { res = await error.context.json(); } catch (e) { res = { message: 'The reader couldn\'t be reached. Check your connection and try again.' }; } }
@@ -1856,7 +1894,7 @@ function wireFill(form, v) {
       // a 17-character VIN from a photo or document: look up the full specs too (free)
       if (f.vin && /^[A-HJ-NPR-Z0-9]{17}$/.test(f.vin)) {
         const nh = await vread({ mode: 'vin', vin: f.vin });
-        if (nh.ok) { for (const [k, val] of Object.entries(nh.fields)) if (val != null && (f[k] == null || f[k] === '')) f[k] = val; note = 'Specs looked up from the VIN in the NHTSA database.'; }
+        if (nh.ok) { for (const [k, val] of Object.entries(nh.fields)) if (val != null && (f[k] == null || f[k] === '')) f[k] = val; note = `Specs looked up from the VIN in ${FILL_SRC.nhtsa}.`; }
       }
       applyFill(form, f, kind, { likely: kind === 'car', note });
       if (form.elements.vin.value) lastVin = form.elements.vin.value.trim().toUpperCase();
@@ -1927,13 +1965,15 @@ function wireFill(form, v) {
 
 /* ---------- reminders: service by time or distance, tax, licensing, insurance, inspection ---------- */
 const REM_KINDS = {
-  service: { label: 'Service', title: 'Service', months: 12, km: 10000, mi: 6000 },
-  ipva: { label: 'Annual vehicle tax (IPVA)', title: 'IPVA', months: 12 },
-  licensing: { label: 'Licensing / registration renewal', title: 'Licensing', months: 12 },
+  service: { label: 'Service', title: 'Service', months: 12, km: 10000, mi: 6000, br: ['Service', 'Revisão'] },
+  ipva: { label: 'Vehicle tax', title: 'Vehicle tax', months: 12, br: ['IPVA (vehicle tax)', 'IPVA'] },
+  licensing: { label: 'Registration renewal', title: 'Registration renewal', months: 12, br: ['Licenciamento (registration renewal)', 'Licenciamento'] },
   insurance: { label: 'Insurance renewal', title: 'Insurance renewal', months: 12 },
   inspection: { label: 'Inspection', title: 'Inspection', months: 12 },
   other: { label: 'Something else', title: '' }
 };
+const remLabel = k => (inBR() && REM_KINDS[k].br ? REM_KINDS[k].br[0] : REM_KINDS[k].label);
+const remTitle = k => (inBR() && REM_KINDS[k].br ? REM_KINDS[k].br[1] : REM_KINDS[k].title);
 const daysTo = d => Math.round((new Date(d + 'T12:00:00') - new Date(today() + 'T12:00:00')) / 864e5);
 // worst of the date and the distance; 'ok' when neither is close
 function remStatus(r) {
@@ -1974,7 +2014,7 @@ function remindersSection(vid) {
     <div class="section-head" style="flex-wrap:wrap"><h2>Reminders</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${pushChip()}${S.editor ? `<button class="btn sm" type="button" data-rem-add="${vid || ''}">${ICON.plus}Add reminder</button>` : ''}</div></div>
     ${items.length ? `${close.length ? `<div class="todo-list">${close.map(x => remRow(x, !vid)).join('')}</div>` : `<p class="none" style="margin-bottom:10px">Nothing due in the next 45 days.</p>`}
       ${later.length ? `<details class="todo-nohist"${close.length ? '' : ' open'}><summary>${later.length} later</summary><div class="todo-list">${later.map(x => remRow(x, !vid)).join('')}</div></details>` : ''}`
-    : `<p class="none">${S.editor ? 'Service by time or distance, annual tax (IPVA), licensing, insurance and inspections. Add a reminder and it shows here when it comes up.' : 'No reminders yet.'}</p>`}
+    : `<p class="none">${S.editor ? `Service by time or distance, ${inBR() ? 'IPVA, licenciamento' : 'vehicle tax, registration renewal'}, insurance and inspections. Add a reminder and it shows here when it comes up.` : 'No reminders yet.'}</p>`}
   </section>`;
 }
 function openReminderForm(r, vehicleId) {
@@ -1985,8 +2025,8 @@ function openReminderForm(r, vehicleId) {
   openPanel(isNew ? 'Add a reminder' : 'Edit reminder', `
     <form id="rm-form" novalidate>
       ${v0 && !isNew ? `<p class="hint" style="margin:0 0 18px">${esc(vname(v0))}</p><input type="hidden" name="vehicle_id" value="${v0.id}">` : field('vehicle_id', 'Vehicle', 'select', r.vehicle_id, { required: true, options: [['', 'Choose a vehicle'], ...S.vehicles.filter(x => x.status !== 'sold').map(x => [x.id, vname(x)])] })}
-      ${field('kind', 'What for', 'select', r.kind, { required: true, options: Object.entries(REM_KINDS).map(([k, x]) => [k, x.label]) })}
-      ${field('title', 'Title', 'text', r.title, { required: true, ph: 'Oil change, IPVA 2027, Seguro…' })}
+      ${field('kind', 'What for', 'select', r.kind, { required: true, options: Object.keys(REM_KINDS).map(k => [k, remLabel(k)]) })}
+      ${field('title', 'Title', 'text', r.title, { required: true, ph: inBR() ? 'Troca de óleo, IPVA 2027, Seguro…' : 'Oil change, Registration 2027, Insurance…' })}
       <div class="two">${field('due_date', 'Due on', 'date', r.due_date)}${field('due_odometer', 'Or at odometer', 'text', r.due_odometer != null ? num(r.due_odometer) : '', { inputmode: 'numeric' })}</div>
       <p class="hint" id="rm-odo" style="margin:-6px 0 14px"></p>
       <fieldset><legend>Repeat</legend>
@@ -2005,7 +2045,7 @@ function openReminderForm(r, vehicleId) {
   if ($('#f-vehicle_id')) $('#f-vehicle_id').addEventListener('change', showOdo);
   $('#f-kind').onchange = e => { // sensible defaults per kind, without overwriting what's typed
     const k = REM_KINDS[e.target.value], f = $('#rm-form').elements, v = vById(f.vehicle_id.value);
-    if (!f.title.value.trim() || Object.values(REM_KINDS).some(x => x.title === f.title.value.trim())) f.title.value = k.title;
+    if (!f.title.value.trim() || Object.values(REM_KINDS).some(x => x.title === f.title.value.trim() || x.br?.[1] === f.title.value.trim())) f.title.value = remTitle(e.target.value);
     f.every_months.value = k.months || '';
     f.every_distance.value = k.km ? num(unitOf(v?.id) === 'mi' ? k.mi : k.km) : '';
     if (k.km && v?.odometer != null && !f.due_odometer.value) f.due_odometer.value = num(v.odometer + (unitOf(v.id) === 'mi' ? k.mi : k.km));
@@ -2019,7 +2059,7 @@ function openReminderForm(r, vehicleId) {
   const posInt = label => x => x && !/^[\d,.\s]+$/.test(x.trim()) ? `${label} should be a whole number.` : '';
   wireForm('#rm-form', {
     vehicle_id: x => !x ? 'Choose the vehicle.' : '',
-    title: x => !x.trim() ? 'Give it a short title, like "IPVA" or "Oil change".' : '',
+    title: x => !x.trim() ? 'Give it a short title, like "Registration" or "Oil change".' : '',
     due_odometer: posInt('The odometer'),
     every_months: x => x && (!/^\d+$/.test(x.trim()) || +x < 1 || +x > 120) ? 'Enter a number of months from 1 to 120.' : '',
     every_distance: posInt('The distance')
@@ -2185,7 +2225,7 @@ function dossierHtml(d, o) {
         </dl>
       </div>
     </header>
-    ${specs.length ? `<section><h2>Specifications</h2><dl class="dos-spec">${specs.map(([k, val, m]) => `<div><dt>${esc(k)}</dt><dd${m ? ' class="mono"' : ''}>${esc(val)}</dd></div>`).join('')}</dl>${v.specs_source ? `<p class="dos-note">Some specifications from ${esc(v.specs_source === 'NHTSA' ? 'the NHTSA VIN database' : v.specs_source)}.</p>` : ''}</section>` : ''}
+    ${specs.length ? `<section><h2>Specifications</h2><dl class="dos-spec">${specs.map(([k, val, m]) => `<div><dt>${esc(k)}</dt><dd${m ? ' class="mono"' : ''}>${esc(val)}</dd></div>`).join('')}</dl>${v.specs_source ? `<p class="dos-note">Some specifications from ${esc(v.specs_source === 'NHTSA' ? FILL_SRC.nhtsa.replace(/^the /, 'a ') : v.specs_source)}.</p>` : ''}</section>` : ''}
     ${tl.length ? `<section><h2>History and provenance</h2><ol class="dos-tl">${tl.map(x => `<li><span class="dos-tl-d">${esc(x.d ? fdate(x.d) : x.txt || '')}</span><span class="dos-tl-k">${esc(x.k)}</span><b>${esc(x.t)}</b>${x.n ? `<span class="dos-tl-n">${esc(x.n)}</span>` : ''}</li>`).join('')}</ol></section>` : ''}
     <section><h2>Service history</h2>
       ${recs.length ? `<table class="dos-tbl"><thead><tr><th>Date</th><th class="n">${v.meter === 'hours' ? 'Hours' : 'Odometer'}</th><th>Work</th><th>By</th>${o.amounts ? '<th class="n">Amount</th>' : ''}${o.receipts ? '<th>Receipt</th>' : ''}</tr></thead>
@@ -2333,7 +2373,7 @@ async function showShare(token) {
 /* ---------- vehicle form ---------- */
 function openVehicleForm(v, kind) {
   if (!v && vFull()) return openLimit('vehicle');
-  const isNew = !v; v = v || { kind, odometer_unit: S.garage?.distance_unit || 'km', status: 'owned', currency: S.garage?.currency || 'BRL', meter: 'distance' };
+  const isNew = !v; v = v || { kind, odometer_unit: S.garage?.distance_unit || 'km', status: 'owned', currency: gCur(), meter: 'distance' };
   const word = v.kind === 'car' ? 'car' : 'bike';
   openPanel(isNew ? `Add ${word}` : 'Edit details', `
     <form id="v-form" novalidate>
@@ -2345,7 +2385,7 @@ function openVehicleForm(v, kind) {
           <label class="btn">Number plate<input type="file" accept="image/*" data-fill="plate" class="vh"></label>
           <label class="btn">Photo of the ${word}<input type="file" accept="image/*" data-fill="car" class="vh"></label>
         </div>
-        <p class="hint" style="margin:10px 0 0">Registration document: a Brazilian CRLV, or a US title or registration card. Owner details on it are never read or stored.</p>
+        <p class="hint" style="margin:10px 0 0">Registration document: ${inBR() ? 'the CRLV' : inUS() ? 'the title or registration card' : 'the registration certificate or title'}. Owner details on it are never read or stored.</p>
         <div id="fill-msg" aria-live="polite"></div>
       </fieldset>
       <fieldset><legend>Photo</legend>
@@ -2364,7 +2404,7 @@ function openVehicleForm(v, kind) {
         <div class="two">${field('nickname', 'Nickname', 'text', v.nickname)}${field('colour', 'Colour', 'text', v.colour)}</div>
       </fieldset>
       <fieldset><legend>Specifications</legend>
-        ${field('vin', v.kind === 'bike' ? 'VIN / frame number' : 'VIN or chassis number', 'text', v.vin, { help: 'A 17-character VIN (1981 on) is looked up automatically. Older or non-US chassis numbers can be decoded by AI.' })}
+        ${field('vin', v.kind === 'bike' ? 'VIN / frame number' : 'VIN or chassis number', 'text', v.vin, { help: 'A 17-character VIN (1981 on) is looked up automatically. Older or other chassis numbers can be decoded by AI.' })}
         <div id="vin-msg" aria-live="polite"></div>
         <input type="hidden" name="specs_source" value="${esc(v.specs_source || '')}">
         <div class="two">${field('engine', 'Engine', 'text', v.engine)}${field('power', 'Power', 'text', v.power, { ph: '280 hp' })}</div>
@@ -2467,13 +2507,13 @@ function openRecord(r) {
 function openRecordForm(r, vehicleId, scan) {
   const isNew = !r;
   if (!S.vehicles.length) { toast('Add a vehicle first', true); return; }
-  r = r || { vehicle_id: vehicleId || '', date: new Date().toISOString().slice(0, 10), category: 'maintenance', confidence: 'printed', currency: vById(vehicleId)?.currency || 'USD' };
+  r = r || { vehicle_id: vehicleId || '', date: new Date().toISOString().slice(0, 10), category: 'maintenance', confidence: 'printed', currency: vById(vehicleId)?.currency || gCur() };
   if (scan) { // pre-fill from the invoice the reader drafted
     const d = scan.draft, v0 = vById(d.vehicle_id || vehicleId);
     let mi = d.mileage != null ? Math.round(+d.mileage) : null;
     if (mi != null && v0 && d.mileage_unit && d.mileage_unit !== v0.odometer_unit) mi = Math.round(conv(mi, d.mileage_unit, v0.odometer_unit));
     Object.assign(r, { vehicle_id: v0 ? v0.id : '', title: d.title || '', date: d.date || r.date, category: d.category || 'maintenance', mileage: mi, hours: d.hours ?? null,
-      amount: d.amount ?? '', currency: d.currency || v0?.currency || 'USD', shop: d.shop || '', items: (d.items || []).join('\n'), confidence: 'printed',
+      amount: d.amount ?? '', currency: d.currency || v0?.currency || gCur(), shop: d.shop || '', items: (d.items || []).join('\n'), confidence: 'printed',
       notes: [d.invoice_number ? 'Invoice ' + d.invoice_number : '', d.plate ? 'Plate ' + d.plate : ''].filter(Boolean).join(' · ') });
   }
   const scanTask = scan ? (vId => vId && openTask(vById(vId)))(r.vehicle_id) : null;
@@ -2499,7 +2539,7 @@ function openRecordForm(r, vehicleId, scan) {
     </form>`,
     `<button class="btn" type="button" id="cancel">Cancel</button><button class="btn primary" type="button" data-submit>${scan ? 'Save to vehicle' : isNew ? 'Add record' : 'Save changes'}</button>`);
   $('#cancel').onclick = () => isNew ? closePanel() : openRecord(r);
-  $('#f-vehicle_id').onchange = e => { const v = vById(e.target.value); if (v && isNew && !scan) $('#f-currency').value = v.currency || 'USD';
+  $('#f-vehicle_id').onchange = e => { const v = vById(e.target.value); if (v && isNew && !scan) $('#f-currency').value = v.currency || gCur();
     if (scan) { const t = v && openTask(v); $('#scan-task-wrap').hidden = !t; if (t) $('#scan-task-label').textContent = 'Check off the To-Do: ' + t.title; } };
   if (scan) $('#f-mileage').addEventListener('input', e => { $('#scan-log-wrap').hidden = !e.target.value.trim(); });
   if (!isNew) $('#del-r').onclick = () => {
@@ -2688,7 +2728,7 @@ async function openBatchScan(files, vehicleId) {
         let mi = d.mileage != null ? Math.round(+d.mileage) : null;
         if (mi != null && v0 && d.mileage_unit && d.mileage_unit !== v0.odometer_unit) mi = Math.round(conv(mi, d.mileage_unit, v0.odometer_unit));
         it.send = send; it.draft = d;
-        it.r = { vehicle_id: v0 ? v0.id : '', title: d.title || '', date: d.date ? dmy(d.date) : '', category: d.category || 'maintenance', amount: d.amount ?? '', currency: d.currency || v0?.currency || 'USD', mileage: mi, hours: d.hours ?? null, shop: d.shop || '', items: (d.items || []).join('\n'),
+        it.r = { vehicle_id: v0 ? v0.id : '', title: d.title || '', date: d.date ? dmy(d.date) : '', category: d.category || 'maintenance', amount: d.amount ?? '', currency: d.currency || v0?.currency || gCur(), mileage: mi, hours: d.hours ?? null, shop: d.shop || '', items: (d.items || []).join('\n'),
           notes: [d.invoice_number ? 'Invoice ' + d.invoice_number : '', d.plate ? 'Plate ' + d.plate : ''].filter(Boolean).join(' · ') };
         // already in the garage, or the same invoice earlier in this batch
         it.dup = !!(v0 && sameRecord(v0.id, d.date, d.amount)) || items.some(o => o !== it && o.status === 'ready' && o.r.vehicle_id && o.r.vehicle_id === it.r.vehicle_id && o.draft.date === d.date && d.amount != null && +o.draft.amount === +d.amount);
@@ -2808,7 +2848,11 @@ function parseNum(c, comma) {
   else t = t.replace(/,/g, '');
   const n = parseFloat(t); return isFinite(n) ? n : null;
 }
-const curOf = (c, dflt) => { const t = cellText(c).toUpperCase(); return /R\$|BRL|REAL/.test(t) ? 'BRL' : /US\$|USD|\$|DOLAR|DOLLAR/.test(t) ? 'USD' : dflt; };
+const curOf = (c, dflt) => {
+  const t = cellText(c).toUpperCase(), code = /\b([A-Z]{3})\b/.exec(t)?.[1];
+  if (code && CURRENCIES[code]) return code;
+  return /R\$|REAL/.test(t) ? 'BRL' : /US\$|DOLAR|DOLLAR/.test(t) ? 'USD' : /€|EURO/.test(t) ? 'EUR' : /£/.test(t) ? 'GBP' : /C\$/.test(t) ? 'CAD' : /A\$/.test(t) ? 'AUD' : /\$/.test(t) ? (dflt && /^(USD|CAD|AUD|NZD|MXN|ARS|CLP|COP|UYU)$/.test(dflt) ? dflt : 'USD') : dflt;
+};
 const keyOf = t => cellText(t).toLowerCase().replace(/\s+/g, ' ');
 // Matching against vehicles already in the garage
 const idNorm = t => String(t || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -2839,7 +2883,7 @@ const dupReading = (r, vid) => S.readings.some(x => x.vehicle_id === vid && (x.d
 // Turn the AI's map plus the full rows into vehicles, records and readings. refs: "G1" → garage vehicle sent to the AI
 function applyMap(book, map, refs) {
   const out = { vehicles: [], records: [], readings: [], skipped: 0, warnings: [...(map.warnings || [])] };
-  const dflt = S.garage?.currency || 'BRL', unitD = S.garage?.distance_unit || 'km';
+  const dflt = gCur(), unitD = S.garage?.distance_unit || 'km';
   const byKey = new Map();
   (map.vehicles || []).forEach((v, i) => {
     const row = {
@@ -3067,7 +3111,7 @@ function editImport(plan, vid, fname, kind) {
   let onlyCheck = false;
   const inp = (o, k, label, val, t = 'text', extra = '') => `<div class="fld" data-f="${o}-${k}"><label for="ie-${o}-${k}">${esc(label)}</label>${t === 'date' ? dateInput(`id="ie-${o}-${k}" data-o="${o}" data-k="${k}" data-t="date"`, val) : `<input id="ie-${o}-${k}" data-o="${o}" data-k="${k}" data-t="${t}" type="text"${t === 'num' || t === 'int' ? ' inputmode="decimal"' : ''} value="${esc(val ?? '')}"${extra}>`}<span class="err" aria-live="polite"></span></div>`;
   const sel = (o, k, label, val, opts) => `<div class="fld"><label for="ie-${o}-${k}">${esc(label)}</label><select id="ie-${o}-${k}" data-o="${o}" data-k="${k}" data-t="text">${opts.map(([a, b]) => `<option value="${esc(a)}"${String(a) === String(val ?? '') ? ' selected' : ''}>${esc(b)}</option>`).join('')}</select><span class="err" aria-live="polite"></span></div>`;
-  const curOpts = [['BRL', 'R$ (BRL)'], ['USD', 'US$ (USD)']];
+  const curOpts = Object.keys(CURRENCIES).map(c => [c, `${symOf(c)} (${c})`]);
   const sumLine = r => `<span>${r.date ? fdate(r.date) : '<span style="color:var(--warn)">No date</span>'}</span> · <span>${esc(r.title || 'No description')}</span> · <span>${r.amount != null ? money(r.amount, 0, r.currency) : '<span style="color:var(--warn)">No amount</span>'}</span>`;
   const recHtml = r => `<details class="ie-rec" data-rec-id="${r.id}"${needsCheck(r) ? ' data-check' : ''} style="border-bottom:1px solid var(--line);padding:10px 0">
       <summary style="cursor:pointer;list-style-position:outside;display:flex;gap:8px;align-items:baseline;font-size:14px"><span class="ie-sum" style="flex:1;min-width:0">${sumLine(r)}</span>${needsCheck(r) ? '<span class="hint ie-flag" style="color:var(--warn)">check</span>' : ''}</summary>
@@ -3200,7 +3244,7 @@ function drivenIn(v, year, to) {
 }
 const niceMax = v => { if (v <= 0) return 1; const e = 10 ** Math.floor(Math.log10(v)), m = v / e; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10) * e; };
 const short = n => n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1).replace(/\.0$/, '') + 'M' : n >= 1e3 ? (n / 1e3).toFixed(n >= 1e4 ? 0 : 1).replace(/\.0$/, '') + 'k' : String(Math.round(n));
-const SYM = { BRL: 'R$', USD: 'US$' };
+const SYM = new Proxy({}, { get: (_, c) => symOf(String(c)) });
 function chartCard(title, sub, viz, rows, tools = '') {
   const tbl = rows && rows.length > 1 ? `<div class="tbl"><div class="tbl-wrap"><table><thead><tr>${rows[0].map((h, i) => `<th scope="col"${i ? ' class="n"' : ''}>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.slice(1).map(r => `<tr>${r.map((c, i) => `<td${i ? ' class="n"' : ''}>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>` : '';
   return `<section class="cc"><div class="cc-h"><div><h3>${esc(title)}</h3>${sub ? `<p>${esc(sub)}</p>` : ''}</div><div class="tools">${tools}${tbl ? '<button class="btn sm" type="button" data-table aria-pressed="false">Table</button>' : ''}</div></div><div class="viz">${viz}</div>${tbl}</section>`;
@@ -3291,7 +3335,7 @@ function viewDashboard() {
     top.length ? hbars(top.map(x => ({ label: vshort(x.v) + (x.v.colour && owned.filter(y => y.make === x.v.make && y.model === x.v.model).length > 1 ? ' ' + x.v.colour : ''), value: x.d, href: '#/vehicle/' + x.v.id, tip: `${vname(x.v)}\n${Math.round(x.d).toLocaleString('en-US')} ${distUnit} in ${YEAR}` })), v => Math.round(v).toLocaleString('en-US') + ' ' + distUnit) : `<p class="none">No readings logged in ${YEAR} yet. Use Log reading on a vehicle's page.</p>`,
     [['Vehicle', `Distance (${distUnit})`], ...driven.map(x => [vname(x.v), Math.round(x.d).toLocaleString('en-US')])], unitSeg);
   const years = Array.from({ length: 8 }, (_, i) => YEAR - 7 + i);
-  const spendCards = !S.user ? [] : ['BRL', 'USD'].filter(c => S.records.some(r => r.currency === c && +r.amount)).map(cur => {
+  const spendCards = !S.user ? [] : recCurs(S.records).map(cur => {
     const items = spendByYear(S.records, cur, years);
     return chartCard(`Service spend by year (${SYM[cur]})`, `${years[0]}–${YEAR}, all vehicles`, vbars(items, n => SYM[cur] + short(n)), [['Year', `Spend (${SYM[cur]})`, 'Records'], ...items.map(i => [String(i.year), money(i.value, 0, cur), String(i.n)])]);
   });
@@ -3305,8 +3349,8 @@ function viewDashboard() {
   const c4 = `<section class="cc"><div class="cc-h"><div><h3>Service To-Do</h3><p>${tc('overdue')} overdue · ${tc('due')} due · ${tc('soon')} soon${tdo.some(x => x.noHistory) ? ` · ${tdo.filter(x => x.noHistory).length} with no history` : ''}</p></div><a class="btn sm" href="#/ledger">Open</a></div>
     <div class="list">${tshow.map(x => `<a class="li" href="#/vehicle/${x.v.id}"><span style="min-width:0"><span class="t" style="display:block">${esc(vname(x.v))}</span><span class="m" style="display:block">${x.task ? esc(x.task.title) + ' · ' : ''}${x.last ? 'Last service ' + fdate(x.last) : ''}</span></span><span class="r">${stChip(x.key)}</span></a>`).join('') || '<p class="none">No services coming up.</p>'}</div></section>`;
   const rems = remItems(), rshow = rems.slice(0, 6), rc = k => rems.filter(x => x.key === k).length;
-  const c6 = S.user ? `<section class="cc"><div class="cc-h"><div><h3>Reminders</h3><p>${rems.length ? `${rc('overdue')} overdue · ${rc('due')} due · ${rc('soon')} soon` : 'Tax, licensing, insurance, service by distance'}</p></div>${S.editor ? '<button class="btn sm" type="button" data-rem-add="">Add</button>' : ''}</div>
-    <div class="list">${rshow.length ? rshow.map(x => `<a class="li" href="#/vehicle/${x.r.vehicle_id}"><span style="min-width:0"><span class="t" style="display:block">${esc(x.r.title)} · ${esc(vshort(x.v))}</span><span class="m" style="display:block">${esc(x.when)}</span></span><span class="r">${x.key === 'ok' ? '' : stChip(x.key)}</span></a>`).join('') : `<p class="none">${S.editor ? 'Add IPVA, licensing, insurance or a service every 10,000 km, and they show here as they come up.' : 'No reminders yet.'}</p>`}</div></section>` : '';
+  const c6 = S.user ? `<section class="cc"><div class="cc-h"><div><h3>Reminders</h3><p>${rems.length ? `${rc('overdue')} overdue · ${rc('due')} due · ${rc('soon')} soon` : 'Tax, registration, insurance, service by distance'}</p></div>${S.editor ? '<button class="btn sm" type="button" data-rem-add="">Add</button>' : ''}</div>
+    <div class="list">${rshow.length ? rshow.map(x => `<a class="li" href="#/vehicle/${x.r.vehicle_id}"><span style="min-width:0"><span class="t" style="display:block">${esc(x.r.title)} · ${esc(vshort(x.v))}</span><span class="m" style="display:block">${esc(x.when)}</span></span><span class="r">${x.key === 'ok' ? '' : stChip(x.key)}</span></a>`).join('') : `<p class="none">${S.editor ? `Add ${inBR() ? 'IPVA, licenciamento' : 'vehicle tax, registration'}, insurance or a service every ${S.garage?.distance_unit === 'mi' ? '6,000 mi' : '10,000 km'}, and they show here as they come up.` : 'No reminders yet.'}</p>`}</div></section>` : '';
   const recent = S.records.filter(r => r.date).slice(0, 6);
   const c5 = `<section class="cc"><div class="cc-h"><div><h3>Recent service</h3><p>Latest entries in the history</p></div><a class="btn sm" href="#/ledger">Service</a></div>
     <div class="list">${recent.map(r => `<a class="li" href="#/vehicle/${r.vehicle_id}"><span style="min-width:0"><span class="t" style="display:block">${esc(r.title)}</span><span class="m" style="display:block">${esc(vname(vById(r.vehicle_id)))} · ${fdate(r.date)}</span></span><span class="r">${r.amount != null ? money(r.amount, 0, r.currency) : (S.user ? '—' : '')}</span></a>`).join('')}</div></section>`;
@@ -3382,14 +3426,21 @@ function openReadingForm(v, r) {
 const SRC = { bat: 'Bring a Trailer', webmotors: 'Webmotors', carsandbids: 'Cars & Bids', classic: 'Classic.com', other: 'Other' };
 const srcFromUrl = u => /bringatrailer\.com/i.test(u) ? 'bat' : /webmotors\.com/i.test(u) ? 'webmotors' : /carsandbids\.com/i.test(u) ? 'carsandbids' : /classic\.com/i.test(u) ? 'classic' : 'other';
 const today = () => new Date().toISOString().slice(0, 10);
+// Today's rates against the garage's currency, used quietly for totals across currencies
 async function loadFx() {
-  try { const c = JSON.parse(localStorage.getItem('mg-fx') || 'null'); if (c && c.rate) S.fx = c; } catch (e) {}
+  const base = gCur(), key = 'mg-fx2-' + base;
+  if (S.fx?.base !== base) S.fx = null;
+  try { const c = JSON.parse(localStorage.getItem(key) || 'null'); if (c && c.rates) S.fx = c; } catch (e) {}
   try {
-    const r = await fetch('/fx/latest?base=USD&symbols=BRL', { cache: 'no-store' }); const j = await r.json();
-    if (j && j.rates && j.rates.BRL) { S.fx = { rate: +j.rates.BRL, date: j.date }; try { localStorage.setItem('mg-fx', JSON.stringify(S.fx)); } catch (e) {} }
-  } catch (e) { console.warn('Exchange rate unavailable', e); }
+    const r = await fetch('/fx/latest?base=' + base, { cache: 'no-store' }); if (!r.ok) return; const j = await r.json();
+    if (j && j.rates) { S.fx = { base, rates: { ...j.rates, [base]: 1 }, date: j.date }; try { localStorage.setItem(key, JSON.stringify(S.fx)); } catch (e) {} }
+  } catch (e) { console.warn('Exchange rates unavailable', e); }
 }
-const toCur = (amt, from, to) => amt == null ? null : from === to ? +amt : !S.fx ? null : from === 'USD' ? amt * S.fx.rate : amt / S.fx.rate;
+const toCur = (amt, from, to) => {
+  if (amt == null) return null; if (from === to) return +amt;
+  const r = S.fx?.rates; if (!r || !r[from] || !r[to]) return null;
+  return +amt / r[from] * r[to];
+};
 const median = a => { const s = [...a].sort((x, y) => x - y), n = s.length; return !n ? null : n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2; };
 const compsFor = id => (S.comps || []).filter(c => c.vehicle_id === id).sort((a, b) => b.date.localeCompare(a.date));
 function valuation(v) {
@@ -3403,7 +3454,7 @@ function valuation(v) {
   const vals = use.map(c => toCur(+c.price, c.currency, cur)).filter(x => x != null);
   const allWm = use.every(c => c.source === 'webmotors');
   if (vals.length) return { value: median(vals), source: 'comps', label: allWm ? `Median of ${vals.length} Webmotors listing${vals.length === 1 ? '' : 's'}` : `Median of ${vals.length} ${sold.length ? 'sold' : 'asking'} price${vals.length === 1 ? '' : 's'}` };
-  if (v.fipe_value != null) { const x = toCur(+v.fipe_value, 'BRL', cur); if (x != null) return { value: x, source: 'fipe', label: 'FIPE' + (v.fipe_ref ? ' · ' + v.fipe_ref : '') }; }
+  if (inBR() && v.fipe_value != null) { const x = toCur(+v.fipe_value, 'BRL', cur); if (x != null) return { value: x, source: 'fipe', label: 'FIPE' + (v.fipe_ref ? ' · ' + v.fipe_ref : '') }; }
   if (v.estimated_value != null) return { value: +v.estimated_value, source: 'manual', label: 'Your estimate' };
   return { value: null, source: null, label: 'Not valued yet' };
 }
@@ -3424,8 +3475,9 @@ function divBars(items) {
 }
 let PCUR = (() => { try { return localStorage.getItem('mg-pcur') || 'BRL'; } catch (e) { return 'BRL'; } })();
 function viewPortfolio() {
+  PCUR = gCur();
   const head = (extra = '') => `<div class="head"><div><p class="eyebrow">The collection as an investment</p><h1>Portfolio</h1>${extra}</div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><div class="seg sm" role="group" aria-label="Show totals in">${['BRL', 'USD'].map(c => `<button type="button" data-pcur="${c}" aria-pressed="${PCUR === c}">${SYM[c]}</button>`).join('')}</div></div></div>`;
+    </div>`;
   if (window.live.state === 'loading') return head() + '<div class="skel" style="height:240px"></div>';
   if (!S.vehicles.length) return head() + `<div class="empty"><h2>Nothing to value yet</h2><p>Add vehicles with their purchase price, then market values to track returns.</p></div>`;
   const P = S.vehicles.filter(v => v.status !== 'sold').map(perf);
@@ -3433,7 +3485,8 @@ function viewPortfolio() {
   const T = k => valued.reduce((a, p) => a + (toCur(p[k], p.cur, PCUR) || 0), 0);
   const mkt = valued.reduce((a, p) => a + (toCur(p.val.value, p.cur, PCUR) || 0), 0), paidT = T('pp'), svcT = T('svc');
   const g = mkt - paidT, gAll = mkt - paidT - svcT;
-  const fxNote = S.fx ? `US$1 = R$${S.fx.rate.toFixed(2)} (ECB, ${fdate(S.fx.date)}). Each vehicle's return is in its own currency; totals are converted at today's rate.` : 'Exchange rate unavailable: totals only include vehicles priced in the selected currency.';
+  const mixed = P.some(p => p.cur !== PCUR);
+  const fxNote = !mixed ? '' : valued.every(p => toCur(1, p.cur, PCUR) != null) ? `Vehicles priced in other currencies are included at today's value in ${symOf(PCUR)}.` : `Totals only include vehicles priced in ${symOf(PCUR)}.`;
   const kpis = `<dl class="kpis">
     <div><dt>Market value</dt><dd class="sm">${money(mkt, 0, PCUR)}</dd><small>${valued.length} of ${P.length} vehicles valued</small></div>
     <div><dt>Paid for these</dt><dd class="sm">${money(paidT, 0, PCUR)}</dd><small>Purchase prices</small></div>
@@ -3441,9 +3494,9 @@ function viewPortfolio() {
     <div><dt>After service costs</dt><dd class="sm" style="color:${gAll >= 0 ? GAIN : LOSS}">${signMoney(gAll, PCUR)}</dd><small>${pctStr(paidT + svcT ? gAll / (paidT + svcT) : null)} on ${money(paidT + svcT, 0, PCUR)} invested</small></div>
   </dl>`;
   const sorted = valued.slice().sort((a, b) => b.pct - a.pct);
-  if (!valued.length) return head(`<p class="sub">${esc(fxNote)}</p>`) + `<div class="empty" style="text-align:left;max-width:640px"><h2>Start valuing the collection</h2><p>Each vehicle needs a market value to compare with what you paid. Open a vehicle and, under Market value:</p>
-    <ol class="hint" style="margin:0 0 20px;padding-left:20px;line-height:1.8"><li><b style="color:var(--fg)">Search BaT</b>: pulls completed Bring a Trailer auctions for the same model; the median sold price becomes the market value.</li><li><b style="color:var(--fg)">Add comparable</b>: paste a Bring a Trailer result or any listing by hand.</li><li><b style="color:var(--fg)">Link FIPE model</b>: the FIPE reference price, used only when there are no listings.</li><li><b style="color:var(--fg)">My estimate</b>: your own figure, for one-offs with no good comparables.</li></ol>
-    <a class="btn primary" href="#/cars">Go to cars</a></div>` + `<div class="section"><h2 style="font-size:22px;margin-bottom:6px">Costs</h2><p class="hint" style="margin:0 0 20px">Reais and dollars are shown separately, never converted.</p>${costsBody()}</div>`;
+  if (!valued.length) return head(fxNote ? `<p class="sub">${esc(fxNote)}</p>` : '') + `<div class="empty" style="text-align:left;max-width:640px"><h2>Start valuing the collection</h2><p>Each vehicle needs a market value to compare with what you paid. Open a vehicle and, under Market value:</p>
+    <ol class="hint" style="margin:0 0 20px;padding-left:20px;line-height:1.8"><li><b style="color:var(--fg)">Add comparable</b>: recent sales or listings of the same model, from auction results, classifieds or anywhere else; their median becomes the market value.</li>${inBR() ? '<li><b style="color:var(--fg)">Link FIPE model</b>: the FIPE reference price, used only when there are no comparables.</li>' : ''}<li><b style="color:var(--fg)">My estimate</b>: your own figure, for one-offs with no good comparables.</li></ol>
+    <a class="btn primary" href="#/cars">Go to cars</a></div>` + `<div class="section"><h2 style="font-size:22px;margin-bottom:6px">Costs</h2>${recCurs(S.records).length > 1 ? '<p class="hint" style="margin:0 0 20px">Each currency is shown separately, never converted.</p>' : ''}${costsBody()}</div>`;
   const chart = valued.length ? chartCard('Return on purchase price', 'Blue is a gain, red a loss · market value vs. price paid',
     divBars(sorted.map(p => ({ label: vshort(p.v) + (p.v.colour && S.vehicles.filter(x => x.make === p.v.make && x.model === p.v.model).length > 1 ? ' ' + p.v.colour : ''), value: p.pct, href: '#/vehicle/' + p.v.id, tip: `${vname(p.v)}\nPaid ${money(p.pp, 0, p.cur)} · worth ${money(p.val.value, 0, p.cur)}\n${signMoney(p.gain, p.cur)} (${pctStr(p.pct)}) · ${p.val.label}` }))),
     [['Vehicle', 'Paid', 'Market value', 'Gain', 'Return'], ...sorted.map(p => [vname(p.v), money(p.pp, 0, p.cur), money(p.val.value, 0, p.cur), signMoney(p.gain, p.cur), pctStr(p.pct)])]) : '';
@@ -3454,8 +3507,8 @@ function viewPortfolio() {
     <thead><tr><th scope="col">Vehicle</th><th scope="col">Value from</th><th scope="col" class="n">Paid</th><th scope="col" class="n">Market value</th><th scope="col" class="n">Gain / loss</th><th scope="col" class="n">Return</th><th scope="col" class="n">Annualized</th><th scope="col" class="n">Held</th></tr></thead>
     <tbody>${sorted.map(row).join('')}</tbody></table></div>
     ${unvalued.length ? `<details style="margin:14px 0 0"><summary class="hint" style="cursor:pointer">${unvalued.length} vehicle${unvalued.length === 1 ? '' : 's'} not valued yet</summary><p class="hint" style="margin:10px 0 0">${unvalued.map(p => `<a href="#/vehicle/${p.v.id}">${esc(vname(p.v))}</a>${!p.pp ? ' (no purchase price)' : ''}`).join(', ')}. Open a vehicle and add comparable sales or link its FIPE model.</p></details>` : ''}</div>`;
-  return head(`<p class="sub">${esc(fxNote)}</p>`) + kpis + (chart ? `<div class="charts" style="grid-template-columns:1fr">${chart}</div>` : '') + table +
-    `<div class="section"><h2 style="font-size:22px;margin-bottom:6px">Costs</h2><p class="hint" style="margin:0 0 20px">Reais and dollars are shown separately, never converted.</p>${costsBody()}</div>`;
+  return head(fxNote ? `<p class="sub">${esc(fxNote)}</p>` : '') + kpis + (chart ? `<div class="charts" style="grid-template-columns:1fr">${chart}</div>` : '') + table +
+    `<div class="section"><h2 style="font-size:22px;margin-bottom:6px">Costs</h2>${recCurs(S.records).length > 1 ? '<p class="hint" style="margin:0 0 20px">Each currency is shown separately, never converted.</p>' : ''}${costsBody()}</div>`;
 }
 
 /* vehicle page: market value section */
@@ -3470,12 +3523,12 @@ function marketSection(v) {
   const mode = `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:18px"><span class="hint">Value from: <b style="color:var(--fg)">${esc(p.val.label)}</b></span>
     ${S.editor ? `<div class="seg sm" role="group" aria-label="Valuation method">${[['auto', 'Market data'], ['manual', 'My estimate']].map(([k, l]) => `<button type="button" data-vsrc="${k}" aria-pressed="${(v.value_source || 'auto') === k}">${l}</button>`).join('')}</div>` : ''}
     ${v.value_source === 'manual' && S.editor ? `<button class="btn sm" type="button" data-edit-v="${v.id}">Edit estimate</button>` : ''}</div>`;
-  const fipe = v.fipe_model
+  const fipe = !inBR() ? '' : v.fipe_model
     ? `<div class="li" style="border-top:1px solid var(--line)"><span style="min-width:0"><span class="t" style="display:block">FIPE · ${esc(v.fipe_label || '')}</span><span class="m" style="display:block">${esc([v.fipe_code, v.fipe_ref].filter(Boolean).join(' · '))}${v.fipe_checked ? ' · checked ' + fdate(v.fipe_checked) : ''}</span></span><span class="r">${v.fipe_value != null ? money(v.fipe_value, 0, 'BRL') : '—'} ${S.editor ? `<button class="btn sm" type="button" data-fipe="${v.id}" style="margin-left:8px">Change</button>` : ''}</span></div>`
-    : (S.editor ? `<p class="hint" style="margin:0 0 6px">Link this ${v.kind === 'bike' ? 'bike' : 'car'} to the FIPE table for an automatic monthly reference price (Brazilian market; rare classics may not be listed). <button class="btn sm" type="button" data-fipe="${v.id}" style="margin-left:6px">Link FIPE model</button></p>` : '');
+    : (S.editor ? `<p class="hint" style="margin:0 0 6px">Link this ${v.kind === 'bike' ? 'bike' : 'car'} to the FIPE table for an automatic monthly reference price (rare classics may not be listed). <button class="btn sm" type="button" data-fipe="${v.id}" style="margin-left:6px">Link FIPE model</button></p>` : '');
   const manC = comps.filter(c => !c.auto);
   const list = manC.length ? `<div class="rows">${manC.map(c => `<button class="row" type="button" data-comp="${c.id}" style="${c.include ? '' : 'opacity:.5'}"><span class="d">${fdate(c.date)}</span><span class="tm"><span class="t" style="display:block">${esc(c.title || SRC[c.source])}</span><span class="m" style="display:block">${esc(SRC[c.source])} · ${c.kind === 'sold' ? 'Sold' : 'Asking'}${c.mileage != null ? ' · ' + num(c.mileage) + ' ' + c.mileage_unit : ''}${c.include ? '' : ' · excluded'}</span></span><span class="mi">${c.currency !== cur && S.fx ? '≈ ' + money(toCur(+c.price, c.currency, cur), 0, cur) : ''}</span><span class="a">${money(c.price, 0, c.currency)}</span></button>`).join('')}</div>`
-    : `<p class="none">None yet. Use Add comparable for recent sales or listings of the same model, from Bring a Trailer, Webmotors or anywhere else.</p>`;
+    : `<p class="none">None yet. Use Add comparable for recent sales or listings of the same model, from auction results, classifieds or anywhere else.</p>`;
   return `<div class="section"><div class="section-head"><h2>Market value</h2>${S.editor ? `<button class="btn sm" type="button" data-add-comp="${v.id}">${ICON.plus}Add comparable</button>` : ''}</div>
     ${tiles}${mode}<h3 style="font-size:14px;margin:22px 0 10px">Comparable sales</h3>${list}${fipe ? `<div style="margin-top:22px">${fipe}</div>` : ''}</div>`;
 }
@@ -3519,7 +3572,7 @@ function openCompForm(v, c) {
 const parseBRL = s => +String(s || '').replace(/[^\d,]/g, '').replace(',', '.');
 async function fipeGet(path) { const r = await fetch('/fipe/' + path); if (!r.ok) throw new Error('FIPE didn\'t answer (' + r.status + '). Try again in a minute.'); return r.json(); }
 async function refreshFipe() {
-  if (!S.editor || !db) return;
+  if (!S.editor || !db || !inBR()) return;
   const month = today().slice(0, 7);
   const due = S.vehicles.filter(v => v.fipe_model && v.fipe_year && (!v.fipe_checked || v.fipe_checked.slice(0, 7) < month));
   let changed = false;
