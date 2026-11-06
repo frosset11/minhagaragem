@@ -264,6 +264,13 @@ body.share-mode .top,body.share-mode .login{display:none!important}body.share-mo
 @media (max-width:720px){.dos{padding:24px 18px}.dos-hero{grid-template-columns:1fr}.dos-img{max-width:200px}.dos h1{font-size:26px}
   .dos-spec{grid-template-columns:repeat(2,minmax(0,1fr))}
   .dos-tbl,.dos-tbl tbody{display:block;width:100%}.dos-tbl thead{display:none}.dos-tbl tr{display:grid;grid-template-columns:minmax(0,1fr) auto;padding:8px 0;border-bottom:1px solid var(--p-line)}.dos-tbl td{border:0;padding:2px 0}.dos-tbl td:nth-child(3){grid-column:1/-1}.dos-tl li{grid-template-columns:1fr}.dos-tl-d{grid-row:auto}}
+/* the PDF copy: always the A4 layout, whatever the screen */
+.dos.dos-pdf{max-width:none!important;width:760px!important;padding:0!important;border-radius:0!important;box-shadow:none!important;background:#fff!important}
+.dos-pdf .dos-hero{grid-template-columns:200px 1fr!important}.dos-pdf .dos-hero:not(:has(img)){grid-template-columns:1fr!important}.dos-pdf .dos-img{max-width:none!important}
+.dos-pdf h1{font-size:32px!important}.dos-pdf .dos-spec{grid-template-columns:repeat(3,minmax(0,1fr))!important}.dos-pdf .dos-facts{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+.dos-pdf .dos-tbl{display:table!important}.dos-pdf .dos-tbl thead{display:table-header-group!important}.dos-pdf .dos-tbl tbody{display:table-row-group!important}.dos-pdf .dos-tbl tr{display:table-row!important;padding:0!important}
+.dos-pdf .dos-tbl td{display:table-cell!important;padding:9px 8px!important;border-bottom:1px solid var(--p-line)!important}
+.dos-pdf .dos-tl li{grid-template-columns:120px 1fr!important}.dos-pdf .dos-tl-d{grid-row:span 3!important}
 @media print{
   @page{margin:14mm}
   :root{--bg:#fff}html,body{background:#fff!important}
@@ -2194,7 +2201,7 @@ function viewDossier(id) {
 }
 function wireDossier(id) {
   if (!$('#dos-pdf')) return;
-  $('#dos-pdf').onclick = () => { const t = document.title; document.title = `${vname(vById(id))} · dossier`; window.print(); setTimeout(() => document.title = t, 500); };
+  $('#dos-pdf').onclick = e => dossierPdf(e.currentTarget, vname(vById(id)));
   document.querySelectorAll('[data-dos-opt]').forEach(c => c.onchange = async () => {
     const o = dosOpts(id); o[c.dataset.dosOpt] = c.checked;
     try { localStorage.setItem('mg-dos-' + id, JSON.stringify(o)); } catch (e) {}
@@ -2219,6 +2226,68 @@ function wireDossier(id) {
     $('#st-yes').onclick = async () => { const r = await db.from('vehicle_shares').delete().eq('token', share.token); if (r.error) return toast('Couldn\'t stop sharing: ' + r.error.message, true); S.shares = S.shares.filter(x => x.token !== share.token); closePanel(); toast('Link turned off'); render(); };
   };
 }
+
+/* ---------- dossier as a real PDF file (no print dialog: that doesn't work in home-screen apps on iPhone) ---------- */
+const loadJs = (src, test) => test() ? Promise.resolve() : new Promise((ok, no) => {
+  const s = document.createElement('script'); s.src = src; s.onload = ok;
+  s.onerror = () => { s.remove(); no(new Error('The PDF maker didn\'t load. Check your connection and try again.')); };
+  document.head.appendChild(s);
+});
+async function dossierPdf(btn, title) {
+  const src = document.querySelector('.dos'); if (!src) return;
+  const label = btn.textContent; btn.disabled = true; btn.textContent = 'Making the PDF…';
+  const host = document.createElement('div');
+  try {
+    await Promise.all([loadJs('/vendor/html2canvas-1.4.1.min.js', () => window.html2canvas), loadJs('/vendor/jspdf-2.5.2.umd.min.js', () => window.jspdf)]);
+    // a fixed-width copy, so a phone and a computer make the same A4 layout
+    const W = 760;
+    host.style.cssText = `position:fixed;left:-20000px;top:0;width:${W}px;background:#fff;z-index:-1`;
+    const el = src.cloneNode(true); el.classList.add('dos-pdf'); host.appendChild(el); document.body.appendChild(host);
+    await document.fonts?.ready;
+    await Promise.all([...el.querySelectorAll('img')].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
+    const top = el.getBoundingClientRect().top;
+    const y = n => n.getBoundingClientRect().top - top;
+    // places a page may end: between rows, list items, spec cells and sections; never just under a heading
+    const heads = [...el.querySelectorAll('h2')].map(h => [y(h), y(h) + h.offsetHeight + 48]);
+    const breaks = [...el.querySelectorAll('h2, .dos-tbl tbody tr, .dos-tl li, .dos-spec > div, section > p, .dos-foot, .dos-facts')].map(y)
+      .filter(b => !heads.some(([a, z]) => b > a + 1 && b < z)).sort((a, b) => a - b);
+    const links = [...el.querySelectorAll('a[href^="http"]')].map(a => { const r = a.getBoundingClientRect(); return { url: a.href, x: r.left - el.getBoundingClientRect().left, y: r.top - top, w: r.width, h: r.height }; });
+    const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: window.innerWidth, logging: false });
+    const H = el.offsetHeight, k = canvas.height / H;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
+    const M = 12, pw = 210 - 2 * M, mmPerPx = pw / W, pageH = (297 - 2 * M - 6) / mmPerPx; // 6 mm kept for the page number
+    const pages = []; let at = 0;
+    while (at < H - 2) {
+      let end = Math.min(H, at + pageH);
+      if (end < H) { const b = breaks.filter(b => b > at + pageH * 0.35 && b <= end).pop(); if (b) end = b; }
+      pages.push([at, end]); at = end;
+    }
+    pages.forEach(([a, b], i) => {
+      if (i) doc.addPage();
+      const c = document.createElement('canvas'); c.width = canvas.width; c.height = Math.ceil((b - a) * k);
+      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+      g.drawImage(canvas, 0, Math.floor(a * k), canvas.width, c.height, 0, 0, canvas.width, c.height);
+      doc.addImage(c.toDataURL('image/jpeg', 0.9), 'JPEG', M, M, pw, (b - a) * mmPerPx, undefined, 'FAST');
+      links.filter(l => l.y >= a && l.y + l.h <= b).forEach(l => doc.link(M + l.x * mmPerPx, M + (l.y - a) * mmPerPx, l.w * mmPerPx, l.h * mmPerPx, { url: l.url }));
+      doc.setFontSize(8); doc.setTextColor(140); doc.text(`${title} · page ${i + 1} of ${pages.length}`, 105, 297 - M + 2, { align: 'center' });
+    });
+    const name = (title.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim() || 'Vehicle') + ' dossier.pdf';
+    const blob = doc.output('blob');
+    const file = typeof File === 'function' ? new File([blob], name, { type: 'application/pdf' }) : null;
+    // phones: the share sheet (Save to Files, WhatsApp, Mail…); computers: a normal download
+    if (file && matchMedia('(pointer:coarse)').matches && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: name }); } catch (e) { if (e.name !== 'AbortError') throw e; }
+    } else {
+      const url = URL.createObjectURL(blob), a = document.createElement('a');
+      a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      toast('PDF downloaded');
+    }
+  } catch (e) {
+    console.error(e); toast(e.message && !/^[A-Z][a-z]+Error/.test(e.message) ? e.message : 'Couldn\'t make the PDF. Try again.', true);
+  } finally { host.remove(); btn.disabled = false; btn.textContent = label; }
+}
 // The public page: #/share/<token>, no sign-in
 async function showShare(token) {
   document.body.classList.add('share-mode'); document.body.classList.remove('locked');
@@ -2233,7 +2302,7 @@ async function showShare(token) {
   document.title = `${[v.year, v.make, v.model].filter(Boolean).join(' ')} · dossier`;
   V.innerHTML = `<div class="dos-tools share"><span class="hint">Shared by the owner, read-only.</span><button class="btn primary" type="button" id="dos-pdf">Download PDF</button></div>` +
     dossierHtml({ v, recs: res.records, reads: res.readings, hist: res.history, photo: v.photo, invoiceOf: r => r.invoice || '' }, o);
-  $('#dos-pdf').onclick = () => window.print();
+  $('#dos-pdf').onclick = e => dossierPdf(e.currentTarget, [v.year, v.make, v.model].filter(Boolean).join(' '));
 }
 
 /* ---------- vehicle form ---------- */
