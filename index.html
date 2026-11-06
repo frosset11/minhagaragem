@@ -215,6 +215,12 @@ a.btn{text-decoration:none}
 .facts dt{font-size:11px;color:var(--fg3);text-transform:uppercase;letter-spacing:.08em}
 .facts dd{margin:2px 0 0;font-family:var(--mono);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chip{display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:999px;font-size:11.5px;font-weight:500;background:var(--s3);color:var(--fg2);border:1px solid var(--line2);white-space:nowrap}
+.bs-top{position:sticky;top:-22px;z-index:2;background:var(--s1);padding:4px 0 12px;margin-bottom:6px}
+.bs-track{height:4px;border-radius:2px;background:var(--s3);overflow:hidden}.bs-fill{height:100%;width:0;background:var(--bar);transition:width var(--t-med)}
+.bs-row{border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-bottom:10px}
+.bs-row .fld{margin-bottom:10px}.bs-row .fld:last-child{margin-bottom:0}
+.bs-h{display:flex;align-items:center;gap:10px;justify-content:space-between}.bs-n{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.chip.bs-ok{color:var(--ok);border-color:currentColor;background:transparent}.chip.bs-warn{color:var(--warn);border-color:currentColor;background:transparent}.chip.bs-bad{color:var(--danger);border-color:currentColor;background:transparent}
 .chip.light{background:color-mix(in srgb,var(--bg) 80%,transparent);color:var(--fg);border-color:rgba(255,255,255,.12)}
 
 /* empty */
@@ -1380,6 +1386,7 @@ const HELP = [
   ['Service history', [
     ['How do I add a service record?', 'Open the vehicle and click Add service. Enter the date, odometer, what was done, the shop and the amount. Records appear on the vehicle\'s page and on the Service tab.'],
     ['How does invoice scanning work?', 'Click Scan invoice on a vehicle\'s page and take a photo or choose a photo or PDF of the invoice. It\'s read automatically and drafted as a service record; check the details, then save. The invoice stays attached to the record.'],
+    ['Can I scan a pile of invoices at once?', 'Yes. Click Scan invoices (on the Service page or a vehicle\'s page), then Choose photos or PDFs and select up to 20 files. They\'re read three at a time and each becomes a draft you can correct while the rest are read. Drafts that match a record already logged (same vehicle, date and amount) are left unticked so nothing is saved twice. Press Save to add every ticked draft with its invoice attached. Each file uses one scan from the month\'s allowance. For history kept in a spreadsheet, use Import a spreadsheet instead.'],
     ['How do I log the odometer?', 'Click Log reading on the vehicle\'s page whenever you check it. Readings build the mileage chart and the Driven this year figures. Service records with an odometer value count too.'],
     ['What is the To-Do?', 'On the Service tab, the To-Do follows a 12-month service clock for each vehicle and shows what\'s overdue, due or coming up. Add needs lists what the next service should include; Complete turns it into a service record.'],
     ['How do I find a record?', 'The Service tab lists every record. Filter by vehicle, category or year, or search.']]],
@@ -1614,7 +1621,7 @@ function viewVehicle(id) {
           <div><dt>Owned</dt><dd>${owned != null ? (owned >= 365 ? (owned / 365).toFixed(1) + ' <small>yrs</small>' : owned + ' <small>days</small>') : '—'}</dd></div>
           <div><dt>Records</dt><dd>${recs.length}</dd></div>
         </dl>
-        <div class="actions">${S.editor ? `<button class="btn primary" type="button" data-scan="${v.id}">Scan invoice</button><button class="btn" type="button" data-add-r="${v.id}">${ICON.plus}Add service</button><button class="btn" type="button" data-log="${v.id}">${ICON.plus}Log reading</button><button class="btn" type="button" data-edit-v="${v.id}">Edit details</button><button class="btn" type="button" data-import-v="${v.id}">Import spreadsheet</button>${v.photo_url && !isIllus(v) ? `<button class="btn" type="button" data-illus="${v.id}"${ILLUS.has(v.id) ? ' disabled' : ''}>${ILLUS.has(v.id) ? 'Drawing…' : 'Make illustration'}</button>` : ''}` : (S.user ? '' : lockNote())}</div>
+        <div class="actions">${S.editor ? `<button class="btn primary" type="button" data-scan="${v.id}">Scan invoices</button><button class="btn" type="button" data-add-r="${v.id}">${ICON.plus}Add service</button><button class="btn" type="button" data-log="${v.id}">${ICON.plus}Log reading</button><button class="btn" type="button" data-edit-v="${v.id}">Edit details</button><button class="btn" type="button" data-import-v="${v.id}">Import spreadsheet</button>${v.photo_url && !isIllus(v) ? `<button class="btn" type="button" data-illus="${v.id}"${ILLUS.has(v.id) ? ' disabled' : ''}>${ILLUS.has(v.id) ? 'Drawing…' : 'Make illustration'}</button>` : ''}` : (S.user ? '' : lockNote())}</div>
       </div>
     </div>
     ${vehicleCharts(v)}
@@ -1668,7 +1675,7 @@ const LF = { v: '', c: '', y: '', q: '' };
 function viewLedger() {
   const years = [...new Set(S.records.map(r => r.date ? r.date.slice(0, 4) : 'undated'))].sort().reverse();
   const top = `<div class="head"><div><p class="eyebrow">What's coming up, and everything done</p><h1>Service</h1></div>
-    ${S.editor ? `<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" type="button" data-scan="">Scan invoice</button><button class="btn" type="button" data-add-r="">${ICON.plus}Add record</button></div>` : (S.user ? '' : lockNote())}</div>`;
+    ${S.editor ? `<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" type="button" data-scan="">Scan invoices</button><button class="btn" type="button" data-add-r="">${ICON.plus}Add record</button></div>` : (S.user ? '' : lockNote())}</div>`;
   if (window.live.state === 'loading') return top + '<div class="skel" style="height:240px"></div>';
   const head = top + todoSection() + `<div class="section-head"><h2>History</h2></div>`;
   if (!S.records.length) return head + `<div class="empty"><h2>No service records yet</h2><p>${S.vehicles.length ? 'Add work as it happens, or send invoices and they\'ll be entered here.' : 'Add a vehicle first, then its service records will appear here.'}</p>${S.editor ? (S.vehicles.length ? `<button class="btn primary" type="button" data-add-r="">${ICON.plus}Add service</button>` : `<a class="btn primary" href="#/cars">Go to cars</a>`) : `<button class="btn" type="button" data-signin>Sign in to add records</button>`}</div>`;
@@ -1907,12 +1914,14 @@ function openRecordForm(r, vehicleId, scan) {
 const fileToB64 = f => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = () => no(new Error('Couldn\'t read that file.')); r.readAsDataURL(f); });
 function openScan(vehicleId) {
   const v = vehicleId ? vById(vehicleId) : null;
-  openPanel('Scan an invoice', `
-    <p class="hint" style="margin:0 0 18px">${v ? esc(vname(v)) + '. ' : ''}Take a photo of the invoice, or choose a photo or PDF. It's read automatically and drafted as a service entry for you to check before saving.</p>
+  openPanel('Scan invoices', `
+    <p class="hint" style="margin:0 0 18px">${v ? esc(vname(v)) + '. ' : ''}Take a photo of the invoice, or choose photos or PDFs. Each one is read automatically and drafted as a service entry for you to check before saving.</p>
     <div id="scan-pick" style="display:grid;gap:10px">
       <label class="btn primary" style="height:48px">Take a photo<input id="scan-cam" type="file" accept="image/*" capture="environment" class="vh"></label>
-      <label class="btn" style="height:48px">Choose a photo or PDF<input id="scan-file" type="file" accept="image/*,application/pdf" class="vh"></label>
-      <p class="hint" style="margin:6px 0 0">Tips: flat, well lit, the whole page in frame. Totals, date and mileage must be readable.</p>
+      <label class="btn" style="height:48px">Choose photos or PDFs<input id="scan-file" type="file" accept="image/*,application/pdf" multiple class="vh"></label>
+      <p class="hint" style="margin:6px 0 0">Pick up to ${BATCH_MAX} at once to scan a pile of invoices in one go. Each uses one scan from this month's allowance.</p>
+      <p class="hint" style="margin:0">Tips: flat, well lit, the whole page in frame. Totals, date and mileage must be readable.</p>
+      ${S.editor ? '<p class="hint" style="margin:0">Have the history in a spreadsheet? <a href="#" id="scan-sheet">Import a spreadsheet</a> instead.</p>' : ''}
     </div>
     <div id="scan-busy" hidden><div class="skel" style="height:14px;width:60%;margin-bottom:12px"></div><div class="skel" style="height:14px;width:85%;margin-bottom:12px"></div><div class="skel" style="height:14px;width:40%"></div><p class="hint" style="margin:18px 0 0" id="scan-msg">Reading the invoice… this takes 10–20 seconds.</p></div>
     <div id="scan-err"></div>`, '');
@@ -1937,8 +1946,166 @@ function openScan(vehicleId) {
     }
   };
   $('#scan-cam').onchange = e => go(e.target.files[0]);
-  $('#scan-file').onchange = e => go(e.target.files[0]);
+  $('#scan-file').onchange = e => { const fl = [...e.target.files]; fl.length > 1 ? openBatchScan(fl, vehicleId) : go(fl[0]); };
+  if ($('#scan-sheet')) $('#scan-sheet').onclick = e => { e.preventDefault(); openImport(v?.kind, v ? { vehicleId: v.id, scope: 'single' } : { scope: S.vehicles.length ? 'single' : 'all' }); };
 }
+
+/* ---------- scan many invoices at once ---------- */
+// Each file is read by scan-invoice (3 at a time) and drafted into a row the owner checks and edits;
+// then every ticked row is saved as a service record with its invoice attached.
+const BATCH_MAX = 20;
+async function readInvoice(file, vehicleId) {
+  const isPdf = file.type === 'application/pdf';
+  const send = isPdf ? file : await shrinkImage(file, 2000);
+  const { data, error } = await db.functions.invoke('scan-invoice', { body: { data: await fileToB64(send), media_type: isPdf ? 'application/pdf' : (send.type || 'image/jpeg'), vehicle_id: vehicleId || null, garage_id: GID() } });
+  let res = data; if (error) { try { res = await error.context.json(); } catch (e) { res = { message: 'The invoice reader couldn\'t be reached. Check your connection.' }; } }
+  return { res, send };
+}
+const sameRecord = (vid, date, amount) => S.records.find(r => r.vehicle_id === vid && r.date && r.date === date && amount != null && amount !== '' && r.amount != null && Math.abs(+r.amount - +amount) < 0.01);
+async function openBatchScan(files, vehicleId) {
+  // drop exact repeats, anything that isn't a photo/PDF, and files over the size limit
+  const seen = new Set(), skipped = [];
+  files = files.filter(f => {
+    const k = f.name + '|' + f.size;
+    if (seen.has(k)) return false; seen.add(k);
+    if (!(f.type === 'application/pdf' || /^image\//.test(f.type))) { skipped.push(`${f.name}: not a photo or PDF`); return false; }
+    if (f.size > MAX_FILE) { skipped.push(`${f.name}: over ${MAX_FILE_MB} MB`); return false; }
+    return true;
+  });
+  if (!files.length) { $('#scan-err').innerHTML = `<div class="form-err">None of those files can be scanned.${skipped.length ? '<br>' + skipped.map(esc).join('<br>') : ''}</div>`; return; }
+  if (files.length > BATCH_MAX) { skipped.push(`${files.length - BATCH_MAX} more files (up to ${BATCH_MAX} per batch; scan the rest next)`); files = files.slice(0, BATCH_MAX); }
+  // only spend what's left of this month's allowance
+  await loadBilling().catch(() => {});
+  const cap = PLAN_INFO[curPlan()].scan, left = Math.max(0, cap - (S.usage?.scan ?? 0));
+  if (!left) { aiLimitPanel(`This garage has used its ${cap} invoice scans for this month. The allowance resets on the 1st.`); return; }
+  if (files.length > left) {
+    openPanel('Not enough scans left', `<p>You chose <b>${files.length}</b> invoices, and this garage has <b>${left}</b> scan${left === 1 ? '' : 's'} left this month.</p><p class="hint">Scan the first ${left} now, or move to a plan with a bigger allowance.</p>`,
+      `<span class="sp"></span><button class="btn" type="button" id="bs-plans">See plans</button><button class="btn primary" type="button" id="bs-some">Scan the first ${left}</button>`);
+    $('#bs-plans').onclick = () => { closePanel(); location.hash = '#/plans'; };
+    $('#bs-some').onclick = () => openBatchScan(files.slice(0, left), vehicleId);
+    return;
+  }
+  const items = files.map((file, i) => ({ i, file, status: 'wait', include: true }));
+  let saving = false;
+  const vOpts = sel => `<option value="">Choose a vehicle</option>${S.vehicles.map(v => `<option value="${v.id}"${v.id === sel ? ' selected' : ''}>${esc(vname(v))}</option>`).join('')}`;
+  const counts = () => ({ done: items.filter(x => x.status !== 'wait' && x.status !== 'read').length, ready: items.filter(x => x.status === 'ready').length, picked: items.filter(x => x.status === 'ready' && x.include).length, failed: items.filter(x => x.status === 'fail').length });
+  const CHIP = { wait: '<span class="chip">Waiting</span>', read: '<span class="chip">Reading…</span>', fail: '<span class="chip bs-bad">Couldn\'t read</span>', saved: '<span class="chip bs-ok">Saved</span>' };
+  const rowHtml = it => {
+    const head = `<div class="bs-h"><span class="bs-n" title="${esc(it.file.name)}">${esc(it.file.name)}</span>${it.status === 'ready' ? (it.dup ? '<span class="chip bs-warn">Looks already logged</span>' : '<span class="chip bs-ok">Ready</span>') : CHIP[it.status]}</div>`;
+    if (it.status === 'wait') return head;
+    if (it.status === 'read') return head + '<div class="skel" style="height:10px;width:70%;margin-top:10px"></div>';
+    if (it.status === 'fail') return head + `<p class="form-err" style="margin:8px 0 0">${esc(it.err)}</p>`;
+    if (it.status === 'saved') return head + `<p class="hint" style="margin:6px 0 0">${esc(it.r.title)} · ${esc(vshort(vById(it.r.vehicle_id)))}</p>`;
+    const r = it.r, d = it.draft, dis = saving ? ' disabled' : '';
+    return head + `
+      <label class="check" style="margin:8px 0 6px"><input type="checkbox" data-inc ${it.include ? 'checked' : ''}${dis}> Save this one</label>
+      ${it.dup ? '<p class="hint" style="margin:0 0 8px">A record for this vehicle with the same date and amount already exists. Tick it if it\'s a different job.</p>' : ''}
+      ${(d.warnings || []).length ? `<ul class="hint" style="margin:0 0 8px;padding-left:18px">${d.warnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}
+      <div class="fld"><label for="bs${it.i}-v">Vehicle</label><select id="bs${it.i}-v" data-k="vehicle_id"${r.vehicle_id ? '' : ' aria-invalid="true"'}${dis}>${vOpts(r.vehicle_id)}</select></div>
+      <div class="fld"><label for="bs${it.i}-t">What was done</label><input id="bs${it.i}-t" type="text" data-k="title" value="${esc(r.title)}"${r.title ? '' : ' aria-invalid="true"'}${dis}></div>
+      <div class="two"><div class="fld"><label for="bs${it.i}-d">Date</label>${dateInput(`id="bs${it.i}-d" data-k="date"${dis}`, r.date)}</div>
+        <div class="fld"><label for="bs${it.i}-c">Category</label><select id="bs${it.i}-c" data-k="category"${dis}>${Object.entries(CATEGORIES).map(([k, l]) => `<option value="${k}"${k === r.category ? ' selected' : ''}>${l}</option>`).join('')}</select></div></div>
+      <div class="two"><div class="fld"><label for="bs${it.i}-a">Amount</label><input id="bs${it.i}-a" type="text" inputmode="decimal" data-k="amount" value="${esc(r.amount ?? '')}"${dis}></div>
+        <div class="fld"><label for="bs${it.i}-cu">Currency</label><select id="bs${it.i}-cu" data-k="currency"${dis}>${Object.entries(CURRENCIES).map(([k, l]) => `<option value="${k}"${k === r.currency ? ' selected' : ''}>${l}</option>`).join('')}</select></div></div>
+      <div class="two"><div class="fld"><label for="bs${it.i}-m">Mileage</label><input id="bs${it.i}-m" type="text" inputmode="numeric" data-k="mileage" value="${r.mileage != null && r.mileage !== '' ? esc(num(r.mileage)) : ''}"${dis}></div>
+        <div class="fld"><label for="bs${it.i}-s">Shop</label><input id="bs${it.i}-s" type="text" data-k="shop" value="${esc(r.shop || '')}"${dis}></div></div>
+      ${it.err ? `<p class="form-err" role="alert" style="margin:4px 0 0">${esc(it.err)}</p>` : ''}`;
+  };
+  const paintRow = it => { const el = $(`#bs-${it.i}`); if (el) el.innerHTML = rowHtml(it); };
+  const paintFoot = () => {
+    const c = counts(), btn = $('#bs-save'); if (!btn) return;
+    $('#bs-prog').textContent = c.done < items.length ? `Reading ${c.done} of ${items.length} done…` : `${c.ready} ready${c.failed ? ` · ${c.failed} couldn't be read` : ''}${items.some(x => x.status === 'saved') ? ` · ${items.filter(x => x.status === 'saved').length} saved` : ''}`;
+    $('#bs-bar').style.width = Math.round(c.done / items.length * 100) + '%';
+    btn.disabled = saving || !c.picked; btn.textContent = saving ? 'Saving…' : c.picked ? `Save ${c.picked} record${c.picked === 1 ? '' : 's'}` : 'Save records';
+  };
+  openPanel(`Scan ${items.length} invoices`, `
+    <div class="bs-top"><div class="bs-track"><div class="bs-fill" id="bs-bar"></div></div><p class="hint" id="bs-prog" style="margin:8px 0 0" aria-live="polite"></p></div>
+    ${skipped.length ? `<div class="banner" style="background:var(--s2);border-color:var(--line2);color:var(--fg2)">Left out: ${skipped.map(esc).join('; ')}.</div>` : ''}
+    <p class="hint" style="margin:0 0 14px">Check each draft while the rest are read. Nothing is saved until you press Save.</p>
+    <div id="bs-list">${items.map(it => `<div class="bs-row" id="bs-${it.i}">${rowHtml(it)}</div>`).join('')}</div>
+    <label class="check" style="margin-top:6px"><input type="checkbox" id="bs-log" checked> Also log each invoice's mileage as a reading</label>`,
+    `<button class="btn" type="button" id="bs-close">Close</button><span class="sp"></span><button class="btn primary" type="button" id="bs-save" disabled>Save records</button>`);
+  paintFoot();
+  $('#bs-close').onclick = () => closePanel();
+  // edits go straight into each row's draft
+  const rowOf = el => items[+el.closest('.bs-row').id.slice(3)];
+  $('#bs-list').addEventListener('input', e => {
+    if (!e.target.closest('.bs-row') || e.target.matches('[data-inc]')) return;
+    const it = rowOf(e.target), k = e.target.dataset.k; if (!k || !it.r) return;
+    it.r[k] = e.target.value; e.target.removeAttribute('aria-invalid');
+    if (it.err) { it.err = ''; e.target.closest('.bs-row').querySelector('.form-err')?.remove(); }
+  });
+  $('#bs-list').addEventListener('change', e => {
+    if (e.target.matches('[data-inc]')) { rowOf(e.target).include = e.target.checked; paintFoot(); }
+    else if (e.target.matches('select[data-k]')) { const it = rowOf(e.target); it.r[e.target.dataset.k] = e.target.value; e.target.removeAttribute('aria-invalid'); }
+  });
+
+  // read them, 3 at a time
+  let next = 0, limitHit = false;
+  const worker = async () => {
+    while (next < items.length) {
+      const it = items[next++];
+      if (limitHit) { it.status = 'fail'; it.err = 'Not read: this month\'s scan allowance ran out.'; paintRow(it); paintFoot(); continue; }
+      it.status = 'read'; paintRow(it); paintFoot();
+      try {
+        const { res, send } = await readInvoice(it.file, vehicleId);
+        if (res?.error === 'limit') { limitHit = true; throw new Error('Not read: this month\'s scan allowance ran out.'); }
+        if (!res || !res.ok) throw new Error(res?.message || 'Couldn\'t read that invoice.');
+        const d = res.draft, v0 = vById(d.vehicle_id || vehicleId);
+        let mi = d.mileage != null ? Math.round(+d.mileage) : null;
+        if (mi != null && v0 && d.mileage_unit && d.mileage_unit !== v0.odometer_unit) mi = Math.round(conv(mi, d.mileage_unit, v0.odometer_unit));
+        it.send = send; it.draft = d;
+        it.r = { vehicle_id: v0 ? v0.id : '', title: d.title || '', date: d.date ? dmy(d.date) : '', category: d.category || 'maintenance', amount: d.amount ?? '', currency: d.currency || v0?.currency || 'USD', mileage: mi, hours: d.hours ?? null, shop: d.shop || '', items: (d.items || []).join('\n'),
+          notes: [d.invoice_number ? 'Invoice ' + d.invoice_number : '', d.plate ? 'Plate ' + d.plate : ''].filter(Boolean).join(' · ') };
+        // already in the garage, or the same invoice earlier in this batch
+        it.dup = !!(v0 && sameRecord(v0.id, d.date, d.amount)) || items.some(o => o !== it && o.status === 'ready' && o.r.vehicle_id && o.r.vehicle_id === it.r.vehicle_id && o.draft.date === d.date && d.amount != null && +o.draft.amount === +d.amount);
+        it.include = !it.dup; it.status = 'ready';
+      } catch (e) { it.status = 'fail'; it.err = e.message; }
+      paintRow(it); paintFoot();
+    }
+  };
+  await Promise.all([worker(), worker(), worker()]);
+  if (items.every(x => x.status === 'fail') && $('#bs-prog')) $('#bs-prog').textContent = 'None of the invoices could be read. Try sharper, well-lit photos.';
+
+  $('#bs-save').onclick = async () => {
+    const todo = items.filter(x => x.status === 'ready' && x.include);
+    // check every row first, so one bad field doesn't leave a half-saved batch
+    let firstBad = null;
+    for (const it of todo) {
+      const r = it.r, iso = isoFromDmy(r.date);
+      it.err = !r.vehicle_id ? 'Choose the vehicle.' : !String(r.title).trim() ? 'Describe the work in a few words.' : iso === null ? dateMsg() : String(r.amount ?? '').trim() && isNaN(nMoney(r.amount)) ? 'The amount should be a number.' : '';
+      if (it.err) { firstBad = firstBad || it; paintRow(it); } else r.iso = iso;
+    }
+    if (firstBad) { toast('Fix the highlighted drafts first', true); $(`#bs-${firstBad.i}`).scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
+    saving = true; paintFoot(); items.forEach(paintRow);
+    const logReadings = $('#bs-log').checked, touched = new Set();
+    let ok = 0;
+    for (const it of todo) {
+      const r = it.r;
+      try {
+        const row = { vehicle_id: r.vehicle_id, title: String(r.title).trim(), date: nz(r.iso), category: r.category, currency: r.currency, amount: nMoney(r.amount), mileage: nInt(r.mileage), hours: r.hours, shop: nz(String(r.shop || '').trim()), items: nz(r.items), notes: nz(r.notes), confidence: 'printed', mileage_approx: false };
+        row.invoice_url = await upload(it.send, `invoices/${r.vehicle_id}`);
+        const res = await db.from('service_records').insert(row).select().single();
+        if (res.error) throw new Error('Couldn\'t save: ' + res.error.message);
+        S.records = sortRecs([res.data, ...S.records]);
+        if (logReadings && row.date && (row.mileage != null || row.hours != null)) {
+          const v = vById(row.vehicle_id);
+          const rd = await db.from('odometer_readings').insert({ vehicle_id: v.id, date: row.date, odometer: row.mileage, unit: v.odometer_unit || 'mi', hours: row.hours, notes: 'From invoice: ' + row.title }).select().single();
+          if (!rd.error) { S.readings = [rd.data, ...S.readings]; touched.add(v.id); }
+        }
+        it.status = 'saved'; ok++;
+      } catch (e) { it.err = e.message; }
+      paintRow(it);
+    }
+    S.readings.sort((a, b) => (!a.date) - (!b.date) || (b.date || '').localeCompare(a.date || ''));
+    for (const id of touched) await syncCurrent(vById(id)).catch(() => {});
+    await signMedia().catch(() => {}); saving = false; items.forEach(paintRow); paintFoot(); render();
+    const failed = todo.length - ok;
+    toast(failed ? `Saved ${ok}; ${failed} couldn't be saved. See the list.` : `Saved ${ok} record${ok === 1 ? '' : 's'}`, !!failed);
+    if (!failed && !items.some(x => x.status === 'ready' && x.include)) { $('#bs-save').hidden = true; $('#bs-close').textContent = 'Done'; $('#bs-close').classList.add('primary'); }
+  };
+}
+
 
 /* ---------- import a spreadsheet ---------- */
 // The AI only reads the layout (a sample of each tab plus each column's distinct values) and returns a map:
