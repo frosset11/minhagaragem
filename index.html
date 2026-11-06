@@ -754,12 +754,15 @@ async function load() {
     const g = GID(); if (!g) return;
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timed out')), 10000));
     const fx = Promise.race([loadFx(), new Promise(r => setTimeout(r, 4000))]);
-    const [v, r, o, mc, tk] = await Promise.race([timeout, Promise.all([
+    const [v, r, o, mc, tk, rm, hi, sh] = await Promise.race([timeout, Promise.all([
       db.from('vehicles').select('*').eq('garage_id', g).order('sort_order').order('year', { ascending: false }),
       db.from('service_records').select('*').eq('garage_id', g).order('date', { ascending: false, nullsFirst: false }),
       db.from('odometer_readings').select('*').eq('garage_id', g).order('date', { ascending: false, nullsFirst: false }),
       db.from('market_comps').select('*').eq('garage_id', g).order('date', { ascending: false }),
-      db.from('service_tasks').select('*').eq('garage_id', g).order('created_at', { ascending: false })
+      db.from('service_tasks').select('*').eq('garage_id', g).order('created_at', { ascending: false }),
+      db.from('reminders').select('*').eq('garage_id', g).order('due_date', { ascending: true, nullsFirst: false }),
+      db.from('vehicle_history').select('*').eq('garage_id', g).order('date', { ascending: true, nullsFirst: false }),
+      db.from('vehicle_shares').select('*').eq('garage_id', g)
     ])]);
     await fx;
     const err = v.error || r.error || o.error || mc.error || tk.error;
@@ -769,10 +772,12 @@ async function load() {
     }
     if (err) throw err;
     S.vehicles = v.data; S.records = sortRecs(r.data); S.readings = o.data; S.comps = mc.data || []; S.tasks = tk.data || []; S.offline = null;
+    S.reminders = rm.error ? [] : rm.data || []; S.history = hi.error ? [] : hi.data || []; S.shares = sh.error ? [] : sh.data || [];
     await signMedia();
-    try { localStorage.setItem(cacheKey(), JSON.stringify({ saved: new Date().toISOString().slice(0, 10), vehicles: v.data, records: r.data, readings: o.data, comps: mc.data || [], tasks: tk.data || [] })); } catch (e) {}
+    try { localStorage.setItem(cacheKey(), JSON.stringify({ saved: new Date().toISOString().slice(0, 10), vehicles: v.data, records: r.data, readings: o.data, comps: mc.data || [], tasks: tk.data || [], reminders: S.reminders, history: S.history })); } catch (e) {}
     setLive('live');
     setTimeout(() => refreshFipe(), 50);
+    pushCheck().then(on => { if (on) render(); });
   } catch (e) { console.warn('Database unreachable, showing saved copy', e); await useSnapshot(/timed out/.test(e.message || '') ? 'the database didn\'t answer' : 'the database couldn\'t be reached'); return; }
   render();
 }
@@ -780,7 +785,7 @@ async function useSnapshot(reason) {
   let snap = null;
   try { snap = JSON.parse(localStorage.getItem(cacheKey()) || 'null'); } catch (e) {}
   snap = snap || { vehicles: [], records: [], readings: [] };
-  S.vehicles = snap.vehicles || []; S.records = sortRecs(snap.records || []); S.readings = snap.readings || []; S.comps = snap.comps || []; S.tasks = snap.tasks || [];
+  S.vehicles = snap.vehicles || []; S.records = sortRecs(snap.records || []); S.readings = snap.readings || []; S.comps = snap.comps || []; S.tasks = snap.tasks || []; S.reminders = snap.reminders || []; S.history = snap.history || []; S.shares = [];
   if (!S.fx) await loadFx().catch(() => {});
   S.offline = { reason, saved: snap.saved };
   await signMedia().catch(() => {});
@@ -803,7 +808,7 @@ async function refreshAuth(session) {
   S.user = session?.user || null;
   if (!S.user) {
     S.editor = false; S.role = null; S.garage = null; S.garages = [];
-    S.vehicles = []; S.records = []; S.readings = []; S.comps = []; S.tasks = [];
+    S.vehicles = []; S.records = []; S.readings = []; S.comps = []; S.tasks = []; S.reminders = []; S.history = []; S.shares = [];
     window.live.state = 'loading'; Object.keys(SIGNED).forEach(k => delete SIGNED[k]); applyLook(null);
     clearCaches();
     showLogin(pendingLoginMsg); pendingLoginMsg = null; return;
@@ -850,7 +855,7 @@ function pickGarage(g) {
 async function switchGarage(id) {
   const g = S.garages.find(x => x.id === id); if (!g || g.id === GID()) return;
   closePanel(); pickGarage(g);
-  S.vehicles = []; S.records = []; S.readings = []; S.comps = []; S.tasks = []; S.billing = undefined; S.usage = null; window.live.state = 'loading';
+  S.vehicles = []; S.records = []; S.readings = []; S.comps = []; S.tasks = []; S.reminders = []; S.history = []; S.shares = []; S.billing = undefined; S.usage = null; window.live.state = 'loading';
   location.hash = '#/dashboard'; render(); await load(); toast('Opened ' + g.name);
 }
 /* ---------- garage switcher: the garage name in the header ---------- */
@@ -954,7 +959,7 @@ async function createGarage(f) {
   if (error) throw new Error(limitMsg(error) || 'Couldn\'t create the garage: ' + error.message);
   try { localStorage.setItem('mg-garage', id); } catch (e) {}
   await loadGarages();
-  S.vehicles = []; S.records = []; S.readings = []; S.comps = []; S.tasks = []; window.live.state = 'loading';
+  S.vehicles = []; S.records = []; S.readings = []; S.comps = []; S.tasks = []; S.reminders = []; S.history = []; S.shares = []; window.live.state = 'loading';
   location.hash = '#/dashboard';
   enterApp(); await load(); closePanel(); toast('Garage created');
   maybeTour();
@@ -981,7 +986,7 @@ function authMsg(err) {
 /* ---------- account, garage settings and people ---------- */
 async function openAccount() {
   if (!S.user) return showLogin();
-  await loadAllowance().catch(() => {}); // a plan change can move the garage allowance
+  await Promise.all([loadAllowance().catch(() => {}), pushCheck()]); // a plan change can move the garage allowance
   const g = S.garage, owner = S.role === 'owner';
   let members = [], invites = [];
   if (g) {
@@ -1029,6 +1034,7 @@ async function openAccount() {
       </form>` : ''}
     </fieldset>` : ''}
     <fieldset><legend>Preferences</legend>
+      ${PUSH.supported || isIOS() ? `<div class="fld"><label>Phone alerts on this device</label><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">${PUSH.on ? '<span class="chip bs-ok">On</span><button class="btn sm" type="button" id="pref-push-off">Turn off</button>' : PUSH.supported ? '<button class="btn sm" type="button" id="pref-push-on">Turn on</button>' : '<a class="btn sm" href="#/install" data-close-acct>Add to home screen first</a>'}</div><span class="help">A notification when a reminder is due: two weeks before, on the day, then weekly while overdue.</span></div>` : ''}
       <div class="fld"><label for="pref-date">Date format</label><select id="pref-date">${Object.entries(DATE_FMTS).map(([k, f]) => `<option value="${k}"${dateFmt() === k ? ' selected' : ''}>${f.ph} · ${f.name}, like ${f.ex}</option>`).join('')}</select><span class="help">Just for you, everywhere you sign in. Other people in your garages keep their own.</span></div>
     </fieldset>
     <fieldset><legend>Your garages</legend>
@@ -1052,6 +1058,9 @@ async function openAccount() {
     toast('Password saved'); closePanel();
   });
   document.querySelectorAll('[data-gsw]').forEach(b => b.onclick = () => switchGarage(b.dataset.gsw));
+  if ($('#pref-push-on')) $('#pref-push-on').onclick = async e => { await pushOnClick(e.currentTarget); openAccount(); };
+  if ($('#pref-push-off')) $('#pref-push-off').onclick = async () => { await pushDisable(); toast('Phone alerts off on this device'); openAccount(); };
+  document.querySelectorAll('[data-close-acct]').forEach(a => a.onclick = () => closePanel());
   $('#pref-date').onchange = e => { setDateFmt(e.target.value); render(); toast(`Dates now show as ${DATE_FMTS[dateFmt()].ph}`); };
   $('#g-new-btn').onclick = () => {
     if (ownedGarages() >= S.garageLimit) return openLimit('garage');
@@ -1636,6 +1645,7 @@ function viewVehicle(id) {
     ${S.user ? marketSection(v) : ''}
     <div class="section"><h2>Specifications</h2>${dl(spec)}${v.specs_source ? `<p class="hint" style="margin:10px 0 0">Some details from ${esc(v.specs_source === 'NHTSA' ? 'the NHTSA VIN database' : v.specs_source)}.</p>` : ''}</div>
     <div class="section"><h2>Ownership</h2>${dl(own)}</div>
+    ${S.user ? remindersSection(v.id) : ''}
     ${v.notes ? `<div class="section"><h2>Notes</h2><p class="notes">${esc(v.notes)}</p></div>` : ''}
     <div class="section">
       <div class="section-head" style="flex-wrap:wrap"><h2>Service history</h2><span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${(st => stChip(st.key) + (S.editor ? `<button class="btn sm" type="button" data-task="${v.id}">${st.task ? 'Edit needs' : 'Add to To-Do'}</button><button class="btn sm primary" type="button" data-complete="${v.id}">Complete service</button>` : ''))(svcStatus(v))}${recs.length ? `<span class="hint">${recs.length} record${recs.length === 1 ? '' : 's'}${S.user ? ' · ' + msum(sp, 1) : ''}</span>` : ''}</span></div>
@@ -1685,7 +1695,7 @@ function viewLedger() {
   const top = `<div class="head"><div><p class="eyebrow">What's coming up, and everything done</p><h1>Service</h1></div>
     ${S.editor ? `<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" type="button" data-scan="">Scan invoices</button><button class="btn" type="button" data-add-r="">${ICON.plus}Add record</button></div>` : (S.user ? '' : lockNote())}</div>`;
   if (window.live.state === 'loading') return top + '<div class="skel" style="height:240px"></div>';
-  const head = top + todoSection() + `<div class="section-head"><h2>History</h2></div>`;
+  const head = top + todoSection() + remindersSection() + `<div class="section-head"><h2>History</h2></div>`;
   if (!S.records.length) return head + `<div class="empty"><h2>No service records yet</h2><p>${S.vehicles.length ? 'Add work as it happens, or send invoices and they\'ll be entered here.' : 'Add a vehicle first, then its service records will appear here.'}</p>${S.editor ? (S.vehicles.length ? `<button class="btn primary" type="button" data-add-r="">${ICON.plus}Add service</button>` : `<a class="btn primary" href="#/cars">Go to cars</a>`) : `<button class="btn" type="button" data-signin>Sign in to add records</button>`}</div>`;
   const q = LF.q.trim().toLowerCase();
   const list = S.records.filter(r => (!LF.v || r.vehicle_id === LF.v) && (!LF.c || r.category === LF.c) && (!LF.y || (LF.y === 'undated' ? !r.date : (r.date || '').startsWith(LF.y))) &&
@@ -1827,6 +1837,186 @@ function wireFill(form, v) {
   };
   vinEl.addEventListener('input', () => { clearTimeout(t); t = setTimeout(look, 500); });
   vinEl.addEventListener('blur', () => { clearTimeout(t); look(); });
+}
+
+
+/* ---------- reminders: service by time or distance, tax, licensing, insurance, inspection ---------- */
+const REM_KINDS = {
+  service: { label: 'Service', title: 'Service', months: 12, km: 10000, mi: 6000 },
+  ipva: { label: 'Annual vehicle tax (IPVA)', title: 'IPVA', months: 12 },
+  licensing: { label: 'Licensing / registration renewal', title: 'Licensing', months: 12 },
+  insurance: { label: 'Insurance renewal', title: 'Insurance renewal', months: 12 },
+  inspection: { label: 'Inspection', title: 'Inspection', months: 12 },
+  other: { label: 'Something else', title: '' }
+};
+const daysTo = d => Math.round((new Date(d + 'T12:00:00') - new Date(today() + 'T12:00:00')) / 864e5);
+// worst of the date and the distance; 'ok' when neither is close
+function remStatus(r) {
+  const v = vById(r.vehicle_id); let key = 'ok', bits = [];
+  const rank = k => SVC_ST[k].rank, worse = k => { if (rank(k) < rank(key)) key = k; };
+  if (r.due_date) {
+    const d = daysTo(r.due_date);
+    worse(d < 0 ? 'overdue' : d <= 14 ? 'due' : d <= 45 ? 'soon' : 'ok');
+    bits.push(d < 0 ? `${-d} day${d === -1 ? '' : 's'} overdue` : d === 0 ? 'due today' : d <= 60 ? `in ${d} day${d === 1 ? '' : 's'}` : `on ${fdate(r.due_date)}`);
+  }
+  if (r.due_odometer != null && v) {
+    const unit = v.odometer_unit || 'km', odo = v.odometer;
+    if (odo != null) {
+      const left = r.due_odometer - odo, step = r.every_distance || (unit === 'mi' ? 6000 : 10000);
+      worse(left <= 0 ? 'overdue' : left <= Math.max(300, step * 0.05) ? 'due' : left <= Math.max(1000, step * 0.15) ? 'soon' : 'ok');
+      bits.push(left <= 0 ? `${num(-left)} ${unit} over` : `in ${num(left)} ${unit}`);
+    } else bits.push(`at ${num(r.due_odometer)} ${unit}`);
+  }
+  return { key, when: bits.join(' or '), v };
+}
+const remItems = (vid) => (S.reminders || []).filter(r => !r.done && (!vid || r.vehicle_id === vid) && vById(r.vehicle_id)?.status !== 'sold')
+  .map(r => ({ r, ...remStatus(r) }))
+  .sort((a, b) => SVC_ST[a.key].rank - SVC_ST[b.key].rank || (a.r.due_date || '9999').localeCompare(b.r.due_date || '9999'));
+function remRow(x, showVehicle = true) {
+  const every = [x.r.every_months ? `every ${x.r.every_months === 12 ? 'year' : x.r.every_months + ' months'}` : '', x.r.every_distance ? `every ${num(x.r.every_distance)} ${x.v?.odometer_unit || 'km'}` : ''].filter(Boolean).join(' or ');
+  return `<div class="todo rem">
+    <div class="todo-st">${x.key === 'ok' ? '<span class="stc" style="--c:#8a8c92"><i aria-hidden="true"></i>Later</span>' : stChip(x.key)}</div>
+    <div class="todo-main">
+      ${showVehicle ? `<a class="todo-v" href="#/vehicle/${x.r.vehicle_id}">${esc(vname(x.v))}</a><div class="m"><b style="color:var(--fg2);font-weight:500">${esc(x.r.title)}</b> · ${esc(x.when)}</div>` : `<div class="todo-v" style="color:var(--fg)">${esc(x.r.title)}</div><div class="m">${esc(x.when)}</div>`}
+      ${every || x.r.notes ? `<div class="m">${esc([every ? 'Repeats ' + every : '', x.r.notes].filter(Boolean).join(' · '))}</div>` : ''}
+    </div>
+    ${S.editor ? `<div class="todo-act"><button class="btn sm" type="button" data-rem="${x.r.id}">Edit</button><button class="btn sm primary" type="button" data-rem-done="${x.r.id}">Done</button></div>` : ''}
+  </div>`;
+}
+function remindersSection(vid) {
+  const items = remItems(vid), close = items.filter(x => x.key !== 'ok'), later = items.filter(x => x.key === 'ok');
+  return `<section class="${vid ? 'section' : 'todo-wrap'}" style="${vid ? '' : 'margin-top:8px'}">
+    <div class="section-head" style="flex-wrap:wrap"><h2>Reminders</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${pushChip()}${S.editor ? `<button class="btn sm" type="button" data-rem-add="${vid || ''}">${ICON.plus}Add reminder</button>` : ''}</div></div>
+    ${items.length ? `${close.length ? `<div class="todo-list">${close.map(x => remRow(x, !vid)).join('')}</div>` : `<p class="none" style="margin-bottom:10px">Nothing due in the next 45 days.</p>`}
+      ${later.length ? `<details class="todo-nohist"${close.length ? '' : ' open'}><summary>${later.length} later</summary><div class="todo-list">${later.map(x => remRow(x, !vid)).join('')}</div></details>` : ''}`
+    : `<p class="none">${S.editor ? 'Service by time or distance, annual tax (IPVA), licensing, insurance and inspections. Add a reminder and it shows here when it comes up.' : 'No reminders yet.'}</p>`}
+  </section>`;
+}
+function openReminderForm(r, vehicleId) {
+  const isNew = !r;
+  const v0 = vById(r?.vehicle_id || vehicleId);
+  r = r || { kind: 'service', title: 'Service', vehicle_id: vehicleId || '', every_months: 12 };
+  const unitOf = id => vById(id)?.odometer_unit || S.garage?.distance_unit || 'km';
+  openPanel(isNew ? 'Add a reminder' : 'Edit reminder', `
+    <form id="rm-form" novalidate>
+      ${v0 && !isNew ? `<p class="hint" style="margin:0 0 18px">${esc(vname(v0))}</p><input type="hidden" name="vehicle_id" value="${v0.id}">` : field('vehicle_id', 'Vehicle', 'select', r.vehicle_id, { required: true, options: [['', 'Choose a vehicle'], ...S.vehicles.filter(x => x.status !== 'sold').map(x => [x.id, vname(x)])] })}
+      ${field('kind', 'What for', 'select', r.kind, { required: true, options: Object.entries(REM_KINDS).map(([k, x]) => [k, x.label]) })}
+      ${field('title', 'Title', 'text', r.title, { required: true, ph: 'Oil change, IPVA 2027, Seguro…' })}
+      <div class="two">${field('due_date', 'Due on', 'date', r.due_date)}${field('due_odometer', 'Or at odometer', 'text', r.due_odometer != null ? num(r.due_odometer) : '', { inputmode: 'numeric' })}</div>
+      <p class="hint" id="rm-odo" style="margin:-6px 0 14px"></p>
+      <fieldset><legend>Repeat</legend>
+        <div class="two">${field('every_months', 'Every … months', 'text', r.every_months ?? '', { inputmode: 'numeric', ph: '12' })}${field('every_distance', 'Every … km or mi', 'text', r.every_distance != null ? num(r.every_distance) : '', { inputmode: 'numeric', ph: '10,000' })}</div>
+        <p class="hint" style="margin:-6px 0 0">When you mark it done, the next one is set from that day and the odometer at the time. Leave both empty for a one-off.</p>
+      </fieldset>
+      ${field('notes', 'Notes', 'textarea', r.notes)}
+      ${!isNew ? `<fieldset style="margin-top:8px"><legend>Delete</legend><div id="del-box"><button class="btn danger" type="button" id="del-rm">Delete this reminder…</button></div></fieldset>` : ''}
+    </form>`,
+    `<button class="btn" type="button" id="cancel">Cancel</button><button class="btn primary" type="button" data-submit>${isNew ? 'Add reminder' : 'Save changes'}</button>`);
+  $('#cancel').onclick = closePanel;
+  // labels are plain text in field(); show the unit live
+  const odoLbl = $('label[for="f-due_odometer"]'); if (odoLbl) odoLbl.innerHTML = `Or at odometer (<span id="rm-unit">${unitOf(r.vehicle_id)}</span>) <span class="hint">(optional)</span>`;
+  const showOdo = () => { const v = vById($('#rm-form').elements.vehicle_id.value); $('#rm-unit').textContent = unitOf(v?.id); $('#rm-odo').textContent = v?.odometer != null ? `Current odometer: ${num(v.odometer)} ${v.odometer_unit}${v.odometer_date ? ' (' + fdate(v.odometer_date) + ')' : ''}.` : ''; };
+  showOdo();
+  if ($('#f-vehicle_id')) $('#f-vehicle_id').addEventListener('change', showOdo);
+  $('#f-kind').onchange = e => { // sensible defaults per kind, without overwriting what's typed
+    const k = REM_KINDS[e.target.value], f = $('#rm-form').elements, v = vById(f.vehicle_id.value);
+    if (!f.title.value.trim() || Object.values(REM_KINDS).some(x => x.title === f.title.value.trim())) f.title.value = k.title;
+    f.every_months.value = k.months || '';
+    f.every_distance.value = k.km ? num(unitOf(v?.id) === 'mi' ? k.mi : k.km) : '';
+    if (k.km && v?.odometer != null && !f.due_odometer.value) f.due_odometer.value = num(v.odometer + (unitOf(v.id) === 'mi' ? k.mi : k.km));
+    if (k.km && !f.due_date.value) f.due_date.value = dmy(addMonths(today(), k.months));
+  };
+  if (!isNew) $('#del-rm').onclick = () => {
+    $('#del-box').innerHTML = `<div class="confirm"><p>Delete the reminder <b>${esc(r.title)}</b>? This can't be undone.</p><button class="btn" type="button" id="del-no">Keep it</button> <button class="btn danger solid" type="button" id="del-yes">Delete reminder</button></div>`;
+    $('#del-no').onclick = () => openReminderForm(r);
+    $('#del-yes').onclick = async () => { const { error } = await db.from('reminders').delete().eq('id', r.id); if (error) return toast('Couldn\'t delete: ' + error.message, true); S.reminders = S.reminders.filter(x => x.id !== r.id); closePanel(); toast('Reminder deleted'); render(); };
+  };
+  const posInt = label => x => x && !/^[\d,.\s]+$/.test(x.trim()) ? `${label} should be a whole number.` : '';
+  wireForm('#rm-form', {
+    vehicle_id: x => !x ? 'Choose the vehicle.' : '',
+    title: x => !x.trim() ? 'Give it a short title, like "IPVA" or "Oil change".' : '',
+    due_odometer: posInt('The odometer'),
+    every_months: x => x && (!/^\d+$/.test(x.trim()) || +x < 1 || +x > 120) ? 'Enter a number of months from 1 to 120.' : '',
+    every_distance: posInt('The distance')
+  }, async f => {
+    const row = { vehicle_id: f.vehicle_id, kind: f.kind, title: f.title.trim(), due_date: nz(f.due_date), due_odometer: nInt(f.due_odometer), every_months: f.every_months ? +f.every_months : null, every_distance: nInt(f.every_distance), notes: nz(f.notes.trim()) };
+    if (!row.due_date && row.due_odometer == null) throw new Error('Set a due date, an odometer reading, or both.');
+    if (isNew) row.last_notified = null;
+    else if (row.due_date !== r.due_date || row.due_odometer !== r.due_odometer) row.last_notified = null; // new due point: notify again
+    const res = isNew ? await db.from('reminders').insert(row).select().single() : await db.from('reminders').update(row).eq('id', r.id).select().single();
+    if (res.error) throw new Error('Couldn\'t save: ' + res.error.message);
+    S.reminders = isNew ? [...S.reminders, res.data] : S.reminders.map(x => x.id === r.id ? res.data : x);
+    closePanel(); toast(isNew ? 'Reminder added' : 'Saved'); render();
+    if (isNew) maybeAskPush();
+  });
+}
+async function remDone(id) {
+  const r = S.reminders.find(x => x.id === id); if (!r) return;
+  const v = vById(r.vehicle_id), repeat = r.every_months || r.every_distance;
+  const next = repeat ? {
+    due_date: r.every_months ? addMonths(today(), r.every_months) : null,
+    due_odometer: r.every_distance && v?.odometer != null ? v.odometer + r.every_distance : r.every_distance && r.due_odometer != null ? r.due_odometer + r.every_distance : null,
+    last_notified: null, done_at: today()
+  } : { done: true, done_at: today() };
+  if (repeat && !next.due_date && next.due_odometer == null) next.due_date = addMonths(today(), 12);
+  const res = await db.from('reminders').update(next).eq('id', id).select().single();
+  if (res.error) return toast('Couldn\'t update: ' + res.error.message, true);
+  S.reminders = S.reminders.map(x => x.id === id ? res.data : x); render();
+  const n = res.data;
+  toast(repeat ? `Done. Next: ${[n.due_date ? fdate(n.due_date) : '', n.due_odometer != null ? num(n.due_odometer) + ' ' + (v?.odometer_unit || '') : ''].filter(Boolean).join(' or ')}` : 'Done');
+}
+
+/* ---------- phone alerts (web push) for reminders ---------- */
+const VAPID_PUBLIC = 'BCLA0BOtp-zB_vbEtEXF5e3YzP3DSpZP4_I0OMPkyZspFa4rNTXcSAE6aEnTB5Pxce5NePaZHlUMEz4RE5Zy-4Y';
+const PUSH = { supported: 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window, on: false, checked: false };
+const swReg = () => PUSH.supported ? navigator.serviceWorker.register('/sw.js').catch(() => null) : Promise.resolve(null);
+async function pushCheck() {
+  if (!PUSH.supported || PUSH.checked) return PUSH.on;
+  PUSH.checked = true;
+  try { const reg = await swReg(); const sub = reg && await reg.pushManager.getSubscription(); PUSH.on = !!sub && Notification.permission === 'granted'; } catch (e) {}
+  return PUSH.on;
+}
+const u8 = b64 => Uint8Array.from(atob(b64.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((b64.length + 3) % 4)), c => c.charCodeAt(0));
+async function pushEnable() {
+  if (!PUSH.supported) throw new Error(isIOS() && !isStandalone() ? 'On iPhone, add AUTODEX to your home screen first, then turn alerts on from the app there.' : 'This browser can\'t show notifications.');
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') throw new Error(perm === 'denied' ? 'Notifications are blocked for this site. Allow them in your browser or phone settings, then try again.' : 'Alerts stay off until you allow notifications.');
+  const reg = await swReg(); if (!reg) throw new Error('Couldn\'t start notifications on this device.');
+  await navigator.serviceWorker.ready;
+  const sub = await reg.pushManager.getSubscription() || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: u8(VAPID_PUBLIC) });
+  const j = sub.toJSON();
+  const { error } = await db.from('push_subscriptions').upsert({ endpoint: j.endpoint, user_id: S.user.id, p256dh: j.keys.p256dh, auth: j.keys.auth, user_agent: navigator.userAgent.slice(0, 200) }, { onConflict: 'endpoint' });
+  if (error) throw new Error('Couldn\'t save this device: ' + error.message);
+  PUSH.on = true; return true;
+}
+async function pushDisable() {
+  try { const reg = await swReg(); const sub = reg && await reg.pushManager.getSubscription(); if (sub) { await db.from('push_subscriptions').delete().eq('endpoint', sub.endpoint); await sub.unsubscribe(); } } catch (e) {}
+  PUSH.on = false;
+}
+// shown next to "Reminders"
+function pushChip() {
+  if (!S.user || !S.editor) return '';
+  if (PUSH.on) return '<span class="chip bs-ok" title="This device gets a notification when a reminder is due">Phone alerts on</span>';
+  if (!PUSH.supported && isIOS() && !isStandalone()) return '<a class="btn sm" href="#/install">Phone alerts: add to home screen first</a>';
+  if (!PUSH.supported) return '';
+  return '<button class="btn sm" type="button" data-push-on>Turn on phone alerts</button>';
+}
+async function pushOnClick(btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Turning on…'; }
+  try { await pushEnable(); toast('Phone alerts on. You\'ll get a notification when a reminder is due.'); render(); }
+  catch (e) { toast(e.message, true); if (btn) { btn.disabled = false; btn.textContent = 'Turn on phone alerts'; } }
+}
+// after the first reminder: offer alerts once
+function maybeAskPush() {
+  if (PUSH.on || flag('mg_push_asked') || !(PUSH.supported || (isIOS() && !isStandalone()))) return;
+  setFlag('mg_push_asked');
+  const ios = !PUSH.supported;
+  openPanel('Get a phone alert when it\'s due?', `<p>AUTODEX can send a notification to this ${isIOS() || /android/i.test(navigator.userAgent) ? 'phone' : 'device'} when a reminder is coming up: two weeks before its date, on the day, and once a week while it's overdue.</p>
+    ${ios ? '<p class="hint">On iPhone this works once AUTODEX is on your home screen. Add it, open it from there, and turn alerts on in Account.</p>' : '<p class="hint">You can turn them off any time in Account → Preferences.</p>'}`,
+    `<span class="sp"></span><button class="btn" type="button" id="pa-no">Not now</button>${ios ? '<a class="btn primary" href="#/install" id="pa-ios">Add to home screen</a>' : '<button class="btn primary" type="button" id="pa-yes">Turn on alerts</button>'}`);
+  $('#pa-no').onclick = closePanel;
+  if ($('#pa-ios')) $('#pa-ios').onclick = () => closePanel();
+  if ($('#pa-yes')) $('#pa-yes').onclick = async e => { await pushOnClick(e.currentTarget); closePanel(); };
 }
 
 /* ---------- vehicle form ---------- */
@@ -2802,10 +2992,13 @@ function viewDashboard() {
   const tshow = tdo.filter(x => !x.noHistory).slice(0, 7);
   const c4 = `<section class="cc"><div class="cc-h"><div><h3>Service To-Do</h3><p>${tc('overdue')} overdue · ${tc('due')} due · ${tc('soon')} soon${tdo.some(x => x.noHistory) ? ` · ${tdo.filter(x => x.noHistory).length} with no history` : ''}</p></div><a class="btn sm" href="#/ledger">Open</a></div>
     <div class="list">${tshow.map(x => `<a class="li" href="#/vehicle/${x.v.id}"><span style="min-width:0"><span class="t" style="display:block">${esc(vname(x.v))}</span><span class="m" style="display:block">${x.task ? esc(x.task.title) + ' · ' : ''}${x.last ? 'Last service ' + fdate(x.last) : ''}</span></span><span class="r">${stChip(x.key)}</span></a>`).join('') || '<p class="none">No services coming up.</p>'}</div></section>`;
+  const rems = remItems(), rshow = rems.slice(0, 6), rc = k => rems.filter(x => x.key === k).length;
+  const c6 = S.user ? `<section class="cc"><div class="cc-h"><div><h3>Reminders</h3><p>${rems.length ? `${rc('overdue')} overdue · ${rc('due')} due · ${rc('soon')} soon` : 'Tax, licensing, insurance, service by distance'}</p></div>${S.editor ? '<button class="btn sm" type="button" data-rem-add="">Add</button>' : ''}</div>
+    <div class="list">${rshow.length ? rshow.map(x => `<a class="li" href="#/vehicle/${x.r.vehicle_id}"><span style="min-width:0"><span class="t" style="display:block">${esc(x.r.title)} · ${esc(vshort(x.v))}</span><span class="m" style="display:block">${esc(x.when)}</span></span><span class="r">${x.key === 'ok' ? '' : stChip(x.key)}</span></a>`).join('') : `<p class="none">${S.editor ? 'Add IPVA, licensing, insurance or a service every 10,000 km, and they show here as they come up.' : 'No reminders yet.'}</p>`}</div></section>` : '';
   const recent = S.records.filter(r => r.date).slice(0, 6);
   const c5 = `<section class="cc"><div class="cc-h"><div><h3>Recent service</h3><p>Latest entries in the history</p></div><a class="btn sm" href="#/ledger">Service</a></div>
     <div class="list">${recent.map(r => `<a class="li" href="#/vehicle/${r.vehicle_id}"><span style="min-width:0"><span class="t" style="display:block">${esc(r.title)}</span><span class="m" style="display:block">${esc(vname(vById(r.vehicle_id)))} · ${fdate(r.date)}</span></span><span class="r">${r.amount != null ? money(r.amount, 0, r.currency) : (S.user ? '—' : '')}</span></a>`).join('')}</div></section>`;
-  return installCard() + head + checklist() + kpis + garage + `<div class="charts">${c1}${c3}${spendCards.join('')}${c4}${c5}</div>`;
+  return installCard() + head + checklist() + kpis + garage + `<div class="charts">${c1}${c3}${spendCards.join('')}${c4}${c6}${c5}</div>`;
 }
 
 /* ---------- readings ---------- */
@@ -3264,6 +3457,10 @@ function wireView() {
   V.querySelectorAll('[data-read]').forEach(b => b.onclick = () => { const r = S.readings.find(x => x.id === b.dataset.read); openReadingForm(vById(r.vehicle_id), r); });
   V.querySelectorAll('.lc').forEach(wireLine);
   V.querySelectorAll('[data-scan]').forEach(b => b.onclick = () => openScan(b.dataset.scan || null));
+  V.querySelectorAll('[data-rem-add]').forEach(b => b.onclick = () => openReminderForm(null, b.dataset.remAdd || null));
+  V.querySelectorAll('[data-rem]').forEach(b => b.onclick = () => openReminderForm(S.reminders.find(x => x.id === b.dataset.rem)));
+  V.querySelectorAll('[data-rem-done]').forEach(b => b.onclick = () => { b.disabled = true; remDone(b.dataset.remDone); });
+  V.querySelectorAll('[data-push-on]').forEach(b => b.onclick = () => pushOnClick(b));
   V.querySelectorAll('[data-import]').forEach(b => b.onclick = () => openImport(undefined, { scope: S.vehicles.length ? 'single' : 'all' }));
   V.querySelectorAll('[data-tf]').forEach(b => b.onclick = () => { TF.k = b.dataset.tf; render(); });
   V.querySelectorAll('[data-task]').forEach(b => b.onclick = () => { const v = b.dataset.task ? vById(b.dataset.task) : null; openTaskForm(v, v ? openTask(v) : null); });
