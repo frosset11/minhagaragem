@@ -221,6 +221,13 @@ a.btn{text-decoration:none}
 .bs-row .fld{margin-bottom:10px}.bs-row .fld:last-child{margin-bottom:0}
 .bs-h{display:flex;align-items:center;gap:10px;justify-content:space-between}.bs-n{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .chip.bs-ok{color:var(--ok);border-color:currentColor;background:transparent}.chip.bs-warn{color:var(--warn);border-color:currentColor;background:transparent}.chip.bs-bad{color:var(--danger);border-color:currentColor;background:transparent}
+.fill-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}.fill-btns .btn{justify-content:center;text-align:center;white-space:normal;min-height:44px;height:auto;padding:8px 12px}
+.fill-note{margin-top:12px;padding:12px 14px;border:1px solid var(--line2);border-radius:var(--r);background:var(--s2);font-size:14px}.fill-note p{margin:0 0 6px}.fill-note p:last-child{margin-bottom:0}
+.fill-note ul{margin:4px 0 8px;padding-left:18px}.fill-note .btn{margin-top:6px}
+.fill-note.likely{border-color:color-mix(in srgb,var(--warn) 55%,var(--line2))}.fill-tag{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--warn)}
+.fill-diff{list-style:none;padding:0!important}.fill-diff li{padding:2px 0}.fill-diff span{color:var(--fg3);display:inline-block;min-width:110px}.fill-diff s{color:var(--fg3)}
+#vin-msg .fill-note{margin:-6px 0 14px}
+input.was-filled,select.was-filled{border-color:var(--accent)!important;box-shadow:0 0 0 1px var(--accent)}
 .chip.light{background:color-mix(in srgb,var(--bg) 80%,transparent);color:var(--fg);border-color:rgba(255,255,255,.12)}
 
 /* empty */
@@ -1595,7 +1602,8 @@ function viewVehicle(id) {
   const owned = v.purchase_date ? Math.max(0, Math.round((new Date(v.sold_date || Date.now()) - new Date(v.purchase_date)) / 864e5)) : null;
   const spec = [
     ['Make', v.make], ['Model', v.model], ['Trim', v.trim_level], ['Year', v.year], ['Colour', v.colour], ['VIN', v.vin, 1],
-    ['Engine', v.engine], ['Transmission', v.transmission], ['Drivetrain', v.drivetrain], ['Power', v.power], ['Plate', v.plate], ['Kept at', v.location]
+    ['Series', v.series], ['Body', v.body], ['Engine', v.engine], ['Transmission', v.transmission], ['Drivetrain', v.drivetrain], ['Power', v.power],
+    ['Built in', [v.plant, v.build_year && v.build_year !== v.year ? v.build_year : null].filter(Boolean).join(', ')], ['Plate', v.plate], ['Kept at', v.location]
   ].filter(x => x[1] != null && x[1] !== '');
   const own = [
     ['Purchased', fdate(v.purchase_date)], ['Price paid', money(v.purchase_price, 0, v.currency), 1], ['Estimated value', v.estimated_value != null ? money(v.estimated_value, 0, v.currency) + (v.value_date ? ' (' + fdate(v.value_date) + ')' : '') : null, 1], ['Currency', CURRENCIES[v.currency]], ['Bought from', v.purchased_from],
@@ -1626,7 +1634,7 @@ function viewVehicle(id) {
     </div>
     ${vehicleCharts(v)}
     ${S.user ? marketSection(v) : ''}
-    <div class="section"><h2>Specifications</h2>${dl(spec)}</div>
+    <div class="section"><h2>Specifications</h2>${dl(spec)}${v.specs_source ? `<p class="hint" style="margin:10px 0 0">Some details from ${esc(v.specs_source === 'NHTSA' ? 'the NHTSA VIN database' : v.specs_source)}.</p>` : ''}</div>
     <div class="section"><h2>Ownership</h2>${dl(own)}</div>
     ${v.notes ? `<div class="section"><h2>Notes</h2><p class="notes">${esc(v.notes)}</p></div>` : ''}
     <div class="section">
@@ -1716,6 +1724,111 @@ function costsBody() {
     </table></div></div>` : ''}`;
 }
 
+/* ---------- fill in a vehicle: VIN lookup, chassis decode, photo and document reads ---------- */
+const FILL_LABELS = { year: 'year', build_year: 'year of manufacture', make: 'make', model: 'model', trim_level: 'trim', series: 'series', colour: 'colour', vin: 'VIN', plate: 'plate',
+  engine: 'engine', power: 'power', transmission: 'transmission', drivetrain: 'drivetrain', body: 'body', plant: 'where it was built' };
+const FILL_SRC = { nhtsa: 'the NHTSA VIN database', chassis: 'an AI reading of the chassis number', document: 'the registration document', vin: 'the VIN plate', plate: 'the photo', car: 'the photo of the car' };
+async function vread(body) {
+  const { data, error } = await db.functions.invoke('vehicle-read', { body: { garage_id: GID(), ...body } });
+  let res = data; if (error) { try { res = await error.context.json(); } catch (e) { res = { message: 'The reader couldn\'t be reached. Check your connection and try again.' }; } }
+  return res || { message: 'No answer. Try again.' };
+}
+const normTxt = x => String(x ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+// Fill empty fields; list the ones that differ so the owner can choose
+function applyFill(form, fields, src, extra = {}) {
+  const filled = [], differ = [];
+  if (fields.build_year && fields.year && +fields.build_year === +fields.year) fields.build_year = null;
+  for (const k of Object.keys(FILL_LABELS)) {
+    let val = fields[k]; if (val == null || val === '') continue;
+    const el = form.elements[k]; if (!el) continue;
+    val = String(val).trim();
+    if (k === 'vin' || k === 'plate') val = val.toUpperCase();
+    if (!el.value.trim()) { el.value = val; el.classList.add('was-filled'); filled.push(k); }
+    else if (normTxt(el.value) !== normTxt(val) && !normTxt(el.value).includes(normTxt(val))) differ.push([k, val]);
+  }
+  const specFilled = filled.some(k => ['engine', 'power', 'transmission', 'drivetrain', 'body', 'plant', 'series'].includes(k));
+  if (specFilled && form.elements.specs_source) form.elements.specs_source.value = src === 'nhtsa' ? 'NHTSA' : 'an AI reading (likely; check it)';
+  const box = extra.box || $('#fill-msg');
+  const warns = (fields.warnings || []).filter(Boolean);
+  box.innerHTML = `<div class="fill-note${extra.likely ? ' likely' : ''}">
+    ${extra.likely ? `<p class="fill-tag">Likely, check it${fields.confidence ? ` · ${esc(fields.confidence)} confidence` : ''}</p>` : ''}
+    <p>${filled.length ? `Filled <b>${filled.map(k => FILL_LABELS[k]).join(', ')}</b> from ${FILL_SRC[src]}. Check them before saving.` : `Nothing new from ${FILL_SRC[src]}: the fields it found are already filled.`}</p>
+    ${fields.explanation ? `<p class="hint">${esc(fields.explanation)}</p>` : ''}
+    ${extra.note ? `<p class="hint">${esc(extra.note)}</p>` : ''}
+    ${warns.length ? `<ul class="hint">${warns.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}
+    ${differ.length ? `<p class="hint" style="margin-top:8px">${differ.length === 1 ? 'One detail differs' : differ.length + ' details differ'} from what's entered:</p><ul class="fill-diff">${differ.map(([k, val]) => `<li><span>${FILL_LABELS[k]}</span> <s>${esc(form.elements[k].value)}</s> → <b>${esc(val)}</b></li>`).join('')}</ul><button class="btn sm" type="button" data-fill-use>Use these instead</button>` : ''}
+  </div>`;
+  const use = box.querySelector('[data-fill-use]');
+  if (use) use.onclick = () => { differ.forEach(([k, val]) => { form.elements[k].value = val; form.elements[k].classList.add('was-filled'); }); use.replaceWith(Object.assign(document.createElement('span'), { className: 'hint', textContent: 'Replaced.' })); };
+  return filled;
+}
+function wireFill(form, v) {
+  form.addEventListener('input', e => e.target.classList?.remove('was-filled'));
+  const busy = (box, text) => { box.innerHTML = `<div class="fill-note"><div class="skel" style="height:10px;width:55%;margin-bottom:8px"></div><p class="hint" style="margin:0">${esc(text)}</p></div>`; };
+  const failMsg = (box, res) => {
+    if (res?.error === 'limit') { box.innerHTML = `<div class="form-err" role="alert">${esc(res.message)} <a href="#/plans" data-close-panel>See plans</a></div>`; box.querySelector('[data-close-panel]').onclick = () => closePanel(true); return; }
+    box.innerHTML = `<div class="form-err" role="alert">${esc(res?.message || 'Couldn\'t read that.')}</div>`;
+  };
+  // photos and documents
+  form.querySelectorAll('input[data-fill]').forEach(inp => inp.onchange = async () => {
+    const file = inp.files[0], kind = inp.dataset.fill, box = $('#fill-msg'); inp.value = '';
+    if (!file) return;
+    const isPdf = file.type === 'application/pdf';
+    if (!isPdf && !/^image\//.test(file.type)) return failMsg(box, { message: 'Choose a photo' + (kind === 'document' ? ' or a PDF.' : '.') });
+    if (file.size > MAX_FILE) return failMsg(box, { message: `That file is over ${MAX_FILE_MB} MB.` });
+    busy(box, { document: 'Reading the document… about 10 seconds.', vin: 'Reading the VIN…', plate: 'Reading the plate…', car: 'Identifying the vehicle…' }[kind]);
+    try {
+      const send = isPdf ? file : await shrinkImage(file, 2000);
+      const res = await vread({ mode: 'photo', kind, data: await fileToB64(send), media_type: isPdf ? 'application/pdf' : (send.type || 'image/jpeg') });
+      if (!res.ok) return failMsg(box, res);
+      const f = res.fields;
+      let note = '';
+      // a 17-character VIN from a photo or document: look up the full specs too (free)
+      if (f.vin && /^[A-HJ-NPR-Z0-9]{17}$/.test(f.vin)) {
+        const nh = await vread({ mode: 'vin', vin: f.vin });
+        if (nh.ok) { for (const [k, val] of Object.entries(nh.fields)) if (val != null && (f[k] == null || f[k] === '')) f[k] = val; note = 'Specs looked up from the VIN in the NHTSA database.'; }
+      }
+      applyFill(form, f, kind, { likely: kind === 'car', note });
+      if (form.elements.vin.value) lastVin = form.elements.vin.value.trim().toUpperCase();
+      // the car photo can be the vehicle's photo too
+      if (kind === 'car' && !isPdf && !v.photo_url && !$('#f-photo').files.length) {
+        try { const dt = new DataTransfer(); dt.items.add(file); $('#f-photo').files = dt.files; $('#f-photo').dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
+      }
+    } catch (e) { failMsg(box, { message: e.message }); }
+  });
+  // VIN typed or pasted: look up 17-character VINs, offer the AI for anything else
+  const vinEl = form.elements.vin, vbox = $('#vin-msg');
+  let lastVin = (vinEl.value || '').trim().toUpperCase(), t = null;
+  const offerAI = text => {
+    vbox.innerHTML = `<div class="fill-note"><p>${esc(text)}</p><button class="btn sm" type="button" id="vin-ai">Decode with AI · uses 1 scan</button></div>`;
+    $('#vin-ai').onclick = async () => {
+      busy(vbox, 'Decoding the chassis number…');
+      const hint = { make: form.elements.make.value, model: form.elements.model.value, year: form.elements.year.value, type: form.elements.kind.value === 'bike' ? 'motorcycle' : 'car' };
+      const res = await vread({ mode: 'chassis', vin: vinEl.value, hint });
+      if (!res.ok) return failMsg(vbox, res);
+      applyFill(form, res.fields, 'chassis', { likely: true, box: vbox });
+    };
+  };
+  const look = async () => {
+    const raw = vinEl.value.trim().toUpperCase().replace(/[\s-]/g, '');
+    if (raw === lastVin) return; lastVin = raw;
+    if (!raw) { vbox.innerHTML = ''; return; }
+    if (/^[A-HJ-NPR-Z0-9]{17}$/.test(raw)) {
+      busy(vbox, 'Looking up the VIN…');
+      const res = await vread({ mode: 'vin', vin: raw });
+      if (raw !== lastVin) return; // typed on meanwhile
+      if (res.ok) {
+        applyFill(form, res.fields, 'nhtsa', { box: vbox, note: [res.partial ? 'The database only knows the manufacturer for this VIN.' : '', !res.check_digit_ok ? 'The VIN\'s check digit doesn\'t match, which is normal for many cars built outside North America. Double-check it against the car.' : ''].filter(Boolean).join(' ') });
+        if (res.partial) vbox.querySelector('.fill-note').insertAdjacentHTML('beforeend', '<button class="btn sm" type="button" id="vin-ai2">Decode the rest with AI · uses 1 scan</button>'), $('#vin-ai2').onclick = () => { offerAI(''); $('#vin-ai').click(); };
+      } else if (res.error === 'signed_out') failMsg(vbox, res);
+      else offerAI(res.message || 'The VIN database doesn\'t know this number.');
+    } else if (raw.length >= 5) offerAI(raw.length === 17 ? 'This doesn\'t look like a standard VIN (they never use I, O or Q).' : 'Not a 17-character VIN: probably a classic or make-specific chassis number.');
+    else vbox.innerHTML = '';
+  };
+  vinEl.addEventListener('input', () => { clearTimeout(t); t = setTimeout(look, 500); });
+  vinEl.addEventListener('blur', () => { clearTimeout(t); look(); });
+}
+
 /* ---------- vehicle form ---------- */
 function openVehicleForm(v, kind) {
   if (!v && vFull()) return openLimit('vehicle');
@@ -1723,6 +1836,17 @@ function openVehicleForm(v, kind) {
   const word = v.kind === 'car' ? 'car' : 'bike';
   openPanel(isNew ? `Add ${word}` : 'Edit details', `
     <form id="v-form" novalidate>
+      <fieldset><legend>Fill in for me</legend>
+        <p class="hint" style="margin:0 0 12px">Scan a document or photo and the details below are filled in for you to check. Empty fields are filled; anything you've typed is kept. Each scan uses one from this month's allowance.</p>
+        <div class="fill-btns">
+          <label class="btn">${ICON.file}Registration document<input type="file" accept="image/*,application/pdf" data-fill="document" class="vh"></label>
+          <label class="btn">VIN plate or sticker<input type="file" accept="image/*" data-fill="vin" class="vh"></label>
+          <label class="btn">Number plate<input type="file" accept="image/*" data-fill="plate" class="vh"></label>
+          <label class="btn">Photo of the ${word}<input type="file" accept="image/*" data-fill="car" class="vh"></label>
+        </div>
+        <p class="hint" style="margin:10px 0 0">Registration document: a Brazilian CRLV, or a US title or registration card. Owner details on it are never read or stored.</p>
+        <div id="fill-msg" aria-live="polite"></div>
+      </fieldset>
       <fieldset><legend>Photo</legend>
         ${media(v.photo_url) ? `<img class="thumb" src="${esc(media(v.photo_url))}" alt="">` : ''}
         ${field('photo', v.photo_url ? 'Replace photo' : 'Photo', 'file', '', { accept: 'image/jpeg,image/png,image/webp', help: 'A front three-quarter view works best.' })}
@@ -1738,9 +1862,13 @@ function openVehicleForm(v, kind) {
         <div class="two">${field('nickname', 'Nickname', 'text', v.nickname)}${field('colour', 'Colour', 'text', v.colour)}</div>
       </fieldset>
       <fieldset><legend>Specifications</legend>
-        ${field('vin', v.kind === 'bike' ? 'VIN / frame number' : 'VIN', 'text', v.vin, { help: '17 characters for most vehicles from 1981 on.' })}
+        ${field('vin', v.kind === 'bike' ? 'VIN / frame number' : 'VIN or chassis number', 'text', v.vin, { help: 'A 17-character VIN (1981 on) is looked up automatically. Older or non-US chassis numbers can be decoded by AI.' })}
+        <div id="vin-msg" aria-live="polite"></div>
+        <input type="hidden" name="specs_source" value="${esc(v.specs_source || '')}">
         <div class="two">${field('engine', 'Engine', 'text', v.engine)}${field('power', 'Power', 'text', v.power, { ph: '280 hp' })}</div>
         <div class="two">${field('transmission', 'Transmission', 'text', v.transmission, { ph: '6-speed manual' })}${field('drivetrain', 'Drivetrain', 'text', v.drivetrain, { ph: 'RWD' })}</div>
+        <div class="two">${field('body', 'Body', 'text', v.body, { ph: 'Coupe' })}${field('series', 'Generation or series', 'text', v.series, { ph: '997.2, E82, Type 1…' })}</div>
+        <div class="two">${field('plant', 'Built in', 'text', v.plant, { ph: 'Stuttgart, Germany' })}${field('build_year', 'Year of manufacture', 'text', v.build_year ?? '', { inputmode: 'numeric', help: 'Only if different from the model year.' })}</div>
         <div class="two">${field('plate', 'Plate', 'text', v.plate)}${field('location', 'Kept at', 'text', v.location)}</div>
       </fieldset>
       <fieldset><legend>Mileage</legend>
@@ -1765,6 +1893,7 @@ function openVehicleForm(v, kind) {
   $('#cancel').onclick = closePanel;
   $('#f-status').onchange = e => $('#sold-f').hidden = e.target.value !== 'sold';
   $('#f-photo').addEventListener('change', e => { $('#photo-choice').hidden = !e.target.files.length; });
+  wireFill($('#v-form'), v);
   if (!isNew) $('#del-v').onclick = () => {
     $('#del-box').innerHTML = `<div class="confirm"><p>Delete <b>${esc(vname(v))}</b> and its ${recsFor(v.id).length} service record${recsFor(v.id).length === 1 ? '' : 's'}? This can't be undone.</p>
       <button class="btn" type="button" id="del-no">Keep it</button> <button class="btn danger solid" type="button" id="del-yes">Delete ${esc(vshort(v))}</button></div>`;
@@ -1779,6 +1908,7 @@ function openVehicleForm(v, kind) {
   const yearNow = new Date().getFullYear() + 1;
   wireForm('#v-form', {
     year: x => x && (!/^\d{4}$/.test(x.trim()) || +x < 1885 || +x > yearNow) ? `Enter a 4-digit year between 1885 and ${yearNow}, or leave it blank.` : '',
+    build_year: x => x && (!/^\d{4}$/.test(x.trim()) || +x < 1885 || +x > yearNow) ? `Enter a 4-digit year, or leave it blank.` : '',
     make: x => !x.trim() ? 'Enter the make, like BMW or Ducati.' : '',
     hours: x => x && !/^[\d,]*\.?\d?$/.test(x.trim()) ? 'Engine hours should be a number, like 122.9.' : '',
     odometer: intRule('Odometer'),
@@ -1791,7 +1921,8 @@ function openVehicleForm(v, kind) {
     const row = {
       id, kind: f.kind, year: f.year ? +f.year : null, make: f.make.trim(), model: nz(f.model.trim()), currency: f.currency, meter: f.meter, hours: nMoney(f.hours), trim_level: nz(f.trim_level.trim()), nickname: nz(f.nickname.trim()),
       colour: nz(f.colour.trim()), vin: nz(f.vin.trim().toUpperCase()), engine: nz(f.engine.trim()), power: nz(f.power.trim()),
-      transmission: nz(f.transmission.trim()), drivetrain: nz(f.drivetrain.trim()), plate: nz(f.plate.trim()), location: nz(f.location.trim()),
+      transmission: nz(f.transmission.trim()), drivetrain: nz(f.drivetrain.trim()), plate: nz(f.plate.trim().toUpperCase()), location: nz(f.location.trim()),
+      body: nz(f.body.trim()), series: nz(f.series.trim()), plant: nz(f.plant.trim()), build_year: f.build_year.trim() ? +f.build_year.trim() : null, specs_source: nz(f.specs_source),
       odometer: nInt(f.odometer), odometer_unit: f.odometer_unit, odometer_date: nz(f.odometer_date),
       purchase_date: nz(f.purchase_date), purchase_price: nMoney(f.purchase_price), purchased_from: nz(f.purchased_from.trim()),
       co_owners: nz(f.co_owners.trim()), status: f.status, estimated_value: nMoney(f.estimated_value), value_date: nz(f.value_date) || (f.estimated_value && f.estimated_value != (v.estimated_value ?? '') ? new Date().toISOString().slice(0, 10) : nz(f.value_date)), sold_date: f.status === 'sold' ? nz(f.sold_date) : null,
