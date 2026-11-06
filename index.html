@@ -226,7 +226,7 @@ a.btn{text-decoration:none}
 .fill-note ul{margin:4px 0 8px;padding-left:18px}.fill-note .btn{margin-top:6px}
 .fill-note.likely{border-color:color-mix(in srgb,var(--warn) 55%,var(--line2))}.fill-tag{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--warn)}
 .fill-diff{list-style:none;padding:0!important}.fill-diff li{padding:2px 0}.fill-diff span{color:var(--fg3);display:inline-block;min-width:110px}.fill-diff s{color:var(--fg3)}
-#vin-msg .fill-note{margin:-6px 0 14px}
+#vin-msg .fill-note{margin:-6px 0 14px}#photo-plate .fill-note{margin:-4px 0 14px}
 input.was-filled,select.was-filled{border-color:var(--accent)!important;box-shadow:0 0 0 1px var(--accent)}
 /* provenance timeline on the vehicle page */
 .timeline{list-style:none;margin:0;padding:0 0 0 18px;border-left:1px solid var(--line2)}
@@ -1862,9 +1862,34 @@ function wireFill(form, v) {
       if (form.elements.vin.value) lastVin = form.elements.vin.value.trim().toUpperCase();
       // the car photo can be the vehicle's photo too
       if (kind === 'car' && !isPdf && !v.photo_url && !$('#f-photo').files.length) {
-        try { const dt = new DataTransfer(); dt.items.add(file); $('#f-photo').files = dt.files; $('#f-photo').dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
+        try { const dt = new DataTransfer(); dt.items.add(file); $('#f-photo').files = dt.files; skipPlateScan = true; $('#f-photo').dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
       }
     } catch (e) { failMsg(box, { message: e.message }); }
+  });
+  // a new vehicle photo: look for the number plate and suggest it (and make, model, colour if still empty)
+  let skipPlateScan = false;
+  $('#f-photo').addEventListener('change', async e => {
+    const file = e.target.files[0], box = $('#photo-plate'); box.innerHTML = '';
+    if (skipPlateScan) { skipPlateScan = false; return; } // came from "Photo of the car", which already read the plate
+    if (!file || !/^image\//.test(file.type) || form.elements.plate.value.trim()) return;
+    box.innerHTML = '<p class="hint" style="margin:6px 0 0">Looking for the number plate in the photo…</p>';
+    try {
+      const send = await shrinkImage(file, 2000);
+      const res = await vread({ mode: 'photo', kind: 'plate', data: await fileToB64(send), media_type: send.type || 'image/jpeg' });
+      if (e.target.files[0] !== file) return; // photo changed meanwhile
+      const f = res.ok ? res.fields : null;
+      const extra = f ? ['make', 'model', 'colour'].filter(k => f[k] && !form.elements[k].value.trim()) : [];
+      if (!f || (!f.plate && !extra.length)) { box.innerHTML = res.error === 'limit' ? '' : '<p class="hint" style="margin:6px 0 0">No number plate found in the photo.</p>'; return; }
+      box.innerHTML = `<div class="fill-note"><p>${f.plate ? `Found the plate <b class="mono">${esc(f.plate)}</b> in the photo.` : 'No plate visible, but the photo shows:'}${extra.length ? ` ${f.plate ? 'It also looks like' : ''} <b>${extra.map(k => esc(f[k])).join(' · ')}</b>.` : ''}</p>
+        <button class="btn sm primary" type="button" id="pp-add">${f.plate ? (extra.length ? 'Add the plate and details' : 'Add the plate') : 'Add these details'}</button> <button class="btn sm" type="button" id="pp-no">No thanks</button></div>`;
+      $('#pp-add').onclick = () => {
+        const done = [];
+        if (f.plate && !form.elements.plate.value.trim()) { form.elements.plate.value = f.plate; form.elements.plate.classList.add('was-filled'); done.push('plate'); }
+        extra.forEach(k => { if (!form.elements[k].value.trim()) { form.elements[k].value = f[k]; form.elements[k].classList.add('was-filled'); done.push(FILL_LABELS[k]); } });
+        box.innerHTML = `<p class="hint" style="margin:6px 0 0">Added ${done.join(', ') || 'nothing (already filled)'}. Check before saving.</p>`;
+      };
+      $('#pp-no').onclick = () => { box.innerHTML = ''; };
+    } catch (err) { box.innerHTML = ''; }
   });
   // VIN typed or pasted: look up 17-character VINs, offer the AI for anything else
   const vinEl = form.elements.vin, vbox = $('#vin-msg');
@@ -2325,7 +2350,8 @@ function openVehicleForm(v, kind) {
       </fieldset>
       <fieldset><legend>Photo</legend>
         ${media(v.photo_url) ? `<img class="thumb" src="${esc(media(v.photo_url))}" alt="">` : ''}
-        ${field('photo', v.photo_url ? 'Replace photo' : 'Photo', 'file', '', { accept: 'image/jpeg,image/png,image/webp', help: 'A front three-quarter view works best.' })}
+        ${field('photo', v.photo_url ? 'Replace photo' : 'Photo', 'file', '', { accept: 'image/jpeg,image/png,image/webp', help: 'A front three-quarter view works best. If the plate is visible, it\'s suggested for the Plate field (uses 1 scan).' })}
+        <div id="photo-plate" aria-live="polite"></div>
         <div class="choice" id="photo-choice" role="radiogroup" aria-label="What to do with the photo" hidden>
           <label><input type="radio" name="photo_mode" value="illustrate" checked><span><b>Turn it into an illustration</b><small>Redrawn in a clean vector style, in about a minute. It replaces the photo.</small></span></label>
           <label><input type="radio" name="photo_mode" value="keep"><span><b>Keep my photo as it is</b><small>You can still make an illustration later from the vehicle's page.</small></span></label>
