@@ -228,6 +228,51 @@ a.btn{text-decoration:none}
 .fill-diff{list-style:none;padding:0!important}.fill-diff li{padding:2px 0}.fill-diff span{color:var(--fg3);display:inline-block;min-width:110px}.fill-diff s{color:var(--fg3)}
 #vin-msg .fill-note{margin:-6px 0 14px}
 input.was-filled,select.was-filled{border-color:var(--accent)!important;box-shadow:0 0 0 1px var(--accent)}
+/* provenance timeline on the vehicle page */
+.timeline{list-style:none;margin:0;padding:0 0 0 18px;border-left:1px solid var(--line2)}
+.timeline li{position:relative;margin:0 0 6px}.timeline li::before{content:"";position:absolute;left:-23px;top:16px;width:9px;height:9px;border-radius:50%;background:var(--accent)}
+.tl-b{all:unset;box-sizing:border-box;display:grid;grid-template-columns:120px 1fr;column-gap:14px;width:100%;padding:10px 12px;border-radius:var(--r-sm);cursor:default}
+button.tl-b{cursor:pointer}button.tl-b:hover,button.tl-b:focus-visible{background:var(--s2)}button.tl-b:focus-visible{outline:2px solid var(--fg)}
+.tl-d{font-family:var(--mono);font-size:13px;color:var(--fg2);grid-row:span 3}.tl-k{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--fg3)}.tl-n{color:var(--fg2);font-size:14px;white-space:pre-line}
+@media (max-width:560px){.tl-b{grid-template-columns:1fr}.tl-d{grid-row:auto}}
+/* dossier: a paper document in the app, in the PDF and on the share link */
+.dos-tools{display:grid;gap:14px;margin:0 0 22px;padding:16px 18px;border:1px solid var(--line);border-radius:var(--r);background:var(--s1)}
+.dos-tools.share{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;max-width:900px;margin:0 auto 18px}
+.dos-opts{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center}.dos-opts .check{margin:0}
+.dos-act{display:grid;gap:8px}.dos-act>.btn{justify-self:start}.dos-share{display:flex;gap:8px;flex-wrap:wrap}.dos-share input{flex:1;min-width:220px;font-family:var(--mono);font-size:13px}
+.dos{--p-fg:#111827;--p-fg2:#4b5563;--p-fg3:#6b7280;--p-line:#e5e0d6;--p-gold:#8a6d33;max-width:900px;margin:0 auto;background:#fffdf9;color:var(--p-fg);border-radius:var(--r);padding:44px 48px;box-shadow:0 1px 0 rgba(0,0,0,.2);color-scheme:light}
+.dos h1,.dos h2{color:var(--p-fg)}.dos h1{font-size:34px}.dos h1 span{font-weight:400;color:var(--p-fg2)}
+.dos h2{font-size:17px;padding-bottom:8px;border-bottom:1px solid var(--p-line);margin:34px 0 14px}
+.dos a{color:var(--p-gold)}
+.dos-hero{display:grid;grid-template-columns:220px 1fr;gap:30px;align-items:center}.dos-hero:not(:has(img)){grid-template-columns:1fr}
+.dos-img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:24%;background:#e5e5e5}
+.dos-eye{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--p-gold);margin:0 0 8px;font-weight:600}
+.dos-sub{margin:6px 0 0;color:var(--p-fg2);font-family:var(--serif);font-style:italic}
+.dos-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:22px 0 0}
+.dos-facts dt,.dos-spec dt{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--p-fg3)}.dos-facts dd{margin:2px 0 0;font-size:16px;font-weight:600}.dos-facts small,.dos-spec small{font-weight:400;color:var(--p-fg3)}
+.dos-spec{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 24px;margin:0}.dos-spec dd{margin:2px 0 0}
+.dos-note{color:var(--p-fg3);font-size:13px;margin:10px 0 0}
+.dos-tl{list-style:none;margin:0;padding:0}.dos-tl li{display:grid;grid-template-columns:120px 1fr;column-gap:16px;padding:8px 0;border-bottom:1px solid var(--p-line)}
+.dos-tl-d{font-family:var(--mono);font-size:13px;color:var(--p-fg2);grid-row:span 3}.dos-tl-k{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--p-gold)}.dos-tl-n{color:var(--p-fg2);font-size:14px;white-space:pre-line}
+.dos-tbl{width:100%;min-width:0!important;border-collapse:collapse;font-size:13.5px}.dos-tbl th{background:transparent!important;position:static;text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--p-fg3);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--p-line)}
+.dos-tbl td{padding:9px 8px;border-bottom:1px solid var(--p-line);vertical-align:top}.dos-tbl .n{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}.dos-tbl .nowrap{white-space:nowrap}
+.dos-items{display:block;color:var(--p-fg2);font-size:12.5px;margin-top:2px}.dos-cat{display:block;color:var(--p-fg3);font-size:11.5px;margin-top:2px}
+.dos-pre{white-space:pre-line}
+.dos-foot{display:flex;gap:10px;align-items:center;margin-top:40px;padding-top:14px;border-top:1px solid var(--p-line);color:var(--p-fg3);font-size:12px}.dos-foot img{width:22px;height:22px}
+.dos .empty{border-color:var(--p-line)}.dos .empty h2{border:0}
+body.share-mode .top,body.share-mode .login{display:none!important}body.share-mode main{padding-top:24px}
+@media (max-width:720px){.dos{padding:24px 18px}.dos-hero{grid-template-columns:1fr}.dos-img{max-width:200px}.dos h1{font-size:26px}
+  .dos-spec{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .dos-tbl,.dos-tbl tbody{display:block;width:100%}.dos-tbl thead{display:none}.dos-tbl tr{display:grid;grid-template-columns:minmax(0,1fr) auto;padding:8px 0;border-bottom:1px solid var(--p-line)}.dos-tbl td{border:0;padding:2px 0}.dos-tbl td:nth-child(3){grid-column:1/-1}.dos-tl li{grid-template-columns:1fr}.dos-tl-d{grid-row:auto}}
+@media print{
+  @page{margin:14mm}
+  :root{--bg:#fff}html,body{background:#fff!important}
+  body.dos-route .top,body.dos-route .dos-tools,body.share-mode .dos-tools,.toast,#toast,.panel,.scrim,.banner{display:none!important}
+  body.dos-route main,body.share-mode main{padding:0!important;margin:0!important;max-width:none!important}
+  .dos{box-shadow:none;border-radius:0;padding:0;max-width:none;background:#fff}
+  .dos-tbl tr,.dos-tl li,.dos-spec div,.dos-hero{break-inside:avoid}.dos h2{break-after:avoid}
+  .dos a{color:var(--p-fg);text-decoration:none}
+}
 .chip.light{background:color-mix(in srgb,var(--bg) 80%,transparent);color:var(--fg);border-color:rgba(255,255,255,.12)}
 
 /* empty */
@@ -1411,6 +1456,13 @@ const HELP = [
     ['How is market value worked out?', 'From what you add on each vehicle\'s page under Market value: link its FIPE model (the official Brazilian price table, refreshed monthly), add comparable sales or listings, or enter an estimated value yourself.'],
     ['How are reais and dollars handled?', 'Each vehicle keeps its own currency and amounts are never mixed. Where the app shows a total across currencies, it converts at the day\'s exchange rate and says so.'],
     ['Can dates be month first?', 'Yes. Dates are day first (25/12/2024) unless you choose month first (12/25/2024) in Account → Preferences. It\'s your own setting: it applies everywhere you sign in, and doesn\'t change anyone else\'s view. In date fields, type the digits and the slashes are added for you, for example 25122024 becomes 25/12/2024 when dates are day first.']]],
+  ['Details, reminders and the dossier', [
+    ['How do I fill in a car\'s details quickly?', 'In Add car or Edit details, use Fill in for me: scan the registration document (a Brazilian CRLV, or a US title or registration card), a photo of the VIN plate or windscreen sticker, the number plate, or the car itself. Empty fields are filled for you to check; anything you typed is kept, and differences are listed so you can choose. Owner details on documents are never read or stored. Each scan uses one from the month\'s allowance.'],
+    ['What does the VIN decoder do?', 'Type or paste a 17-character VIN (cars from 1981 on) and it\'s looked up in the US government\'s NHTSA database for free: year, make, model, body, engine, transmission, drivetrain and where it was built. For classics and older or non-US chassis numbers, press Decode with AI; the result is marked Likely, check it, with how the number was read.'],
+    ['How do reminders work?', 'Add a reminder on a vehicle\'s page, the Service page or the Dashboard: service by date and/or by odometer (e.g. every 12 months or 10,000 km), annual tax (IPVA), licensing, insurance, inspection, or anything else. Distance reminders follow the vehicle\'s latest odometer reading. Press Done and a repeating reminder moves to its next date and distance.'],
+    ['Can I get a notification on my phone?', 'Yes. Press Turn on phone alerts (next to Reminders, or Account → Preferences) and allow notifications. You\'ll get one two weeks before a reminder\'s date, on the day, and weekly while it\'s overdue. On iPhone, add AUTODEX to the home screen first and turn alerts on from there.'],
+    ['What is the dossier?', 'A clean document for each vehicle: specs, history and provenance, the full service history and mileage. Open it from the vehicle\'s page (Dossier and share), tick what to include (amounts, purchase price and value, receipts, VIN, plate, notes) and press Download PDF. Add previous owners, restorations, events and awards under History and provenance to tell its story.'],
+    ['How does the share link work?', 'On the dossier, press Create a share link and send it to a buyer or insurer. It opens the dossier read-only, without signing in, showing only what you ticked; where the car is kept and anything else in your garage are never shown. You can see how often it was opened, and Stop sharing turns the link off at once.']]],
   ['Sharing and your account', [
     ['How do I invite someone?', 'Account → People. Enter their email and choose Editor (can add and change vehicles and records) or Viewer (can only look). They join when they sign up or sign in with that email.'],
     ['What can each role do?', 'Owner: manages the garage, its look and its people. Editor: adds and changes vehicles and records. Viewer: can look, can\'t change anything.'],
@@ -1638,13 +1690,14 @@ function viewVehicle(id) {
           <div><dt>Owned</dt><dd>${owned != null ? (owned >= 365 ? (owned / 365).toFixed(1) + ' <small>yrs</small>' : owned + ' <small>days</small>') : '—'}</dd></div>
           <div><dt>Records</dt><dd>${recs.length}</dd></div>
         </dl>
-        <div class="actions">${S.editor ? `<button class="btn primary" type="button" data-scan="${v.id}">Scan invoices</button><button class="btn" type="button" data-add-r="${v.id}">${ICON.plus}Add service</button><button class="btn" type="button" data-log="${v.id}">${ICON.plus}Log reading</button><button class="btn" type="button" data-edit-v="${v.id}">Edit details</button><button class="btn" type="button" data-import-v="${v.id}">Import spreadsheet</button>${v.photo_url && !isIllus(v) ? `<button class="btn" type="button" data-illus="${v.id}"${ILLUS.has(v.id) ? ' disabled' : ''}>${ILLUS.has(v.id) ? 'Drawing…' : 'Make illustration'}</button>` : ''}` : (S.user ? '' : lockNote())}</div>
+        <div class="actions">${S.user && !S.editor ? `<a class="btn" href="#/dossier/${v.id}">Dossier</a>` : ''}${S.editor ? `<button class="btn primary" type="button" data-scan="${v.id}">Scan invoices</button><button class="btn" type="button" data-add-r="${v.id}">${ICON.plus}Add service</button><button class="btn" type="button" data-log="${v.id}">${ICON.plus}Log reading</button><a class="btn" href="#/dossier/${v.id}">Dossier and share</a><button class="btn" type="button" data-edit-v="${v.id}">Edit details</button><button class="btn" type="button" data-import-v="${v.id}">Import spreadsheet</button>${v.photo_url && !isIllus(v) ? `<button class="btn" type="button" data-illus="${v.id}"${ILLUS.has(v.id) ? ' disabled' : ''}>${ILLUS.has(v.id) ? 'Drawing…' : 'Make illustration'}</button>` : ''}` : (S.user ? '' : lockNote())}</div>
       </div>
     </div>
     ${vehicleCharts(v)}
     ${S.user ? marketSection(v) : ''}
     <div class="section"><h2>Specifications</h2>${dl(spec)}${v.specs_source ? `<p class="hint" style="margin:10px 0 0">Some details from ${esc(v.specs_source === 'NHTSA' ? 'the NHTSA VIN database' : v.specs_source)}.</p>` : ''}</div>
     <div class="section"><h2>Ownership</h2>${dl(own)}</div>
+    ${historySection(v)}
     ${S.user ? remindersSection(v.id) : ''}
     ${v.notes ? `<div class="section"><h2>Notes</h2><p class="notes">${esc(v.notes)}</p></div>` : ''}
     <div class="section">
@@ -2017,6 +2070,170 @@ function maybeAskPush() {
   $('#pa-no').onclick = closePanel;
   if ($('#pa-ios')) $('#pa-ios').onclick = () => closePanel();
   if ($('#pa-yes')) $('#pa-yes').onclick = async e => { await pushOnClick(e.currentTarget); closePanel(); };
+}
+
+/* ---------- provenance: owners, restorations, events, awards ---------- */
+const HIST_KINDS = { owner: 'Owner', restoration: 'Restoration', event: 'Event or rally', award: 'Award', document: 'Document or certificate', other: 'Other' };
+const histFor = id => (S.history || []).filter(h => h.vehicle_id === id).sort((a, b) => (a.date || a.date_text || '').localeCompare(b.date || b.date_text || ''));
+const histWhen = h => h.date ? fdate(h.date) : h.date_text || 'Undated';
+function historySection(v) {
+  const list = histFor(v.id);
+  return `<div class="section">
+    <div class="section-head"><h2>History and provenance</h2>${S.editor ? `<button class="btn sm" type="button" data-hist-add="${v.id}">${ICON.plus}Add to the story</button>` : ''}</div>
+    ${list.length ? `<ol class="timeline">${list.map(h => `<li>${S.editor ? `<button type="button" class="tl-b" data-hist="${h.id}">` : '<div class="tl-b">'}<span class="tl-d">${esc(histWhen(h))}</span><span class="tl-k">${HIST_KINDS[h.kind] || ''}</span><b>${esc(h.title)}</b>${h.notes ? `<span class="tl-n">${esc(h.notes)}</span>` : ''}${S.editor ? '</button>' : '</div>'}</li>`).join('')}</ol>`
+      : `<p class="none">${S.editor ? 'Previous owners, restorations, rallies, concours awards, certificates. The story that makes this car what it is, and it goes in the dossier.' : 'Nothing recorded yet.'}</p>`}
+  </div>`;
+}
+function openHistForm(h, vehicleId) {
+  const isNew = !h; h = h || { vehicle_id: vehicleId, kind: 'owner' };
+  openPanel(isNew ? 'Add to the story' : 'Edit entry', `
+    <form id="h-form" novalidate>
+      <p class="hint" style="margin:0 0 18px">${esc(vname(vById(h.vehicle_id)))}</p>
+      ${field('kind', 'Type', 'select', h.kind, { required: true, options: Object.entries(HIST_KINDS) })}
+      ${field('title', 'What happened', 'text', h.title, { required: true, ph: 'Second owner, Dr. … in São Paulo / Full restoration / 1st in class, Concours…' })}
+      <div class="two">${field('date', 'Date', 'date', h.date)}${field('date_text', 'Or roughly when', 'text', h.date_text, { ph: '1985–1992, c. 2001' })}</div>
+      ${field('notes', 'Details', 'textarea', h.notes)}
+      ${!isNew ? `<fieldset style="margin-top:8px"><legend>Delete</legend><div id="del-box"><button class="btn danger" type="button" id="del-h">Delete this entry…</button></div></fieldset>` : ''}
+    </form>`,
+    `<button class="btn" type="button" id="cancel">Cancel</button><button class="btn primary" type="button" data-submit>${isNew ? 'Add' : 'Save changes'}</button>`);
+  $('#cancel').onclick = closePanel;
+  if (!isNew) $('#del-h').onclick = () => {
+    $('#del-box').innerHTML = `<div class="confirm"><p>Delete <b>${esc(h.title)}</b>? This can't be undone.</p><button class="btn" type="button" id="del-no">Keep it</button> <button class="btn danger solid" type="button" id="del-yes">Delete entry</button></div>`;
+    $('#del-no').onclick = () => openHistForm(h);
+    $('#del-yes').onclick = async () => { const { error } = await db.from('vehicle_history').delete().eq('id', h.id); if (error) return toast('Couldn\'t delete: ' + error.message, true); S.history = S.history.filter(x => x.id !== h.id); closePanel(); toast('Deleted'); render(); };
+  };
+  wireForm('#h-form', { title: x => !x.trim() ? 'Describe it in a few words.' : '' }, async f => {
+    const row = { vehicle_id: h.vehicle_id, kind: f.kind, title: f.title.trim(), date: nz(f.date), date_text: f.date ? null : nz(f.date_text.trim()), notes: nz(f.notes.trim()) };
+    const res = isNew ? await db.from('vehicle_history').insert(row).select().single() : await db.from('vehicle_history').update(row).eq('id', h.id).select().single();
+    if (res.error) throw new Error('Couldn\'t save: ' + res.error.message);
+    S.history = isNew ? [...S.history, res.data] : S.history.map(x => x.id === h.id ? res.data : x);
+    closePanel(); toast(isNew ? 'Added to the story' : 'Saved'); render();
+  });
+}
+
+/* ---------- dossier: one page per vehicle, printable to PDF, shareable read-only ---------- */
+// What the owner can leave out. Specs and service history are always in.
+const DOS_OPTS = [['vin', 'VIN or chassis number', true], ['amounts', 'Amounts spent', false], ['price', 'Purchase price, value and who it was bought from', false], ['receipts', 'Links to the receipts', false], ['plate', 'Licence plate', false], ['notes', 'Vehicle notes', false]];
+function dosOpts(vid) {
+  let o = {}; try { o = JSON.parse(localStorage.getItem('mg-dos-' + vid) || '{}'); } catch (e) {}
+  return Object.fromEntries(DOS_OPTS.map(([k, , d]) => [k, o[k] ?? d]));
+}
+// d = { v, recs, reads, hist, photo, invoiceOf(rec) }; o = options; used in the app, in the PDF and on the share link
+function dossierHtml(d, o) {
+  const v = d.v, unit = v.odometer_unit || 'km', cur = v.currency || 'USD';
+  const recs = d.recs.slice().sort((a, b) => (!a.date) - (!b.date) || (b.date || '').localeCompare(a.date || ''));
+  const specs = [['Make', v.make], ['Model', v.model], ['Version', v.trim_level], ['Series', v.series], ['Model year', v.year], ['Built', [v.plant, v.build_year && v.build_year !== v.year ? v.build_year : null].filter(Boolean).join(', ')],
+    ['Colour', v.colour], ['Body', v.body], ['Engine', v.engine], ['Power', v.power], ['Transmission', v.transmission], ['Drivetrain', v.drivetrain],
+    ...(o.vin ? [['VIN / chassis', v.vin, 1]] : []), ...(o.plate ? [['Plate', v.plate, 1]] : [])].filter(x => x[1] != null && x[1] !== '');
+  const reads = (d.reads || []).filter(r => r.odometer != null).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const odoNow = v.odometer != null ? `${num(v.odometer)} ${unit}${v.odometer_date ? ` · ${fdate(v.odometer_date)}` : ''}` : reads.length ? `${num(reads[reads.length - 1].odometer)} ${reads[reads.length - 1].unit}` : '—';
+  // timeline: purchase, the owner's story, restorations from the service history, sale
+  const tl = [
+    ...(v.purchase_date ? [{ d: v.purchase_date, k: 'Acquired', t: o.price && v.purchased_from ? `Bought from ${v.purchased_from}` : 'Joined this collection' }] : []),
+    ...(d.hist || []).map(h => ({ d: h.date || '', txt: h.date_text, k: HIST_KINDS[h.kind] || 'Note', t: h.title, n: h.notes })),
+    ...recs.filter(r => r.category === 'restoration' && r.date).map(r => ({ d: r.date, k: 'Restoration', t: r.title, n: r.shop })),
+    ...(v.status === 'sold' && v.sold_date ? [{ d: v.sold_date, k: 'Sold', t: 'Left this collection' }] : [])
+  ].sort((a, b) => (a.d || a.txt || '').localeCompare(b.d || b.txt || ''));
+  const totals = {}; recs.forEach(r => { if (+r.amount) totals[r.currency || cur] = (totals[r.currency || cur] || 0) + +r.amount; });
+  const byCat = {}; recs.forEach(r => { if (+r.amount && (r.currency || cur) === cur) byCat[r.category] = (byCat[r.category] || 0) + +r.amount; });
+  const withInv = recs.filter(r => d.invoiceOf(r)).length, docCount = recs.filter(r => r.has_invoice ?? !!r.invoice_url).length;
+  const money0 = (n, c) => money(n, 0, c);
+  return `<article class="dos">
+    <header class="dos-hero">
+      ${d.photo ? `<img class="dos-img" src="${esc(d.photo)}" alt="">` : ''}
+      <div>
+        <p class="dos-eye">Vehicle dossier${v.year ? ' · ' + esc(v.year) : ''}</p>
+        <h1>${esc([v.make, v.model].filter(Boolean).join(' '))}${v.trim_level ? ` <span>${esc(v.trim_level)}</span>` : ''}</h1>
+        ${v.nickname ? `<p class="dos-sub">“${esc(v.nickname)}”</p>` : ''}
+        <dl class="dos-facts">
+          <div><dt>Odometer</dt><dd>${esc(odoNow)}</dd></div>
+          <div><dt>Service records</dt><dd>${recs.length}${docCount ? ` <small>· ${docCount} with receipts</small>` : ''}</dd></div>
+          ${v.purchase_date ? `<div><dt>In this collection since</dt><dd>${fdate(v.purchase_date)}</dd></div>` : ''}
+          ${o.amounts && Object.keys(totals).length ? `<div><dt>Spent on it</dt><dd>${Object.entries(totals).map(([c, n]) => money0(n, c)).join(' + ')}</dd></div>` : ''}
+        </dl>
+      </div>
+    </header>
+    ${specs.length ? `<section><h2>Specifications</h2><dl class="dos-spec">${specs.map(([k, val, m]) => `<div><dt>${esc(k)}</dt><dd${m ? ' class="mono"' : ''}>${esc(val)}</dd></div>`).join('')}</dl>${v.specs_source ? `<p class="dos-note">Some specifications from ${esc(v.specs_source === 'NHTSA' ? 'the NHTSA VIN database' : v.specs_source)}.</p>` : ''}</section>` : ''}
+    ${tl.length ? `<section><h2>History and provenance</h2><ol class="dos-tl">${tl.map(x => `<li><span class="dos-tl-d">${esc(x.d ? fdate(x.d) : x.txt || '')}</span><span class="dos-tl-k">${esc(x.k)}</span><b>${esc(x.t)}</b>${x.n ? `<span class="dos-tl-n">${esc(x.n)}</span>` : ''}</li>`).join('')}</ol></section>` : ''}
+    <section><h2>Service history</h2>
+      ${recs.length ? `<table class="dos-tbl"><thead><tr><th>Date</th><th class="n">${v.meter === 'hours' ? 'Hours' : 'Odometer'}</th><th>Work</th><th>By</th>${o.amounts ? '<th class="n">Amount</th>' : ''}${o.receipts ? '<th>Receipt</th>' : ''}</tr></thead>
+        <tbody>${recs.map(r => { const inv = d.invoiceOf(r); return `<tr><td class="nowrap">${r.date ? fdate(r.date) : 'Undated'}</td><td class="n nowrap">${r.mileage != null ? (r.mileage_approx ? '≈' : '') + num(r.mileage) + ' ' + unit : r.hours != null ? (+r.hours).toLocaleString('en-US') + ' h' : ''}</td>
+          <td><b>${esc(r.title)}</b>${r.items ? `<span class="dos-items">${esc(String(r.items).split('\n').filter(Boolean).slice(0, 8).join(' · '))}</span>` : ''}<span class="dos-cat">${CATEGORIES[r.category] || ''}</span></td>
+          <td>${esc(r.shop || '')}</td>${o.amounts ? `<td class="n nowrap">${r.amount != null ? money(r.amount, 1, r.currency) : ''}</td>` : ''}${o.receipts ? `<td>${inv ? `<a href="${esc(inv)}" target="_blank" rel="noopener">View</a>` : ''}</td>` : ''}</tr>`; }).join('')}</tbody></table>`
+      : '<p class="dos-note">No service records yet.</p>'}
+    </section>
+    ${(o.amounts && Object.keys(byCat).length) || (o.price && (v.purchase_price != null || v.estimated_value != null)) ? `<section><h2>Money</h2><dl class="dos-spec">
+      ${o.price && v.purchase_price != null ? `<div><dt>Purchase price</dt><dd>${money0(v.purchase_price, cur)}</dd></div>` : ''}
+      ${o.amounts ? Object.entries(byCat).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<div><dt>${CATEGORIES[k] || k}</dt><dd>${money0(n, cur)}</dd></div>`).join('') : ''}
+      ${o.amounts && Object.keys(totals).length ? `<div><dt>Service and parts, total</dt><dd><b>${Object.entries(totals).map(([c, n]) => money0(n, c)).join(' + ')}</b></dd></div>` : ''}
+      ${o.price && o.amounts && v.purchase_price != null ? `<div><dt>Total invested</dt><dd><b>${money0(+v.purchase_price + (totals[cur] || 0), cur)}</b>${Object.keys(totals).some(c => c !== cur) ? ' <small>plus other currencies</small>' : ''}</dd></div>` : ''}
+      ${o.price && v.estimated_value != null ? `<div><dt>Estimated value</dt><dd>${money0(v.estimated_value, cur)}${v.value_date ? ` <small>· ${fdate(v.value_date)}</small>` : ''}</dd></div>` : ''}
+    </dl></section>` : ''}
+    ${reads.length > 1 ? `<section><h2>Mileage</h2><p>${reads.length} odometer readings logged, from ${num(reads[0].odometer)} ${reads[0].unit}${reads[0].date ? ` (${fdate(reads[0].date)})` : ''} to ${num(reads[reads.length - 1].odometer)} ${reads[reads.length - 1].unit}${reads[reads.length - 1].date ? ` (${fdate(reads[reads.length - 1].date)})` : ''}.</p></section>` : ''}
+    ${o.notes && v.notes ? `<section><h2>Notes</h2><p class="dos-pre">${esc(v.notes)}</p></section>` : ''}
+    <footer class="dos-foot"><img src="/icons/mark-navy.svg?v=2" alt=""><span>Prepared with AUTODEX on ${fdate(today())}. Records are entered by the owner${withInv ? `; ${withInv} receipt${withInv === 1 ? '' : 's'} linked` : docCount ? `; ${docCount} have receipts on file with the owner` : ''}.</span></footer>
+  </article>`;
+}
+function viewDossier(id) {
+  const v = vById(id);
+  if (!v) return `<a class="back" href="#/cars">${ICON.back}Back</a><div class="empty"><h2>This vehicle isn't here</h2></div>`;
+  const o = dosOpts(id), share = (S.shares || []).find(x => x.vehicle_id === id);
+  const link = share ? `${location.origin}/#/share/${share.token}` : '';
+  const tools = `<div class="dos-tools">
+    <a class="back" href="#/vehicle/${id}" style="margin:0">${ICON.back}${esc(vshort(v))}</a>
+    <div class="dos-opts" role="group" aria-label="Include in the dossier"><span class="hint">Include:</span>${DOS_OPTS.map(([k, l]) => `<label class="check"><input type="checkbox" data-dos-opt="${k}"${o[k] ? ' checked' : ''}> ${l}</label>`).join('')}<span class="hint">Specs, history and service records are always in.</span></div>
+    <div class="dos-act">
+      <button class="btn primary" type="button" id="dos-pdf">Download PDF</button>
+      ${S.editor ? (share ? `<div class="dos-share"><input type="text" readonly value="${esc(link)}" id="dos-link" aria-label="Share link"><button class="btn" type="button" id="dos-copy">Copy link</button><button class="btn" type="button" id="dos-stop">Stop sharing</button></div>
+        <p class="hint" style="margin:6px 0 0">Anyone with the link sees this page, read-only, with what's ticked above.${share.views ? ` Opened ${share.views} time${share.views === 1 ? '' : 's'}${share.last_viewed ? ', last ' + fdate(share.last_viewed.slice(0, 10)) : ''}.` : ' Not opened yet.'}</p>`
+        : `<button class="btn" type="button" id="dos-make">Create a share link</button><p class="hint" style="margin:6px 0 0">A private link to send to a buyer or insurer. It shows this page read-only, with what's ticked above, and you can turn it off any time.</p>`) : ''}
+    </div>
+  </div>`;
+  const doc = dossierHtml({ v, recs: recsFor(id), reads: readsFor(id), hist: histFor(id), photo: media(v.photo_url), invoiceOf: r => o.receipts ? media(r.invoice_url) : '' }, o);
+  return tools + doc;
+}
+function wireDossier(id) {
+  if (!$('#dos-pdf')) return;
+  $('#dos-pdf').onclick = () => { const t = document.title; document.title = `${vname(vById(id))} · dossier`; window.print(); setTimeout(() => document.title = t, 500); };
+  document.querySelectorAll('[data-dos-opt]').forEach(c => c.onchange = async () => {
+    const o = dosOpts(id); o[c.dataset.dosOpt] = c.checked;
+    try { localStorage.setItem('mg-dos-' + id, JSON.stringify(o)); } catch (e) {}
+    const share = (S.shares || []).find(x => x.vehicle_id === id);
+    if (share) { const r = await db.from('vehicle_shares').update({ opts: o }).eq('token', share.token).select().single(); if (!r.error) S.shares = S.shares.map(x => x.token === share.token ? r.data : x); }
+    const y = scrollY; render(); scrollTo(0, y);
+  });
+  if ($('#dos-make')) $('#dos-make').onclick = async e => {
+    e.currentTarget.disabled = true;
+    const r = await db.from('vehicle_shares').insert({ vehicle_id: id, opts: dosOpts(id), created_by: S.user.id }).select().single();
+    if (r.error) { toast('Couldn\'t create the link: ' + r.error.message, true); e.currentTarget.disabled = false; return; }
+    S.shares = [...(S.shares || []), r.data]; render();
+    const link = `${location.origin}/#/share/${r.data.token}`;
+    try { await navigator.clipboard.writeText(link); toast('Share link created and copied'); } catch (x) { toast('Share link created'); }
+  };
+  if ($('#dos-copy')) $('#dos-copy').onclick = async () => { const el = $('#dos-link'); try { await navigator.clipboard.writeText(el.value); toast('Link copied'); } catch (e) { el.select(); document.execCommand('copy'); toast('Link copied'); } };
+  if ($('#dos-stop')) $('#dos-stop').onclick = () => {
+    const share = S.shares.find(x => x.vehicle_id === id);
+    openPanel('Stop sharing this dossier?', `<p>The link stops working straight away for everyone who has it. You can create a new link later; it will be a different address.</p>`,
+      `<span class="sp"></span><button class="btn" type="button" id="st-no">Keep sharing</button><button class="btn danger solid" type="button" id="st-yes">Stop sharing</button>`);
+    $('#st-no').onclick = closePanel;
+    $('#st-yes').onclick = async () => { const r = await db.from('vehicle_shares').delete().eq('token', share.token); if (r.error) return toast('Couldn\'t stop sharing: ' + r.error.message, true); S.shares = S.shares.filter(x => x.token !== share.token); closePanel(); toast('Link turned off'); render(); };
+  };
+}
+// The public page: #/share/<token>, no sign-in
+async function showShare(token) {
+  document.body.classList.add('share-mode'); document.body.classList.remove('locked');
+  document.title = 'Vehicle dossier · AUTODEX';
+  const V = $('#view');
+  V.innerHTML = '<div class="dos" style="min-height:60vh"><div class="skel" style="height:220px;margin-bottom:24px"></div><div class="skel" style="height:140px"></div></div>';
+  let res;
+  try { const { data, error } = await db.functions.invoke('dossier', { body: { token } }); res = data; if (error) { try { res = await error.context.json(); } catch (e) { res = null; } } } catch (e) { res = null; }
+  if (!res?.ok) { V.innerHTML = `<div class="dos"><div class="empty"><h2>This dossier isn't available</h2><p>${esc(res?.message || 'It couldn\'t be loaded. Check your connection and try again.')}</p></div><footer class="dos-foot"><img src="/icons/mark-navy.svg?v=2" alt=""><span>AUTODEX</span></footer></div>`; return; }
+  const o = { vin: res.opts.vin !== false, amounts: !!res.opts.amounts, price: !!res.opts.price, receipts: !!res.opts.receipts, plate: !!res.opts.plate, notes: !!res.opts.notes };
+  const v = res.vehicle;
+  document.title = `${[v.year, v.make, v.model].filter(Boolean).join(' ')} · dossier`;
+  V.innerHTML = `<div class="dos-tools share"><span class="hint">Shared by the owner, read-only.</span><button class="btn primary" type="button" id="dos-pdf">Download PDF</button></div>` +
+    dossierHtml({ v, recs: res.records, reads: res.readings, hist: res.history, photo: v.photo, invoiceOf: r => r.invoice || '' }, o);
+  $('#dos-pdf').onclick = () => window.print();
 }
 
 /* ---------- vehicle form ---------- */
@@ -3410,7 +3627,8 @@ function current() { const h = location.hash.replace(/^#\/?/, '') || 'dashboard'
 function render() {
   const { a, b } = current();
   if (a !== 'plans') S.billing = undefined; // re-read plan and usage whenever Plans opens
-  const tab = a === 'costs' ? 'portfolio' : a === 'vehicle' ? (vById(b)?.kind === 'bike' ? 'bikes' : 'cars') : a;
+  const tab = a === 'costs' ? 'portfolio' : a === 'vehicle' || a === 'dossier' ? (vById(b)?.kind === 'bike' ? 'bikes' : 'cars') : a;
+  document.body.classList.toggle('dos-route', a === 'dossier');
   document.querySelectorAll('.tab').forEach(t => t.toggleAttribute('aria-current', false) || (t.dataset.r === tab && t.setAttribute('aria-current', 'page')));
   $('#n-cars').textContent = S.vehicles.filter(v => v.kind === 'car').length || '';
   $('#n-bikes').textContent = S.vehicles.filter(v => v.kind === 'bike').length || '';
@@ -3423,13 +3641,15 @@ function render() {
   else if (a === 'ledger') html = viewLedger();
   else if (a === 'costs' || a === 'portfolio') html = viewPortfolio();
   else if (a === 'vehicle') html = viewVehicle(b);
+  else if (a === 'dossier' && S.user) html = viewDossier(b);
   else if (a === 'help') html = viewHelp();
   else if (a === 'plans' && S.user) html = viewPlans();
   else html = viewList('car');
   const titles = { help: 'Help', plans: 'Plans', dashboard: 'Dashboard', cars: 'Cars', bikes: 'Bikes', ledger: 'Service', costs: 'Portfolio', portfolio: 'Portfolio' };
-  document.title = (a === 'vehicle' ? vname(vById(b)) : titles[a] || 'Dashboard') + ' · ' + (S.garage?.name || 'AUTODEX');
+  document.title = (a === 'vehicle' ? vname(vById(b)) : a === 'dossier' ? vname(vById(b)) + ' · dossier' : titles[a] || 'Dashboard') + ' · ' + (S.garage?.name || 'AUTODEX');
   $('#view').innerHTML = banner + html;
   wireView();
+  if (a === 'dossier') wireDossier(b);
 }
 function wireView() {
   const V = $('#view');
@@ -3457,6 +3677,8 @@ function wireView() {
   V.querySelectorAll('[data-read]').forEach(b => b.onclick = () => { const r = S.readings.find(x => x.id === b.dataset.read); openReadingForm(vById(r.vehicle_id), r); });
   V.querySelectorAll('.lc').forEach(wireLine);
   V.querySelectorAll('[data-scan]').forEach(b => b.onclick = () => openScan(b.dataset.scan || null));
+  V.querySelectorAll('[data-hist-add]').forEach(b => b.onclick = () => openHistForm(null, b.dataset.histAdd));
+  V.querySelectorAll('[data-hist]').forEach(b => b.onclick = () => openHistForm(S.history.find(x => x.id === b.dataset.hist)));
   V.querySelectorAll('[data-rem-add]').forEach(b => b.onclick = () => openReminderForm(null, b.dataset.remAdd || null));
   V.querySelectorAll('[data-rem]').forEach(b => b.onclick = () => openReminderForm(S.reminders.find(x => x.id === b.dataset.rem)));
   V.querySelectorAll('[data-rem-done]').forEach(b => b.onclick = () => { b.disabled = true; remDone(b.dataset.remDone); });
@@ -3476,6 +3698,7 @@ function wireView() {
 }
 let lastRoute = '';
 window.addEventListener('hashchange', () => {
+  if (document.body.classList.contains('share-mode')) { const m = /^#\/share\/([0-9a-f]{36})$/.exec(location.hash); if (m) showShare(m[1]); return; }
   if (location.hash === '#/install') { history.replaceState(null, '', S.user ? '#/dashboard' : location.pathname); render(); openInstall(false); return; }
   if ($('#panel').classList.contains('on')) closePanel();
   render();
@@ -3494,7 +3717,10 @@ if (!db) showLogin('The app couldn\'t start. Check your connection and reload th
 // Never call Supabase from inside onAuthStateChange: the library holds its auth lock while the
 // callback runs, so a getSession() or query there waits on itself forever and every request stalls.
 // Deferring with setTimeout lets the lock release first. (INITIAL_SESSION fires on subscribe.)
-if (db) db.auth.onAuthStateChange((event, session) => { setTimeout(() => refreshAuth(session), 0); });
+// A shared dossier (#/share/<token>) opens on its own, without signing in
+const SHARE_LINK = /^#\/share\/([0-9a-f]{36})$/.exec(location.hash);
+if (db && SHARE_LINK) showShare(SHARE_LINK[1]);
+else if (db) db.auth.onAuthStateChange((event, session) => { setTimeout(() => refreshAuth(session), 0); });
 </script>
 </body>
 </html>
