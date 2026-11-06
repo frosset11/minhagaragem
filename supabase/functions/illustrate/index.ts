@@ -1,5 +1,5 @@
 // Redraws a vehicle's photo as a clean vector-style illustration (OpenAI image edit).
-// Returns the image as base64; the app resizes it to 1000x1000, stores it and makes it the vehicle's photo.
+// Returns the image as base64; the app resizes it to 1000x1000, stores it and makes it the vehicle's icon.
 import { cors, gate, json } from '../_shared/ai.ts';
 
 const MODEL = 'gpt-image-2.5-sunburst'; // OpenAI's image model for edits where precision matters most
@@ -68,15 +68,19 @@ const mediaPath = (u: string) => { const m = /\/object\/(?:public|sign|authentic
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   try {
-    const body = await req.json().catch(() => ({})) as { garage_id?: string; vehicle_id?: string };
+    const body = await req.json().catch(() => ({})) as { garage_id?: string; vehicle_id?: string; source?: string };
     const g = await gate(req, body.garage_id, 'illustrate', false);
     if ('fail' in g) return g.fail;
     const key = openaiKey();
     if (!key) return json({ error: 'missing_key', message: 'Illustrations aren\'t set up yet. Try again later.' }, 503);
 
-    const { data: v } = await g.sb.from('vehicles').select('id, photo_url, garage_id').eq('id', body.vehicle_id ?? '').eq('garage_id', body.garage_id).maybeSingle();
+    const { data: v } = await g.sb.from('vehicles').select('id, photo_url, photos, garage_id').eq('id', body.vehicle_id ?? '').eq('garage_id', body.garage_id).maybeSingle();
     if (!v) return json({ error: 'no_vehicle', message: 'That vehicle wasn\'t found in this garage.' }, 404);
-    const path = mediaPath(v.photo_url || '');
+    // draw from the photo asked for, if it's one of this vehicle's photos; else the icon photo, else the first photo
+    const own = [...(v.photos || []), v.photo_url].map(u => mediaPath(u || '')).filter((p): p is string => !!p && !p.includes('/illus/'));
+    const want = mediaPath(body.source || '');
+    const cover = mediaPath(v.photo_url || '');
+    const path = want && own.includes(want) ? want : cover && own.includes(cover) ? cover : own[0] || null;
     if (!path) return json({ error: 'no_photo', message: 'Add a photo of the vehicle first.' }, 400);
     const { data: file, error: dlErr } = await g.sb.storage.from('media').download(path);
     if (dlErr || !file) return json({ error: 'no_photo', message: 'The photo couldn\'t be read. Upload it again and retry.' }, 400);

@@ -641,6 +641,30 @@ input.fp-in:focus-visible+.filepick{outline:2px solid var(--fg);outline-offset:2
 .arrange-done{position:fixed;right:16px;bottom:calc(24px + env(safe-area-inset-bottom));z-index:65;box-shadow:0 8px 24px rgba(0,0,0,.35)}
 @media (max-width:720px){.arrange-done{bottom:calc(76px + env(safe-area-inset-bottom))}}
 @media (prefers-reduced-motion:reduce){.arranging [data-vid]{animation:none;outline:1px dashed var(--line2);outline-offset:4px;border-radius:var(--r)}}
+/* vehicle photos */
+.pgal{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
+.pg-t{position:relative;aspect-ratio:1;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:var(--s2)}
+.pg-t.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.pg-pick{all:unset;display:block;width:100%;height:100%;cursor:pointer}
+.pg-pick:focus-visible{outline:2px solid var(--fg);outline-offset:-4px}
+.pg-pick img{width:100%;height:100%;object-fit:cover;display:block}
+.pg-b:not(:empty){position:absolute;left:6px;bottom:6px;padding:2px 8px;border-radius:999px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;font-weight:600}
+.pg-t.on .pg-b{background:var(--accent);color:var(--on-accent)}
+.pg-x{all:unset;position:absolute;top:4px;right:4px;width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;display:grid;place-items:center;cursor:pointer}
+.pg-x svg{width:14px;height:14px}
+@media (pointer:coarse){.pg-x{width:32px;height:32px}}
+.pg-add{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-style:dashed;border-color:var(--line2);background:var(--bg);cursor:pointer;color:var(--fg2);text-align:center}
+.pg-add svg{width:20px;height:20px}.pg-add b{font-size:13px;font-weight:500;color:var(--fg)}.pg-add small{font-size:11.5px;color:var(--fg3)}
+input.fp-in:focus-visible~.pgal .pg-add,.pgal:has(+input.fp-in:focus-visible) .pg-add{outline:2px solid var(--fg);outline-offset:2px}
+.chk{display:flex;gap:10px;align-items:flex-start;margin-top:12px;cursor:pointer}.chk input{margin-top:3px;width:18px;height:18px;accent-color:var(--accent)}.chk span{display:flex;flex-direction:column}.chk b{font-weight:500;font-size:14.5px}.chk small{color:var(--fg3);font-size:12.5px;line-height:1.45}
+.vgal{display:flex;gap:8px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:none}.vgal::-webkit-scrollbar{display:none}
+.vg{all:unset;flex:0 0 auto;width:64px;height:64px;border-radius:12px;overflow:hidden;border:1px solid var(--line);cursor:pointer;background:var(--s2)}
+.vg.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.vg:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+.vg img{width:100%;height:100%;object-fit:cover;display:block}
+.pic-big{width:100%;border-radius:var(--r-sm);display:block;background:var(--s2)}
+.pic-big.illus{background:#E5E5E5}
+.pic-nav{display:flex;justify-content:space-between;margin-top:12px}
 </style>
 </head>
 <body class="locked">
@@ -825,7 +849,7 @@ const mediaPath = u => { const m = /\/object\/(?:public|sign|authenticated)\/med
 const media = u => { if (!u) return ''; const p = mediaPath(u); return p ? (SIGNED[p] || '') : u; };
 async function signMedia() {
   if (!db) return;
-  const paths = [...new Set([...S.vehicles.map(v => v.photo_url), ...S.records.map(r => r.invoice_url)].map(mediaPath).filter(p => p && !SIGNED[p]))];
+  const paths = [...new Set([...S.vehicles.flatMap(v => [v.photo_url, v.illus_url, ...(v.photos || [])]), ...S.records.map(r => r.invoice_url)].map(mediaPath).filter(p => p && !SIGNED[p]))];
   for (let i = 0; i < paths.length; i += 100) {
     const { data, error } = await db.storage.from('media').createSignedUrls(paths.slice(i, i + 100), 7 * 24 * 3600);
     if (error) { console.warn('Couldn\'t sign media links', error); return; }
@@ -1313,7 +1337,7 @@ async function openAccount() {
     $('#gdel-yes').onclick = async () => {
       $('#gdel-yes').disabled = true;
       if (owner) { // photos and invoices go first, while the garage still exists to authorise it
-        const paths = [g.logo_url, ...S.vehicles.map(v => v.photo_url), ...S.records.map(r => r.invoice_url)].map(mediaPath).filter(Boolean);
+        const paths = [...new Set([g.logo_url, ...S.vehicles.flatMap(v => [v.photo_url, v.illus_url, ...(v.photos || [])]), ...S.records.map(r => r.invoice_url)])].map(mediaPath).filter(Boolean);
         for (let i = 0; i < paths.length; i += 100) await db.storage.from('media').remove(paths.slice(i, i + 100));
       }
       const { error } = owner ? await db.from('garages').delete().eq('id', g.id) : await db.from('garage_members').delete().eq('garage_id', g.id).eq('user_id', S.user.id);
@@ -1435,6 +1459,77 @@ async function upload(file, prefix) {
 // Runs after a photo is uploaded (or from "Make illustration"). The illustration replaces the photo.
 const ILLUS = new Map(); // vehicle id → when its drawing started
 const isIllus = v => /\/illus\//.test(v?.photo_url || '');
+/* ---------- vehicle photos: up to 4, plus an optional illustration; photo_url is the one used as the icon ---------- */
+const MAX_PHOTOS = 4;
+const vPhotos = v => (v?.photos?.length ? v.photos : (v?.photo_url && !isIllus(v) ? [v.photo_url] : []));
+const vIllus = v => v?.illus_url || (isIllus(v) ? v.photo_url : null);
+const samePic = (a, b) => !!a && !!b && (mediaPath(a) || a) === (mediaPath(b) || b);
+let VPH = null; // the photos being edited in the vehicle form
+function startPhotos(v) {
+  const items = vPhotos(v).map(url => ({ url })), illus = vIllus(v);
+  const ci = items.findIndex(it => samePic(it.url, v.photo_url));
+  VPH = { items, illus, cover: illus && samePic(illus, v.photo_url) ? 'illus' : ci >= 0 ? ci : items.length ? 0 : illus ? 'illus' : null, had: items.length };
+}
+function pgTile(src, key, label, on, badge) {
+  return `<div class="pg-t${on ? ' on' : ''}"><button type="button" class="pg-pick" data-cover="${key}" aria-pressed="${on}" aria-label="Use ${label} as the icon"><img src="${esc(src)}" alt=""><span class="pg-b">${on ? 'Icon' : badge || ''}</span></button>${S.editor ? `<button type="button" class="pg-x" data-rm="${key}" aria-label="Remove ${label}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>` : ''}</div>`;
+}
+function renderPhotos() {
+  const P = VPH, box = $('#pgal'); if (!P || !box) return;
+  box.innerHTML = P.items.map((it, i) => pgTile(it.preview || media(it.url), i, 'photo ' + (i + 1), P.cover === i, it.file ? 'New' : '')).join('')
+    + (P.illus ? pgTile(media(P.illus), 'illus', 'the illustration', P.cover === 'illus', 'Illustration') : '')
+    + (P.items.length < MAX_PHOTOS ? `<label class="pg-t pg-add" for="f-photo"><span>${ICON.plus}</span><b>Add photo</b><small>${P.items.length} of ${MAX_PHOTOS}</small></label>` : '');
+  box.querySelectorAll('[data-cover]').forEach(b => b.onclick = () => { const k = b.dataset.cover; P.cover = k === 'illus' ? 'illus' : +k; renderPhotos(); });
+  box.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => {
+    const k = b.dataset.rm;
+    if (k === 'illus') { P.illus = null; if (P.cover === 'illus') P.cover = P.items.length ? 0 : null; }
+    else { const i = +k, [gone] = P.items.splice(i, 1); if (gone.preview) URL.revokeObjectURL(gone.preview);
+      if (P.cover === i) P.cover = P.items.length ? 0 : P.illus ? 'illus' : null; else if (typeof P.cover === 'number' && P.cover > i) P.cover--; }
+    renderPhotos();
+  });
+  const fresh = P.items.some(it => it.file), ch = $('#photo-choice');
+  if (ch) ch.hidden = !(fresh && !P.illus);
+  $('#pgal-hint').textContent = P.items.length + (P.illus ? 1 : 0) > 1 ? 'Tap a picture to use it as the icon in the garage.' : `Add up to ${MAX_PHOTOS} photos. Front three-quarter views work best.`;
+}
+function addPhotoFile(file) {
+  if (!file) return;
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { toast('Choose a JPG, PNG or WebP photo. On iPhone, pick it from Photos and it\'s converted automatically.', true); return; }
+  if (VPH.items.length >= MAX_PHOTOS) { toast(`Up to ${MAX_PHOTOS} photos per vehicle. Remove one first.`, true); return; }
+  VPH.items.push({ file, preview: URL.createObjectURL(file) });
+  if (VPH.cover == null) VPH.cover = VPH.items.length - 1;
+  renderPhotos();
+}
+// save the edited photos: upload new ones, return the columns to write
+async function savePhotos(id) {
+  const P = VPH, urls = [];
+  for (const it of P.items) urls.push(it.url || await upload(await shrinkImage(it.file), `vehicles/${id}`));
+  return { photos: urls, illus_url: P.illus || null, photo_url: P.cover === 'illus' ? P.illus : (urls[P.cover] ?? urls[0] ?? P.illus ?? null) };
+}
+// files no longer used by a vehicle after a save
+function dropOldPics(before, after) {
+  const keep = new Set([...(after.photos || []), after.illus_url, after.photo_url].map(mediaPath).filter(Boolean));
+  const gone = [...new Set([...vPhotos(before), vIllus(before), before.photo_url].map(mediaPath).filter(p => p && !keep.has(p)))];
+  if (gone.length) db.storage.from('media').remove(gone).catch(() => {});
+}
+// vehicle page: a strip of the pictures; tap one to see it large (and, for editors, use it as the icon)
+function galleryStrip(v) {
+  const pics = [...vPhotos(v), vIllus(v)].filter(Boolean);
+  if (pics.length < 2) return '';
+  return `<div class="vgal" role="list" aria-label="Pictures">${pics.map((u, i) => `<button type="button" role="listitem" class="vg${samePic(u, v.photo_url) ? ' on' : ''}" data-pic="${i}" aria-label="${samePic(u, vIllus(v)) ? 'Illustration' : 'Photo ' + (i + 1)}${samePic(u, v.photo_url) ? ', the icon' : ''}"><img src="${esc(media(u))}" alt="" loading="lazy"></button>`).join('')}</div>`;
+}
+function openPic(v, i) {
+  const pics = [...vPhotos(v), vIllus(v)].filter(Boolean), u = pics[i]; if (!u) return;
+  const isIl = samePic(u, vIllus(v)), on = samePic(u, v.photo_url);
+  openPanel(isIl ? 'Illustration' : `Photo ${i + 1} of ${vPhotos(v).length}`, `<img class="pic-big${isIl ? ' illus' : ''}" src="${esc(media(u))}" alt="${esc(vname(v))}">
+    ${pics.length > 1 ? `<div class="pic-nav"><button class="btn sm" type="button" id="pic-prev">Previous</button><button class="btn sm" type="button" id="pic-next">Next</button></div>` : ''}`,
+    S.editor ? (on ? `<span class="hint">This is the icon in the garage.</span>` : `<button class="btn primary" type="button" id="pic-cover">Use as icon</button>`) + (!isIl ? `<button class="btn" type="button" id="pic-ill"${ILLUS.has(v.id) ? ' disabled' : ''}>${vIllus(v) ? 'Redraw illustration from this' : 'Make illustration from this'}</button>` : '') : '');
+  if ($('#pic-prev')) { $('#pic-prev').onclick = () => openPic(v, (i - 1 + pics.length) % pics.length); $('#pic-next').onclick = () => openPic(v, (i + 1) % pics.length); }
+  if ($('#pic-cover')) $('#pic-cover').onclick = async () => {
+    const { data, error } = await db.from('vehicles').update({ photo_url: u }).eq('id', v.id).select().single();
+    if (error) return toast('Couldn\'t change the icon: ' + error.message, true);
+    S.vehicles = S.vehicles.map(x => x.id === v.id ? data : x); closePanel(); toast('Icon changed'); render();
+  };
+  if ($('#pic-ill')) $('#pic-ill').onclick = () => { closePanel(); illustrate(v, u); };
+}
 // The model reports no progress, so the bar follows the usual time (about a minute) and waits near the end
 const illPct = id => Math.round(95 * (1 - Math.exp(-(Date.now() - ILLUS.get(id)) / 28000)));
 const progHtml = id => `<div class="ill-prog"><b>Drawing the illustration…</b><div class="ill-bar" role="progressbar" aria-label="Drawing the illustration" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${illPct(id)}" data-prog="${id}"><i style="width:${illPct(id)}%"></i></div></div>`;
@@ -1443,13 +1538,13 @@ const tickIllus = () => {
   document.querySelectorAll('[data-prog]').forEach(b => { if (!ILLUS.has(b.dataset.prog)) return; const p = illPct(b.dataset.prog); b.firstElementChild.style.width = p + '%'; b.setAttribute('aria-valuenow', p); });
   if (!ILLUS.size) { clearInterval(illTimer); illTimer = null; }
 };
-async function illustrate(v) {
-  if (!v || ILLUS.has(v.id) || !v.photo_url) return;
+async function illustrate(v, source) {
+  if (!v || ILLUS.has(v.id) || !vPhotos(v).length) return;
   ILLUS.set(v.id, Date.now()); render();
   if (!illTimer) illTimer = setInterval(tickIllus, 1000);
   toast(`Drawing an illustration of ${vshort(v)}. This takes about a minute.`);
   try {
-    const { data, error } = await db.functions.invoke('illustrate', { body: { garage_id: GID(), vehicle_id: v.id } });
+    const { data, error } = await db.functions.invoke('illustrate', { body: { garage_id: GID(), vehicle_id: v.id, source: source || (isIllus(v) ? vPhotos(v)[0] : v.photo_url) } });
     let res = data; if (error) { try { res = await error.context.json(); } catch (x) { res = { message: 'The illustrator couldn\'t be reached. Check your connection and try again.' }; } }
     if (res?.error === 'limit') { aiLimitPanel(res.message); return; }
     if (!res || !res.ok) throw new Error(res?.message || 'The illustration couldn\'t be made.');
@@ -1459,11 +1554,12 @@ async function illustrate(v) {
     const c = document.createElement('canvas'); c.width = c.height = 1000;
     const ctx = c.getContext('2d'); ctx.imageSmoothingQuality = 'high'; ctx.drawImage(img, 0, 0, 1000, 1000);
     const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.92));
-    const cur = vById(v.id) || v, old = mediaPath(cur.photo_url);
+    const cur = vById(v.id) || v, old = mediaPath(vIllus(cur));
     const url = await upload(new File([blob], 'illustration.jpg', { type: 'image/jpeg' }), `vehicles/${v.id}/illus`);
-    const { data: row, error: e2 } = await db.from('vehicles').update({ photo_url: url }).eq('id', v.id).select().single();
+    // the illustration becomes the icon; the photos stay
+    const { data: row, error: e2 } = await db.from('vehicles').update({ illus_url: url, photo_url: url, photos: vPhotos(cur) }).eq('id', v.id).select().single();
     if (e2) throw new Error('The illustration was made but couldn\'t be saved: ' + e2.message);
-    if (old && old !== mediaPath(url)) db.storage.from('media').remove([old]).catch(() => {}); // the original photo is replaced
+    if (old && old !== mediaPath(url)) db.storage.from('media').remove([old]).catch(() => {}); // only the previous illustration is replaced
     // finish the bar, then swap the dimmed photo for the illustration
     document.querySelectorAll(`[data-prog="${v.id}"] i`).forEach(i => i.style.width = '100%');
     S.vehicles = S.vehicles.map(x => x.id === v.id ? row : x);
@@ -1832,6 +1928,7 @@ function viewVehicle(id) {
   return `<a class="back" href="#/${back}">${ICON.back}${back === 'cars' ? 'Cars' : 'Bikes'}</a>
     <div class="hero">
       ${photo(v, true)}
+      ${galleryStrip(v)}
       <div>
         <p class="eyebrow">${esc(v.year || '')} ${v.kind === 'car' ? 'Car' : 'Motorcycle'}</p>
         <h1>${esc(vshort(v))}${v.trim_level ? ' ' + esc(v.trim_level) : ''}</h1>
@@ -1846,7 +1943,7 @@ function viewVehicle(id) {
           <div><dt>Owned</dt><dd>${owned != null ? (owned >= 365 ? (owned / 365).toFixed(1) + ' <small>yrs</small>' : owned + ' <small>days</small>') : '—'}</dd></div>
           <div><dt>Records</dt><dd>${recs.length}</dd></div>
         </dl>
-        <div class="actions">${S.user && !S.editor ? `<a class="btn" href="#/dossier/${v.id}">Dossier</a>` : ''}${S.editor ? `<button class="btn primary" type="button" data-scan="${v.id}">Scan invoices</button><button class="btn" type="button" data-add-r="${v.id}">${ICON.plus}Add service</button><button class="btn" type="button" data-log="${v.id}">${ICON.plus}Log reading</button><a class="btn" href="#/dossier/${v.id}">Dossier and share</a><button class="btn" type="button" data-edit-v="${v.id}">Edit details</button><button class="btn" type="button" data-import-v="${v.id}">Import spreadsheet</button>${v.photo_url && !isIllus(v) ? `<button class="btn" type="button" data-illus="${v.id}"${ILLUS.has(v.id) ? ' disabled' : ''}>${ILLUS.has(v.id) ? 'Drawing…' : 'Make illustration'}</button>` : ''}` : (S.user ? '' : lockNote())}</div>
+        <div class="actions">${S.user && !S.editor ? `<a class="btn" href="#/dossier/${v.id}">Dossier</a>` : ''}${S.editor ? `<button class="btn primary" type="button" data-scan="${v.id}">Scan invoices</button><button class="btn" type="button" data-add-r="${v.id}">${ICON.plus}Add service</button><button class="btn" type="button" data-log="${v.id}">${ICON.plus}Log reading</button><a class="btn" href="#/dossier/${v.id}">Dossier and share</a><button class="btn" type="button" data-edit-v="${v.id}">Edit details</button><button class="btn" type="button" data-import-v="${v.id}">Import spreadsheet</button>${vPhotos(v).length ? `<button class="btn" type="button" data-illus="${v.id}"${ILLUS.has(v.id) ? ' disabled' : ''}>${ILLUS.has(v.id) ? 'Drawing…' : vIllus(v) ? 'Redraw illustration' : 'Make illustration'}</button>` : ''}` : (S.user ? '' : lockNote())}</div>
       </div>
     </div>
     ${(() => { const j = [['v-service', 'Service'], ['v-rem', S.user ? 'Reminders' : ''], ['v-value', S.user ? 'Value' : ''], ['v-specs', 'Specs'], ['v-story', 'Story'], ['v-miles', reads.length || S.editor ? (v.meter === 'hours' ? 'Hours' : 'Mileage') : '']].filter(x => x[1]); return `<nav class="jump" aria-label="On this page">${j.map(([id, t]) => `<button type="button" data-jump="${id}">${t}</button>`).join('')}</nav>`; })()}
@@ -2011,7 +2108,7 @@ function wireFill(form, v) {
       applyFill(form, f, kind, { likely: kind === 'car', note });
       if (form.elements.vin.value) lastVin = form.elements.vin.value.trim().toUpperCase();
       // the car photo can be the vehicle's photo too
-      if (kind === 'car' && !isPdf && !v.photo_url && !$('#f-photo').files.length) {
+      if (kind === 'car' && !isPdf && VPH && !VPH.items.length) {
         try { const dt = new DataTransfer(); dt.items.add(file); $('#f-photo').files = dt.files; skipPlateScan = true; $('#f-photo').dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
       }
     } catch (e) { failMsg(box, { message: e.message }); }
@@ -2026,7 +2123,7 @@ function wireFill(form, v) {
     try {
       const send = await shrinkImage(file, 2000);
       const res = await vread({ mode: 'photo', kind: 'plate', data: await fileToB64(send), media_type: send.type || 'image/jpeg' });
-      if (e.target.files[0] !== file) return; // photo changed meanwhile
+      if (!VPH || !VPH.items.some(it => it.file === file)) return; // photo removed meanwhile
       const f = res.ok ? res.fields : null;
       const extra = f ? ['make', 'model', 'colour'].filter(k => f[k] && !form.elements[k].value.trim()) : [];
       if (!f || (!f.plate && !extra.length)) { box.innerHTML = res.error === 'limit' ? '' : '<p class="hint" style="margin:6px 0 0">No number plate found in the photo.</p>'; return; }
@@ -2500,14 +2597,12 @@ function openVehicleForm(v, kind) {
         <p class="hint" style="margin:10px 0 0">Registration document: ${inBR() ? 'the CRLV' : inUS() ? 'the title or registration card' : 'the registration certificate or title'}. Owner details on it are never read or stored.</p>
         <div id="fill-msg" aria-live="polite"></div>
       </fieldset>
-      <fieldset><legend>Photo</legend>
-        ${media(v.photo_url) ? `<img class="thumb" src="${esc(media(v.photo_url))}" alt="">` : ''}
-        ${field('photo', v.photo_url ? 'Replace photo' : 'Photo', 'file', '', { accept: 'image/jpeg,image/png,image/webp', help: 'A front three-quarter view works best. If the plate is visible, it\'s suggested for the Plate field (uses 1 scan).' })}
+      <fieldset><legend>Photos</legend>
+        <p class="hint" id="pgal-hint" style="margin:0 0 10px"></p>
+        <div class="pgal" id="pgal"></div>
+        <input id="f-photo" type="file" accept="image/jpeg,image/png,image/webp" class="vh fp-in" aria-label="Add a photo">
         <div id="photo-plate" aria-live="polite"></div>
-        <div class="choice" id="photo-choice" role="radiogroup" aria-label="What to do with the photo" hidden>
-          <label><input type="radio" name="photo_mode" value="illustrate" checked><span><b>Turn it into an illustration</b><small>Redrawn in a clean vector style, in about a minute. It replaces the photo.</small></span></label>
-          <label><input type="radio" name="photo_mode" value="keep"><span><b>Keep my photo as it is</b><small>You can still make an illustration later from the vehicle's page.</small></span></label>
-        </div>
+        <label class="chk" id="photo-choice" hidden><input type="checkbox" id="f-mkill"${vPhotos(v).length ? '' : ' checked'}><span><b>Also draw an illustration</b><small>Made from the icon photo in a clean vector style, in about a minute, and used as the icon. The photos stay.</small></span></label>
       </fieldset>
       <fieldset><legend>Basics</legend>
         ${field('kind', 'Type', 'select', v.kind, { required: true, options: bikesOn() || v.kind === 'bike' ? [['car', 'Car'], ['bike', 'Motorcycle']] : [['car', 'Car']] })}
@@ -2546,7 +2641,8 @@ function openVehicleForm(v, kind) {
     `<button class="btn" type="button" id="cancel">Cancel</button><button class="btn primary" type="button" data-submit>${isNew ? `Add ${word}` : 'Save changes'}</button>`);
   $('#cancel').onclick = closePanel;
   $('#f-status').onchange = e => $('#sold-f').hidden = e.target.value !== 'sold';
-  $('#f-photo').addEventListener('change', e => { $('#photo-choice').hidden = !e.target.files.length; });
+  startPhotos(v); renderPhotos();
+  $('#f-photo').addEventListener('change', e => { addPhotoFile(e.target.files[0]); setTimeout(() => { e.target.value = ''; }, 0); }); // cleared, so the same photo can be added again
   wireFill($('#v-form'), v);
   if (!isNew) $('#del-v').onclick = () => {
     $('#del-box').innerHTML = `<div class="confirm"><p>Delete <b>${esc(vname(v))}</b> and its ${recsFor(v.id).length} service record${recsFor(v.id).length === 1 ? '' : 's'}? This can't be undone.</p>
@@ -2568,8 +2664,7 @@ function openVehicleForm(v, kind) {
     odometer: intRule('Odometer'),
     purchase_price: moneyRule('Purchase price'),
     sold_price: moneyRule('Sale price'),
-    estimated_value: moneyRule('Estimated value'),
-    photo: f => f && f[0] && !/^image\/(jpeg|png|webp)$/.test(f[0].type) ? 'Choose a JPG, PNG or WebP photo. On iPhone, pick it from Photos and it\'s converted automatically.' : ''
+    estimated_value: moneyRule('Estimated value')
   }, async f => {
     const id = v.id || crypto.randomUUID();
     const row = {
@@ -2583,14 +2678,16 @@ function openVehicleForm(v, kind) {
       sold_price: f.status === 'sold' ? nMoney(f.sold_price) : null, notes: nz(f.notes.trim())
     };
     if (isNew) { row.garage_id = GID(); row.sort_order = S.vehicles.reduce((m, x) => Math.max(m, x.sort_order ?? 0), -1) + 1; }
-    if (f.photo && f.photo[0]) row.photo_url = await upload(await shrinkImage(f.photo[0]), `vehicles/${id}`);
+    const mkIll = !!$('#f-mkill')?.checked && !$('#photo-choice').hidden, fresh = VPH.items.some(it => it.file);
+    Object.assign(row, await savePhotos(id));
     const res = isNew ? await db.from('vehicles').insert(row).select().single() : await db.from('vehicles').update(row).eq('id', id).select().single();
     if (res.error) throw new Error(limitMsg(res.error) || 'Couldn\'t save: ' + res.error.message);
     S.vehicles = isNew ? [...S.vehicles, res.data] : S.vehicles.map(x => x.id === id ? res.data : x);
+    if (!isNew) dropOldPics(v, res.data);
     await signMedia();
     closePanel(); toast(isNew ? `Added ${vshort(res.data)}` : 'Saved');
     if (isNew) location.hash = '#/vehicle/' + id; render();
-    if (row.photo_url && f.photo_mode !== 'keep') setTimeout(() => illustrate(res.data), 300); // new photo, illustration chosen
+    if (fresh && mkIll && res.data.photo_url) setTimeout(() => illustrate(res.data, res.data.photo_url), 300); // new photo, illustration chosen
   });
 }
 
@@ -3931,6 +4028,7 @@ function wireView() {
   V.querySelectorAll('[data-add-r]').forEach(b => b.onclick = () => openRecordForm(null, b.dataset.addR));
   V.querySelectorAll('[data-rec]').forEach(b => b.onclick = () => openRecord(S.records.find(r => r.id === b.dataset.rec)));
   V.querySelectorAll('[data-signin]').forEach(b => b.onclick = openAccount);
+  V.querySelectorAll('[data-pic]').forEach(b => b.onclick = () => openPic(vById(current().b), +b.dataset.pic));
   V.querySelectorAll('[data-jump]').forEach(b => b.onclick = () => document.getElementById(b.dataset.jump)?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }));
   V.querySelectorAll('[data-more-reads]').forEach(b => b.onclick = () => { readLimit[b.dataset.moreReads] = 1e9; render(); });
   V.querySelectorAll('[data-garage]').forEach(b => b.onclick = () => { GF.k = b.dataset.garage; render(); });
