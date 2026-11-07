@@ -2826,6 +2826,8 @@ function openVehicleForm(v, kind) {
     if (res.error) throw new Error(limitMsg(res.error) || 'Couldn\'t save: ' + res.error.message);
     S.vehicles = isNew ? [...S.vehicles, res.data] : S.vehicles.map(x => x.id === id ? res.data : x);
     if (!isNew) dropOldPics(v, res.data);
+    // no build sheet yet, or one for different details: get it now (the lookup in the form may not have run)
+    if (S.vehicles.some(x => x.id === res.data.id) && sheetStale(res.data)) setTimeout(() => fetchSheet(vById(res.data.id)), 0);
     await signMedia();
     closePanel(); toast(isNew ? `Added ${vshort(res.data)}` : 'Saved');
     if (isNew) location.hash = '#/vehicle/' + id; render();
@@ -4171,7 +4173,9 @@ function wireView() {
   V.querySelectorAll('[data-rec]').forEach(b => b.onclick = () => openRecord(S.records.find(r => r.id === b.dataset.rec)));
   V.querySelectorAll('[data-signin]').forEach(b => b.onclick = openAccount);
   if ($('#v-garage')) $('#v-garage').onchange = e => askMove(vById(current().b), e.target);
-  V.querySelectorAll('[data-bs]').forEach(b => b.onclick = () => getBuildSheet(vById(b.dataset.bs), b, !!b.dataset.bsRefresh));
+  V.querySelectorAll('[data-bs]').forEach(b => b.onclick = () => { const v = vById(b.dataset.bs); if (b.dataset.bsRefresh) fetchSheet(v, true); else { BS_TRIED.clear(); fetchSheet(v); } });
+  V.querySelectorAll('[data-edit-v]').forEach(b => b.onclick = () => openVehicleForm(vById(b.dataset.editV)));
+  if (current().a === 'vehicle') setTimeout(() => autoSheet(vById(current().b)), 0);
   V.querySelectorAll('[data-pic]').forEach(b => b.onclick = () => openPic(vById(current().b), +b.dataset.pic));
   V.querySelectorAll('[data-jump]').forEach(b => b.onclick = () => document.getElementById(b.dataset.jump)?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }));
   V.querySelectorAll('[data-more-reads]').forEach(b => b.onclick = () => { readLimit[b.dataset.moreReads] = 1e9; render(); });
@@ -4301,30 +4305,56 @@ function curveSvg(s, imperial) {
 }
 function buildSheetSection(v) {
   const s = v.build_sheet, imperial = (v.odometer_unit || S.garage?.distance_unit) === 'mi';
+  if (BS_BUSY.has(v.id) && !s) return `<div class="section" id="v-build"><h2>Build sheet</h2>
+    <p class="hint" style="margin:0 0 12px">Looking up the ${esc(vshort(v))}'s factory specs…</p>
+    <div class="bs-grid">${'<div class="bs-c"><div class="skel" style="height:10px;width:50%;margin-bottom:10px"></div><div class="skel" style="height:22px;width:70%"></div></div>'.repeat(6)}</div></div>`;
   if (!s) {
     if (!S.editor) return '';
     const ready = v.year && v.make && v.model;
-    return `<div class="section" id="v-build"><h2>Build sheet</h2><div class="bs-empty"><p>Power, torque, gearbox, performance and the power curve for the ${esc(vshort(v))}, from published specifications.</p>
-      ${ready ? `<button class="btn primary" type="button" data-bs="${v.id}">Get the build sheet</button>` : `<p class="hint">Add the year, make and model first.</p>`}</div></div>`;
+    return `<div class="section" id="v-build"><h2>Build sheet</h2><div class="bs-empty"><p>${BS_FAIL[v.id] ? esc(BS_FAIL[v.id]) : ready ? 'The build sheet appears here.' : 'Add the year, make and model, and the build sheet (power, torque, gearbox, performance and the power curve) appears here.'}</p>
+      ${ready && BS_FAIL[v.id] ? `<button class="btn" type="button" data-bs="${v.id}">Try again</button>` : !ready ? `<button class="btn" type="button" data-edit-v="${v.id}">Add the details</button>` : ''}</div></div>`;
   }
-  return `<div class="section" id="v-build"><div class="section-head"><h2>Build sheet</h2>${S.editor ? `<button class="btn sm" type="button" data-bs="${v.id}" data-bs-refresh="1">Look up again</button>` : ''}</div>
+  return `<div class="section" id="v-build"><div class="section-head"><h2>Build sheet</h2>${S.editor ? `<button class="btn sm" type="button" data-bs="${v.id}" data-bs-refresh="1"${BS_BUSY.has(v.id) ? ' disabled' : ''}>${BS_BUSY.has(v.id) ? 'Updating…' : 'Look up again'}</button>` : ''}</div>
     ${s.name ? `<p class="bs-name">${esc(s.name)}</p>` : ''}${s.summary ? `<p class="hint" style="margin:2px 0 14px">${esc(s.summary)}</p>` : ''}
     <dl class="bs-grid">${buildCards(s, imperial)}</dl>
     ${curveSvg(s, imperial)}
     <p class="hint bs-src">Published factory figures, looked up ${s.looked_up ? fdate(s.looked_up) : ''}${s.confidence ? ` · ${esc(s.confidence)} confidence` : ''}. Likely right; check anything that matters.</p></div>`;
 }
-async function getBuildSheet(v, btn, refresh) {
-  const label = btn.textContent; btn.disabled = true; btn.textContent = 'Looking up…';
-  const res = await specsLookup({ year: v.year, make: v.make, model: v.model, trim: v.trim_level || '', kind: v.kind, gearbox: v.gearbox || '' }, refresh);
-  if (!res.ok) { btn.disabled = false; btn.textContent = label; return toast(res.message || 'Couldn\'t look up the specs.', true); }
-  const row = { build_sheet: res.sheet }, f = sheetFields(res.sheet);
-  for (const k of Object.keys(f)) if (f[k] && !v[k]) row[k] = f[k];
-  if (!v.gearbox && gearboxOf(res.sheet.transmission)) row.gearbox = gearboxOf(res.sheet.transmission);
-  if (Object.keys(row).length > 1 && !v.specs_source) row.specs_source = 'published specifications (AI lookup; check them)';
-  const { data, error } = await db.from('vehicles').update(row).eq('id', v.id).select().single();
-  if (error) { btn.disabled = false; btn.textContent = label; return toast('Couldn\'t save the build sheet: ' + error.message, true); }
-  S.vehicles = S.vehicles.map(x => x.id === v.id ? data : x); render();
-  toast(refresh ? 'Build sheet updated' : 'Build sheet added');
+// fetch and save a vehicle's build sheet (quietly, without a button)
+const BS_BUSY = new Set(), BS_FAIL = {};
+const sheetSig = v => JSON.stringify([+v.year || 0, (v.make || '').trim().toLowerCase(), (v.model || '').trim().toLowerCase(), (v.trim_level || '').trim().toLowerCase(), v.kind, v.gearbox || '']);
+const sheetQSig = q => q ? JSON.stringify([+q.year || 0, (q.make || '').trim().toLowerCase(), (q.model || '').trim().toLowerCase(), (q.trim || '').trim().toLowerCase(), q.kind, q.gearbox || '']) : '';
+// a sheet looked up without a gearbox still fits a vehicle whose gearbox it set (or matches)
+const sheetStale = v => {
+  if (!(v.year && v.make && v.model)) return false;
+  const b = v.build_sheet; if (!b) return true;
+  const q = b.query ? { ...b.query } : null;
+  if (q && !q.gearbox && v.gearbox && gearboxOf(b.transmission) === v.gearbox) q.gearbox = v.gearbox;
+  return sheetQSig(q) !== sheetSig(v);
+};
+async function fetchSheet(v, refresh) {
+  if (!v || BS_BUSY.has(v.id)) return;
+  BS_BUSY.add(v.id); delete BS_FAIL[v.id]; render();
+  try {
+    const res = await specsLookup({ year: v.year, make: v.make, model: v.model, trim: v.trim_level || '', kind: v.kind, gearbox: v.gearbox || '' }, refresh);
+    if (!res.ok) { BS_FAIL[v.id] = res.error === 'limit' ? res.message : res.error === 'not_found' ? res.message : 'The build sheet couldn\'t be looked up just now.'; return; }
+    const cur = vById(v.id) || v, row = { build_sheet: res.sheet }, f = sheetFields(res.sheet);
+    for (const k of Object.keys(f)) if (f[k] && !cur[k]) row[k] = f[k];
+    if (!cur.gearbox && gearboxOf(res.sheet.transmission)) row.gearbox = gearboxOf(res.sheet.transmission);
+    if (Object.keys(row).length > 1 && !cur.specs_source) row.specs_source = 'published specifications (AI lookup; check them)';
+    const { data, error } = await db.from('vehicles').update(row).eq('id', v.id).select().single();
+    if (error) { BS_FAIL[v.id] = 'The build sheet couldn\'t be saved: ' + error.message; return; }
+    S.vehicles = S.vehicles.map(x => x.id === v.id ? data : x);
+    if (refresh) toast('Build sheet updated');
+  } catch (e) { BS_FAIL[v.id] = 'The build sheet couldn\'t be looked up just now.'; }
+  finally { BS_BUSY.delete(v.id); render(); }
+}
+// a vehicle page opened without a sheet (or with one for different details): get it, once per visit
+const BS_TRIED = new Set();
+function autoSheet(v) {
+  if (!v || !S.editor || !sheetStale(v) || BS_BUSY.has(v.id)) return;
+  const key = v.id + sheetSig(v); if (BS_TRIED.has(key)) return; BS_TRIED.add(key);
+  fetchSheet(v);
 }
 /* ---------- garages shared with you while the app was open: show them without signing in again ---------- */
 async function checkNewGarages() {
