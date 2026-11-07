@@ -665,6 +665,9 @@ input.fp-in:focus-visible~.pgal .pg-add,.pgal:has(+input.fp-in:focus-visible) .p
 .pic-big{width:100%;border-radius:var(--r-sm);display:block;background:var(--s2)}
 .pic-big.illus{background:#E5E5E5}
 .pic-nav{display:flex;justify-content:space-between;margin-top:12px}
+.gpick{display:inline-flex;align-items:center;gap:10px;margin:12px 0 0;font-size:13px;color:var(--fg3)}
+.gpick span{letter-spacing:.06em;text-transform:uppercase;font-size:11.5px}
+.gpick select{width:auto;min-width:0;max-width:240px;padding:6px 30px 6px 10px;min-height:36px;font-size:14px}
 </style>
 </head>
 <body class="locked">
@@ -1933,6 +1936,7 @@ function viewVehicle(id) {
         <p class="eyebrow">${esc(v.year || '')} ${v.kind === 'car' ? 'Car' : 'Motorcycle'}</p>
         <h1>${esc(vshort(v))}${v.trim_level ? ' ' + esc(v.trim_level) : ''}</h1>
         ${v.nickname ? `<p class="sub">${esc(v.nickname)}</p>` : ''}
+        ${garagePick(v)}
         <dl class="stats">
           <div><dt>${v.meter === 'hours' ? 'Hours' : 'Odometer'}</dt><dd>${v.meter === 'hours' ? (v.hours != null ? (+v.hours).toLocaleString('en-US') + ' <small>h</small>' : '—') : v.odometer != null ? num(v.odometer) + ` <small>${v.odometer_unit}</small>` + (v.meter === 'both' && v.hours != null ? ` <small>· ${(+v.hours).toLocaleString('en-US')} h</small>` : '') : '—'}</dd></div>
           <div><dt>${v.meter === 'hours' ? 'Hours' : 'Driven'} in ${YEAR}</dt><dd>${v.meter === 'hours' ? yHours(v) : (d => d ? Math.round(d).toLocaleString('en-US') + ` <small>${v.odometer_unit}</small>` : '—')(drivenIn(v, YEAR, v.odometer_unit))}</dd></div>
@@ -4028,6 +4032,7 @@ function wireView() {
   V.querySelectorAll('[data-add-r]').forEach(b => b.onclick = () => openRecordForm(null, b.dataset.addR));
   V.querySelectorAll('[data-rec]').forEach(b => b.onclick = () => openRecord(S.records.find(r => r.id === b.dataset.rec)));
   V.querySelectorAll('[data-signin]').forEach(b => b.onclick = openAccount);
+  if ($('#v-garage')) $('#v-garage').onchange = e => askMove(vById(current().b), e.target);
   V.querySelectorAll('[data-pic]').forEach(b => b.onclick = () => openPic(vById(current().b), +b.dataset.pic));
   V.querySelectorAll('[data-jump]').forEach(b => b.onclick = () => document.getElementById(b.dataset.jump)?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }));
   V.querySelectorAll('[data-more-reads]').forEach(b => b.onclick = () => { readLimit[b.dataset.moreReads] = 1e9; render(); });
@@ -4068,6 +4073,57 @@ window.addEventListener('hashchange', () => {
   $('#view').focus({ preventScroll: true });
 });
 $('#acct-btn').onclick = openAccount;
+/* ---------- move a vehicle to another garage (vehicle page, owners with 2+ garages they can add to) ---------- */
+const moveTargets = () => S.role === 'owner' ? S.garages.filter(g => g.id !== GID() && ['owner', 'editor'].includes(g.role)) : [];
+function garagePick(v) {
+  const t = moveTargets(); if (!t.length) return '';
+  return `<label class="gpick"><span>Garage</span><select id="v-garage" aria-label="Garage this vehicle is in">
+    <option value="${esc(GID())}" selected>${esc(S.garage?.name || 'This garage')}</option>
+    ${t.map(g => `<option value="${esc(g.id)}">${esc(g.name)}${g.role === 'editor' ? ' (shared with you)' : ''}</option>`).join('')}
+  </select></label>`;
+}
+function askMove(v, sel) {
+  const g = S.garages.find(x => x.id === sel.value); if (!g) return;
+  sel.value = GID(); // until confirmed
+  const n = recsFor(v.id).length;
+  openPanel(`Move to ${g.name}?`, `<p>${esc(vname(v))} moves to <b>${esc(g.name)}</b> with everything that belongs to it: ${n} service record${n === 1 ? '' : 's'}, readings, reminders, history, photos, invoices and its share link.</p>
+    <p class="hint">Anyone you've shared this garage with, but not ${esc(g.name)}, will no longer see it. Amounts stay in the vehicle's own currency (${esc(v.currency || gCur())}).</p>`,
+    `<button class="btn" type="button" id="mv-no">Cancel</button><button class="btn primary" type="button" id="mv-yes">Move to ${esc(g.name)}</button>`);
+  $('#mv-no').onclick = closePanel;
+  $('#mv-yes').onclick = async () => {
+    const b = $('#mv-yes'); b.disabled = true; b.textContent = 'Moving…';
+    let res; try { const { data, error } = await db.functions.invoke('move-vehicle', { body: { vehicle_id: v.id, garage_id: g.id } }); res = data; if (error) { try { res = await error.context.json(); } catch (x) { res = null; } } } catch (e) { res = null; }
+    if (!res?.ok) { b.disabled = false; b.textContent = `Move to ${g.name}`; return toast(res?.message || 'The vehicle couldn\'t be moved. Check your connection and try again.', true); }
+    const gone = r => r.vehicle_id !== v.id;
+    S.vehicles = S.vehicles.filter(x => x.id !== v.id);
+    ['records', 'readings', 'tasks', 'comps', 'reminders', 'history', 'shares'].forEach(k => { if (Array.isArray(S[k])) S[k] = S[k].filter(gone); });
+    closePanel();
+    location.hash = '#/' + (v.kind === 'bike' ? 'bikes' : 'cars'); render();
+    toast(`Moved ${vshort(v)} to ${g.name}`);
+  };
+}
+
+/* ---------- pick up new versions of the app: check every hour, reload when it changed and nothing is being edited ---------- */
+(() => {
+  const HOUR = 36e5; let stamp = null, pending = false, last = Date.now();
+  const version = async () => {
+    try { const r = await fetch('/', { method: 'HEAD', cache: 'no-store' }); return r.ok ? (r.headers.get('etag') || r.headers.get('last-modified')) : null; } catch (e) { return null; }
+  };
+  const busy = () => $('#panel')?.classList.contains('on') || arranging || document.querySelector('.dos-pdf') || [...document.querySelectorAll('input,textarea,select')].some(e => e === document.activeElement);
+  const reloadWhenFree = () => { if (busy()) { pending = true; return; } location.reload(); };
+  const check = async () => {
+    last = Date.now();
+    const now = await version(); if (!now) return;
+    if (stamp == null) { stamp = now; return; }
+    if (now !== stamp) reloadWhenFree();
+  };
+  version().then(v => { stamp = v; });
+  setInterval(check, HOUR);
+  // phones pause timers in the background: check on return if an hour has passed
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && Date.now() - last >= HOUR) check(); });
+  // an update was waiting for a form to close: reload once it has
+  setInterval(() => { if (pending && !busy()) location.reload(); }, 15000);
+})();
 /* ---------- arrange the garage: press and hold a vehicle, then drag it (like app icons on a phone) ---------- */
 let arranging = false;
 function saveOrder(ids) {
