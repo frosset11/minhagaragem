@@ -668,6 +668,22 @@ input.fp-in:focus-visible~.pgal .pg-add,.pgal:has(+input.fp-in:focus-visible) .p
 .gpick{display:inline-flex;align-items:center;gap:10px;margin:12px 0 0;font-size:13px;color:var(--fg3)}
 .gpick span{letter-spacing:.06em;text-transform:uppercase;font-size:11.5px}
 .gpick select{width:auto;min-width:0;max-width:240px;padding:6px 30px 6px 10px;min-height:36px;font-size:14px}
+/* onboarding */
+.ob-card{width:min(480px,100%)}
+.ob-card .ob-h{font-family:var(--serif,inherit);letter-spacing:0;font-size:26px;margin-top:6px}
+.ob-steps{display:flex;gap:8px;list-style:none;padding:0;margin:18px 0 14px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--fg3)}
+.ob-steps li{flex:1;padding-top:8px;border-top:3px solid var(--line2)}
+.ob-steps li[aria-current]{color:var(--fg);border-color:var(--accent)}
+.ob-steps li.done{border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
+.ob-opts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ob-opt{position:relative;display:block;cursor:pointer}
+.ob-opt input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.ob-opt span{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border:1px solid var(--line2);border-radius:var(--r-sm);background:var(--bg);min-height:44px}
+.ob-opt b{font-weight:500;font-size:14.5px}.ob-opt small{color:var(--fg3);font-size:12.5px}
+.ob-opt input:checked+span{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.ob-opt input:focus-visible+span{outline:2px solid var(--fg);outline-offset:2px}
+.ob-go{width:100%;height:46px;margin-top:6px}
+.ob-row{display:flex;gap:10px;margin-top:6px}.ob-row .ob-go{flex:1;margin:0}.ob-row .btn:not(.ob-go){height:46px}
 </style>
 </head>
 <body class="locked">
@@ -1148,28 +1164,96 @@ function showLogin(msg) {
     } finally { if (document.body.classList.contains('locked') && $('#auth-form button[type=submit]')) { const b = $('#auth-form button[type=submit]'); b.disabled = false; b.textContent = loginMode === 'up' ? 'Create account' : 'Sign in'; } }
   });
 }
-// First visit: no garage yet. Create one (or wait for an invite).
-function showOnboarding(msg) {
+// First visit: no garage yet. Two steps: about you (once per account), then the first garage. Or wait for an invite.
+const meta = () => S.user?.user_metadata || {};
+const myName = () => [meta().first_name, meta().last_name].filter(Boolean).join(' ');
+function obShell(step, title, sub, body) {
   document.body.classList.add('locked'); closePanel();
-  document.title = 'Set up your garage · AUTODEX';
-  $('#login').innerHTML = `<div class="login-card" style="max-width:440px">
+  document.title = (step === 1 ? 'Welcome' : 'Your first garage') + ' · AUTODEX';
+  $('#login').innerHTML = `<div class="login-card ob-card">
     <img class="login-ic" src="/icons/mark.svg?v=2" alt="">
-    <h1>Set up your garage</h1>
-    <p class="sub">Give it a name and pick how you count money and distance. You can change these later.</p>
-    <form id="ob-form" novalidate>
-      ${msg ? `<div class="form-err" role="alert">${esc(msg)}</div>` : ''}
-      ${garageFields(newGarageDefaults())}
-      <button class="btn primary" type="submit" style="width:100%;height:44px;margin-top:4px">Create garage</button>
-    </form>
+    <ol class="ob-steps" aria-label="Setup steps"><li${step === 1 ? ' aria-current="step"' : ' class="done"'}>About you</li><li${step === 2 ? ' aria-current="step"' : ''}>Your first garage</li></ol>
+    <h1 class="ob-h">${title}</h1>
+    <p class="sub">${sub}</p>
+    ${body}
     <p class="hint" style="margin:18px 0 0;text-align:center">Joining someone else's garage? Ask them to invite <b style="color:var(--fg)">${esc(S.user.email)}</b>, then <button type="button" class="linkbtn" id="ob-reload">check again</button>.</p>
     <p style="text-align:center;margin:10px 0 0"><button type="button" class="linkbtn" id="ob-out">Sign out</button></p>
   </div>`;
   $('#ob-out').onclick = () => db.auth.signOut();
   $('#ob-reload').onclick = async () => { await db.rpc('accept_invites'); await loadGarages(); if (S.garage) refreshAuth(); else showOnboarding('No invite for ' + S.user.email + ' yet.'); };
-  setTimeout(() => $('#f-name')?.focus(), 30);
+  window.scrollTo(0, 0);
+}
+const radios = (name, cur, opts) => `<div class="ob-opts" role="radiogroup">${opts.map(([v, t, d]) => `<label class="ob-opt"><input type="radio" name="${name}" value="${v}"${cur === v ? ' checked' : ''}><span><b>${t}</b>${d ? `<small>${d}</small>` : ''}</span></label>`).join('')}</div>`;
+function showOnboarding(msg) {
+  if (!meta().mg_profile) return obProfile(msg);
+  obGarage(msg);
+}
+function obProfile(msg) {
+  const m = meta(), c = m.mg_country || guessCountry(), k = COUNTRY[c];
+  obShell(1, 'Welcome to AUTODEX', 'A few details so everything is set up the way you work. You can change them later in Account.', `
+    <form id="ob-form" novalidate>
+      ${msg ? `<div class="form-err" role="alert">${esc(msg)}</div>` : ''}
+      <div class="two">${field('first_name', 'First name', 'text', m.first_name || '', { required: true, ac: 'given-name' })}${field('last_name', 'Last name', 'text', m.last_name || '', { ac: 'family-name' })}</div>
+      ${field('country', 'Where you live', 'select', c || '', { required: true, options: [['', 'Choose a country'], ...COUNTRY_LIST.map(([cc, n]) => [cc, n]), ['OTHER', 'Another country']] })}
+      ${field('city', 'City', 'text', m.mg_city || '', { ac: 'address-level2' })}
+      <div class="fld"><label>Distances</label>${radios('unit', m.mg_unit || k?.unit || 'km', [['km', 'Kilometres', 'km, metric'], ['mi', 'Miles', 'mi, imperial']])}</div>
+      <div class="fld"><label>Dates</label>${radios('date', m.mg_date_fmt || k?.date || 'dmy', Object.entries(DATE_FMTS).map(([kk, f]) => [kk, f.ph, 'like ' + f.ex]))}</div>
+      <button class="btn primary ob-go" type="submit">Continue</button>
+    </form>`);
+  const form = $('#ob-form');
+  // choosing a country sets the usual distance and date order, until the person picks one themselves
+  let touched = { unit: !!m.mg_unit, date: !!m.mg_date_fmt };
+  form.querySelectorAll('input[name=unit]').forEach(r => r.addEventListener('change', () => { touched.unit = true; }));
+  form.querySelectorAll('input[name=date]').forEach(r => r.addEventListener('change', () => { touched.date = true; }));
+  $('#f-country').addEventListener('change', e => { const kk = COUNTRY[e.target.value]; if (!kk) return;
+    if (!touched.unit) form.querySelector(`input[name=unit][value=${kk.unit}]`).checked = true;
+    if (!touched.date && kk.date) form.querySelector(`input[name=date][value=${kk.date}]`).checked = true; });
+  setTimeout(() => !TOUCH.matches && $('#f-first_name')?.focus(), 30);
+  wireForm('#ob-form', {
+    first_name: v => !v.trim() ? 'Enter your first name.' : v.trim().length > 60 ? 'Keep it under 60 characters.' : '',
+    last_name: v => v.trim().length > 60 ? 'Keep it under 60 characters.' : '',
+    country: v => !v ? 'Choose a country, or Another country.' : ''
+  }, async f => {
+    const btn = form.querySelector('button[type=submit]'); btn.disabled = true; btn.textContent = 'Saving…';
+    const data = { first_name: f.first_name.trim(), last_name: f.last_name.trim(), full_name: [f.first_name.trim(), f.last_name.trim()].filter(Boolean).join(' '),
+      mg_country: countryVal(f.country) || '', mg_city: f.city.trim(), mg_unit: form.querySelector('input[name=unit]:checked')?.value || 'km',
+      mg_date_fmt: form.querySelector('input[name=date]:checked')?.value || 'dmy', mg_profile: true };
+    const { data: u, error } = await db.auth.updateUser({ data });
+    if (error) { btn.disabled = false; btn.textContent = 'Continue'; return toast('Couldn\'t save your details: ' + error.message, true); }
+    S.user = u?.user || { ...S.user, user_metadata: { ...meta(), ...data } };
+    setDateFmt(data.mg_date_fmt);
+    obGarage();
+  });
+}
+function obGarage(msg) {
+  const m = meta(), d = newGarageDefaults();
+  const first = (m.first_name || '').trim();
+  const name = first ? `${first}${/s$/i.test(first) ? '’' : '’s'} Garage` : '';
+  let bg = DEFAULT_BG;
+  const sw = list => list.map(([c, n]) => `<button type="button" data-bg="${c}" style="background:${c}" aria-pressed="${c === bg}" aria-label="${n}" title="${n}"></button>`).join('');
+  obShell(2, 'Build your first garage', 'Your garage holds your vehicles, their history and costs. Invite family or your mechanic to it later.', `
+    <form id="ob-form" novalidate>
+      ${msg ? `<div class="form-err" role="alert">${esc(msg)}</div>` : ''}
+      ${field('name', 'Garage name', 'text', name, { required: true, ph: 'e.g. The Weekend Garage' })}
+      <div class="fld"><label>Colour</label>
+        <div class="sw-g"><span class="hint">Dark</span><div class="sw" role="group" aria-label="Dark backgrounds">${sw(BG_DARK)}</div>
+        <span class="hint">Light</span><div class="sw" role="group" aria-label="Light backgrounds">${sw(BG_LIGHT)}</div></div>
+        <span class="help">The garage's background. You'll see it as you pick; add a logo later in Account.</span></div>
+      ${field('country', 'Where the garage is', 'select', d.country || '', { required: true, options: [['', 'Choose a country'], ...COUNTRY_LIST.map(([c, n]) => [c, n]), ['OTHER', 'Another country']], help: 'Sets the currency and turns on the options that apply there, like the FIPE table in Brazil.' })}
+      <div class="two">${field('currency', 'Main currency', 'select', d.currency, { required: true, options: Object.entries(CURRENCIES) })}${field('distance_unit', 'Distance', 'select', d.distance_unit, { required: true, options: [['km', 'Kilometres'], ['mi', 'Miles']] })}</div>
+      <div class="fld"><label>What's in it</label>${radios('bikes', 'yes', [['no', 'Cars', 'Just cars'], ['yes', 'Cars and motorcycles', 'Adds the Bikes tab']])}</div>
+      <div class="ob-row">${m.mg_profile && !msg ? `<button class="btn" type="button" id="ob-back">Back</button>` : ''}<button class="btn primary ob-go" type="submit">Create garage</button></div>
+    </form>`);
+  const form = $('#ob-form');
+  form.querySelectorAll('[data-bg]').forEach(b => b.onclick = () => { bg = b.dataset.bg; form.querySelectorAll('[data-bg]').forEach(x => x.setAttribute('aria-pressed', x === b)); previewBg(bg); });
+  $('#f-country').addEventListener('change', e => { const k = COUNTRY[e.target.value]; if (k) { $('#f-currency').value = k.cur; } });
+  if ($('#ob-back')) $('#ob-back').onclick = () => { previewBg(DEFAULT_BG); obProfile(); };
+  setTimeout(() => !TOUCH.matches && $('#f-name')?.focus(), 30);
   wireForm('#ob-form', garageRules, async f => {
-    const btn = $('#ob-form button[type=submit]'); btn.disabled = true; btn.textContent = 'Creating…';
-    try { await createGarage(f); } finally { if ($('#ob-form button[type=submit]')) { btn.disabled = false; btn.textContent = 'Create garage'; } }
+    const btn = form.querySelector('button[type=submit]'); btn.disabled = true; btn.textContent = 'Creating…';
+    const show_bikes = form.querySelector('input[name=bikes]:checked')?.value !== 'no';
+    try { await createGarage(f, { bg_color: readable(bg), show_bikes }); }
+    finally { if (document.body.contains(btn)) { btn.disabled = false; btn.textContent = 'Create garage'; } }
   });
 }
 const garageFields = g => `${field('name', 'Garage name', 'text', g.name, { required: true, ph: 'e.g. The Weekend Garage' })}
@@ -1177,10 +1261,11 @@ const garageFields = g => `${field('name', 'Garage name', 'text', g.name, { requ
   <div class="two">${field('currency', 'Main currency', 'select', g.currency, { required: true, options: Object.entries(CURRENCIES) })}${field('distance_unit', 'Distance', 'select', g.distance_unit, { required: true, options: [['km', 'Kilometres'], ['mi', 'Miles']] })}</div>`;
 const garageRules = { name: v => !v.trim() ? 'Give your garage a name.' : v.trim().length > 80 ? 'Keep the name under 80 characters.' : '', country: v => !v ? 'Choose the country, or Another country.' : '' };
 const countryVal = v => COUNTRY[v] ? v : null;
-const newGarageDefaults = (from) => { const c = from?.country || guessCountry(); const k = COUNTRY[c]; return { name: '', country: c || '', currency: from?.currency || k?.cur || 'USD', distance_unit: from?.distance_unit || k?.unit || 'km' }; };
-async function createGarage(f) {
+const newGarageDefaults = (from) => { const um = S.user?.user_metadata || {}; const c = from?.country || um.mg_country || guessCountry(); const k = COUNTRY[c]; return { name: '', country: c || '', currency: from?.currency || k?.cur || 'USD', distance_unit: from?.distance_unit || um.mg_unit || k?.unit || 'km' }; };
+async function createGarage(f, look) {
   const { data: id, error } = await db.rpc('create_garage', { p_name: f.name.trim(), p_currency: f.currency, p_unit: f.distance_unit, p_lang: 'en', p_country: countryVal(f.country) });
   if (error) throw new Error(limitMsg(error) || 'Couldn\'t create the garage: ' + error.message);
+  if (look) { const { error: e2 } = await db.from('garages').update(look).eq('id', id); if (e2) console.warn('garage look', e2.message); }
   try { localStorage.setItem('mg-garage', id); } catch (e) {}
   await loadGarages();
   S.vehicles = []; S.records = []; S.readings = []; S.comps = []; S.tasks = []; S.reminders = []; S.history = []; S.shares = []; window.live.state = 'loading';
@@ -1259,6 +1344,7 @@ async function openAccount() {
     </fieldset>` : ''}
     <fieldset><legend>Preferences</legend>
       ${PUSH.supported || isIOS() ? `<div class="fld"><label>Phone alerts on this device</label><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">${PUSH.on ? '<span class="chip bs-ok">On</span><button class="btn sm" type="button" id="pref-push-off">Turn off</button>' : PUSH.supported ? '<button class="btn sm" type="button" id="pref-push-on">Turn on</button>' : '<a class="btn sm" href="#/install" data-close-acct>Add to home screen first</a>'}</div><span class="help">A notification when a reminder is due: two weeks before, on the day, then weekly while overdue.</span></div>` : ''}
+      <div class="two"><div class="fld"><label for="pref-first">First name</label><input id="pref-first" type="text" autocomplete="given-name" value="${esc(meta().first_name || '')}"></div><div class="fld"><label for="pref-last">Last name</label><input id="pref-last" type="text" autocomplete="family-name" value="${esc(meta().last_name || '')}"></div></div>
       <div class="fld"><label for="pref-date">Date format</label><select id="pref-date">${Object.entries(DATE_FMTS).map(([k, f]) => `<option value="${k}"${dateFmt() === k ? ' selected' : ''}>${f.ph} · ${f.name}, like ${f.ex}</option>`).join('')}</select><span class="help">Just for you, everywhere you sign in. Other people in your garages keep their own.</span></div>
     </fieldset>
     <fieldset><legend>Your garages</legend>
@@ -1285,6 +1371,12 @@ async function openAccount() {
   if ($('#pref-push-on')) $('#pref-push-on').onclick = async e => { await pushOnClick(e.currentTarget); openAccount(); };
   if ($('#pref-push-off')) $('#pref-push-off').onclick = async () => { await pushDisable(); toast('Phone alerts off on this device'); openAccount(); };
   document.querySelectorAll('[data-close-acct]').forEach(a => a.onclick = () => closePanel());
+  const saveName = async () => { const first_name = $('#pref-first').value.trim(), last_name = $('#pref-last').value.trim(); if (first_name === (meta().first_name || '') && last_name === (meta().last_name || '')) return;
+    if (!first_name) { $('#pref-first').value = meta().first_name || ''; return toast('Your first name can\'t be empty.', true); }
+    const data = { first_name, last_name, full_name: [first_name, last_name].filter(Boolean).join(' '), mg_profile: true };
+    const { error } = await db.auth.updateUser({ data }); if (error) return toast('Couldn\'t save your name: ' + error.message, true);
+    S.user.user_metadata = { ...meta(), ...data }; toast('Name saved'); };
+  $('#pref-first').onchange = saveName; $('#pref-last').onchange = saveName;
   $('#pref-date').onchange = e => { setDateFmt(e.target.value); render(); toast(`Dates now show as ${DATE_FMTS[dateFmt()].ph}`); };
   $('#g-new-btn').onclick = () => {
     if (ownedGarages() >= S.garageLimit) return openLimit('garage');
