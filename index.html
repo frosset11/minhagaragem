@@ -684,6 +684,7 @@ input.fp-in:focus-visible~.pgal .pg-add,.pgal:has(+input.fp-in:focus-visible) .p
 .ob-opt input:focus-visible+span{outline:2px solid var(--fg);outline-offset:2px}
 .ob-go{width:100%;height:46px;margin-top:6px}
 .ob-row{display:flex;gap:10px;margin-top:6px}.ob-row .ob-go{flex:1;margin:0}.ob-row .btn:not(.ob-go){height:46px}
+.inv-msg{margin:12px 0 0;padding:14px 16px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--bg);font-size:14px;line-height:1.55;color:var(--fg2);user-select:text}
 </style>
 </head>
 <body class="locked">
@@ -1335,11 +1336,11 @@ async function openAccount() {
     </form></fieldset>` : ''}
     <fieldset><legend>People</legend>
       <div class="rows" style="margin-bottom:14px">${members.map(person).join('')}</div>
-      ${invites.length ? `<p class="hint" style="margin:0 0 6px">Waiting to join</p><div class="rows" style="margin-bottom:14px">${invites.map(iv => `<div class="li"><span style="min-width:0"><span class="t" style="display:block">${esc(iv.email)}</span><span class="m" style="display:block">${ROLES[iv.role]} · invited ${fdate(iv.created_at.slice(0, 10))}</span></span><span class="r"><button class="btn sm" type="button" data-inv-x="${iv.id}">Cancel</button></span></div>`).join('')}</div>` : ''}
+      ${invites.length ? `<p class="hint" style="margin:0 0 6px">Waiting to join</p><div class="rows" style="margin-bottom:14px">${invites.map(iv => `<div class="li"><span style="min-width:0"><span class="t" style="display:block">${esc(iv.email)}</span><span class="m" style="display:block">${ROLES[iv.role]} · invited ${fdate(iv.created_at.slice(0, 10))}</span></span><span class="r"><button class="btn sm" type="button" data-inv-send="${esc(iv.email)}" data-inv-role="${iv.role}">Send invite</button> <button class="btn sm" type="button" data-inv-x="${iv.id}">Cancel</button></span></div>`).join('')}</div>` : ''}
       ${owner ? `<form id="inv-form" novalidate>
         <div class="two">${field('email', 'Invite by email', 'email', '', { required: true, ac: 'off', ph: 'name@example.com' })}${field('role', 'Role', 'select', 'editor', { required: true, options: [['editor', 'Editor'], ['viewer', 'Viewer']] })}</div>
         <button class="btn" type="submit">Invite</button>
-        <p class="hint" style="margin:10px 0 0">Then send them this site's link. When they create an account with that email, ${esc(g.name)} opens for them.</p>
+        <p class="hint" style="margin:10px 0 0">If they already use AUTODEX, ${esc(g.name)} appears for them straight away. If not, you'll get a message to send them; when they sign up with that email, the garage opens for them.</p>
       </form>` : ''}
     </fieldset>` : ''}
     <fieldset><legend>Preferences</legend>
@@ -1410,10 +1411,15 @@ async function openAccount() {
       toast('Look saved'); render(); openAccount();
     });
     wireForm('#inv-form', { email: v => !v ? 'Enter their email.' : !/^\S+@\S+\.\S+$/.test(v.trim()) ? 'Enter a full email, like name@example.com.' : members.some(m => m.email === v.trim().toLowerCase()) ? 'They\'re already in this garage.' : '' }, async f => {
-      const { error } = await db.from('garage_invites').insert({ garage_id: g.id, email: f.email.trim().toLowerCase(), role: f.role, created_by: S.user.id });
+      const email = f.email.trim().toLowerCase();
+      const { error } = await db.from('garage_invites').insert({ garage_id: g.id, email, role: f.role, created_by: S.user.id });
       if (error) throw new Error(/duplicate/.test(error.message) ? 'That email is already invited.' : 'Couldn\'t invite: ' + error.message);
-      toast('Invited ' + f.email.trim()); openAccount();
+      // someone who already has an account is added at once; otherwise the invite waits for them to sign up
+      const { data: still } = await db.from('garage_invites').select('id').eq('garage_id', g.id).eq('email', email).maybeSingle();
+      if (!still) { toast(`${email} now has access to ${g.name}`); return openAccount(); }
+      openSendInvite(g, email, f.role);
     });
+    document.querySelectorAll('[data-inv-send]').forEach(b => b.onclick = () => openSendInvite(g, b.dataset.invSend, b.dataset.invRole));
     document.querySelectorAll('[data-inv-x]').forEach(b => b.onclick = async () => { const { error } = await db.from('garage_invites').delete().eq('id', b.dataset.invX); if (error) return toast('Couldn\'t cancel: ' + error.message, true); toast('Invite cancelled'); openAccount(); });
     document.querySelectorAll('[data-mrole]').forEach(b => b.onclick = async () => { const { error } = await db.from('garage_members').update({ role: b.dataset.to }).eq('garage_id', g.id).eq('user_id', b.dataset.mrole); if (error) return toast('Couldn\'t change the role: ' + error.message, true); toast('Role changed'); openAccount(); });
     document.querySelectorAll('[data-mrm]').forEach(b => b.onclick = () => {
@@ -4165,6 +4171,42 @@ window.addEventListener('hashchange', () => {
   $('#view').focus({ preventScroll: true });
 });
 $('#acct-btn').onclick = openAccount;
+/* ---------- garages shared with you while the app was open: show them without signing in again ---------- */
+async function checkNewGarages() {
+  if (!db || !S.user) return;
+  await db.rpc('accept_invites').catch(() => {});
+  const { data } = await db.from('garage_members').select('role, garage:garages(*)').eq('user_id', S.user.id);
+  const fresh = (data || []).filter(m => m.garage && !S.garages.some(g => g.id === m.garage.id));
+  if (!fresh.length) return;
+  if (!S.garage) { await loadGarages(); if (S.garage) refreshAuth(); return; } // still on the welcome screens
+  S.garages = [...S.garages, ...fresh.map(m => ({ ...m.garage, role: m.role }))].sort((a, b) => a.name.localeCompare(b.name));
+  try { localStorage.setItem('mg-garages-' + S.user.id, JSON.stringify(S.garages)); } catch (e) {}
+  render();
+  toast(fresh.length === 1 ? `You've been added to ${fresh[0].garage.name}. Open it from the garage name at the top.` : `You've been added to ${fresh.length} garages. Open them from the garage name at the top.`);
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkNewGarages(); });
+setInterval(() => { if (document.visibilityState === 'visible') checkNewGarages(); }, 5 * 60e3);
+/* ---------- invites: AUTODEX doesn't send email yet, so the owner sends the invite from their own phone or email ---------- */
+function inviteText(g, email, role) {
+  const who = [S.user?.user_metadata?.first_name].filter(Boolean)[0];
+  const url = location.origin + '/';
+  return { subject: `${who ? who + ' invited you' : 'You\'re invited'} to ${g.name} on AUTODEX`,
+    body: `${who ? 'Hi! ' + who + ' here. ' : 'Hi! '}I've added you to my garage "${g.name}" on AUTODEX as ${role === 'viewer' ? 'a viewer' : 'an editor'}${role === 'viewer' ? '' : ', so you can add service records and readings'}.
+
+Open ${url} and create an account with this email: ${email}
+The garage opens for you as soon as you sign in.`, url };
+}
+function openSendInvite(g, email, role) {
+  const t = inviteText(g, email, role);
+  const canShare = !!navigator.share;
+  openPanel('Send the invite', `<p><b>${esc(email)}</b> is invited to ${esc(g.name)}. They don't have an account yet, so let them know: send this message from your phone or email.</p>
+    <div class="inv-msg">${esc(t.body).replace(/\n/g, '<br>')}</div>`,
+    `${canShare ? '<button class="btn primary" type="button" id="inv-share">Send…</button>' : ''}
+     <a class="btn${canShare ? '' : ' primary'}" id="inv-mail" href="mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(t.subject)}&body=${encodeURIComponent(t.body)}">Email it</a>
+     <button class="btn" type="button" id="inv-copy">Copy</button>`);
+  if ($('#inv-share')) $('#inv-share').onclick = async () => { try { await navigator.share({ title: t.subject, text: t.body }); closePanel(); toast('Invite sent'); } catch (e) { if (e.name !== 'AbortError') toast('Couldn\'t open sharing. Use Email it or Copy.', true); } };
+  $('#inv-copy').onclick = async () => { try { await navigator.clipboard.writeText(t.body); toast('Message copied. Paste it into WhatsApp, Messages or email.'); } catch (e) { toast('Couldn\'t copy. Select the message and copy it.', true); } };
+}
 /* ---------- illustrations: paint the space beside the square picture with the picture's own background ---------- */
 // Illustrations are square and shown whole inside wider frames. Instead of a flat grey on each side, read the
 // colour down the picture's left and right edges and continue it, so the background runs edge to edge
