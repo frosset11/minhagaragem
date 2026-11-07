@@ -4073,6 +4073,24 @@ window.addEventListener('hashchange', () => {
   $('#view').focus({ preventScroll: true });
 });
 $('#acct-btn').onclick = openAccount;
+/* ---------- illustrations: paint the space beside the square picture with the picture's own background ---------- */
+// Illustrations are square and shown whole inside wider frames. Instead of a flat grey on each side, read the
+// colour down the picture's left and right edges and continue it, so the background runs edge to edge
+// and the vehicle keeps its size.
+const ILL_BG = new Map();
+function illusEdge(img) {
+  const key = (img.currentSrc || img.src).split('?')[0];
+  if (ILL_BG.has(key)) { img.style.background = ILL_BG.get(key); return; }
+  try {
+    const N = 48, c = document.createElement('canvas'); c.width = c.height = N;
+    const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0, N, N);
+    const d = g.getImageData(0, 0, N, N).data;
+    const col = x => { const stops = []; for (let y = 0; y < N; y += 3) { const i = (y * N + x) * 4; stops.push(`rgb(${d[i]},${d[i + 1]},${d[i + 2]}) ${Math.round(y / (N - 1) * 100)}%`); } return `linear-gradient(${stops.join(',')})`; };
+    const bg = `${col(1)} left / 50.5% 100% no-repeat, ${col(N - 2)} right / 50.5% 100% no-repeat, #e5e5e5`;
+    ILL_BG.set(key, bg); img.style.background = bg;
+  } catch (e) { /* picture from another site without permission to read it: keep the plain grey */ }
+}
+document.addEventListener('load', e => { const t = e.target; if (t.tagName === 'IMG' && t.classList.contains('illus')) illusEdge(t); }, true);
 /* ---------- move a vehicle to another garage (vehicle page, owners with 2+ garages they can add to) ---------- */
 const moveTargets = () => S.role === 'owner' ? S.garages.filter(g => g.id !== GID() && ['owner', 'editor'].includes(g.role)) : [];
 function garagePick(v) {
