@@ -41,15 +41,16 @@ const SCHEMA = {
   }
 };
 const clean = (x: string) => String(x || '').trim().replace(/\s+/g, ' ');
-const keyOf = (b: Record<string, unknown>) => [b.year, b.make, b.model, b.trim, b.kind].map(x => clean(String(x ?? '')).toLowerCase()).join('|');
+const keyOf = (b: Record<string, unknown>) => [b.year, b.make, b.model, b.trim, b.kind, b.gearbox].map(x => clean(String(x ?? '')).toLowerCase()).join('|');
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   try {
-    const body = await req.json().catch(() => ({})) as { garage_id?: string; year?: number | string; make?: string; model?: string; trim?: string; kind?: string; country?: string; refresh?: boolean };
+    const body = await req.json().catch(() => ({})) as { garage_id?: string; year?: number | string; make?: string; model?: string; trim?: string; kind?: string; gearbox?: string; country?: string; refresh?: boolean };
     const make = clean(body.make || ''), model = clean(body.model || ''), year = String(body.year || '').trim();
     if (!make || !model || !/^\d{4}$/.test(year)) return json({ error: 'bad_request', message: 'Enter the year, make and model first.' }, 400);
-    const key = keyOf({ ...body, make, model, year });
+    const gearbox = body.gearbox === 'manual' || body.gearbox === 'automatic' ? body.gearbox : '';
+    const key = keyOf({ ...body, make, model, year, gearbox });
     // signed in at all? (cached specs are public knowledge, but only for people using the app)
     const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } });
     const { data: u } = await sb.auth.getUser();
@@ -61,7 +62,7 @@ Deno.serve(async (req) => {
     const g = await gate(req, body.garage_id, 'specs');
     if ('fail' in g) return g.fail;
     const kind = body.kind === 'bike' ? 'motorcycle' : 'car';
-    const prompt = `Give the published factory specifications for this ${kind}: ${year} ${make} ${model}${body.trim ? ' ' + clean(body.trim) : ''}${body.country ? ` (sold in ${clean(body.country)}; use that market's version if it differs)` : ''}.
+    const prompt = `Give the published factory specifications for this ${kind}: ${year} ${make} ${model}${body.trim ? ' ' + clean(body.trim) : ''}${gearbox ? `, ${gearbox} gearbox` : ''}${body.country ? ` (sold in ${clean(body.country)}; use that market's version if it differs)` : ''}.
 Use the figures the maker published for this exact year and version, or the most widely cited figures. If the trim is missing, use the most common version for that year and name it in "name". Do not guess figures you don't know: use -1 or "" instead. Power is metric horsepower (PS / cv). If this isn't a real ${kind} you know, set found to false.`;
     const r = await askClaude(g.key!, [{ type: 'text', text: prompt }], SCHEMA, 2500);
     if ('fail' in r) return r.fail;
@@ -69,7 +70,7 @@ Use the figures the maker published for this exact year and version, or the most
     await g.record(r.usage);
     const d = r.data as Record<string, unknown>;
     if (!d.found) return json({ ok: false, error: 'not_found', message: `No public specifications found for a ${year} ${make} ${model}. Check the spelling, or add a trim.` });
-    const sheet = { ...d, source: 'AI, from published specifications', looked_up: new Date().toISOString().slice(0, 10), query: { year: +year, make, model, trim: clean(body.trim || ''), kind: body.kind === 'bike' ? 'bike' : 'car' } };
+    const sheet = { ...d, source: 'AI, from published specifications', looked_up: new Date().toISOString().slice(0, 10), query: { year: +year, make, model, trim: clean(body.trim || ''), kind: body.kind === 'bike' ? 'bike' : 'car', gearbox } };
     await admin.from('spec_cache').upsert({ key, data: sheet });
     return json({ ok: true, cached: false, sheet });
   } catch (e) {

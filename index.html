@@ -714,6 +714,12 @@ input.fp-in:focus-visible~.pgal .pg-add,.pgal:has(+input.fp-in:focus-visible) .p
 .bs-empty{padding:18px;border:1px dashed var(--line2);border-radius:var(--r);display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
 .bs-empty p{margin:0;max-width:52ch;color:var(--fg2)}
 @media (max-width:720px){.bs-grid{grid-template-columns:1fr 1fr}.bs-c.hero dd{font-size:26px}.bs-c dd{font-size:21px}}
+.seg.gbx{display:inline-flex;flex-wrap:wrap;gap:0;margin:0;border:1px solid var(--line2);border-radius:999px;padding:3px;background:var(--bg)}
+.seg.gbx label{position:relative;cursor:pointer}
+.seg.gbx input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.seg.gbx span{display:block;padding:8px 16px;border-radius:999px;font-size:14px;color:var(--fg2);min-height:36px;line-height:20px}
+.seg.gbx input:checked+span{background:var(--accent);color:var(--on-accent);font-weight:500}
+.seg.gbx input:focus-visible+span{outline:2px solid var(--fg);outline-offset:1px}
 </style>
 </head>
 <body class="locked">
@@ -2045,7 +2051,7 @@ function viewVehicle(id) {
   const owned = v.purchase_date ? Math.max(0, Math.round((new Date(v.sold_date || Date.now()) - new Date(v.purchase_date)) / 864e5)) : null;
   const spec = [
     ['Make', v.make], ['Model', v.model], ['Trim', v.trim_level], ['Year', v.year], ['Colour', v.colour], ['VIN', v.vin, 1],
-    ['Series', v.series], ['Body', v.body], ['Engine', v.engine], ['Transmission', v.transmission], ['Drivetrain', v.drivetrain], ['Power', v.power],
+    ['Series', v.series], ['Body', v.body], ['Engine', v.engine], ['Gearbox', GEARBOX[v.gearbox]], ['Transmission', v.transmission], ['Drivetrain', v.drivetrain], ['Power', v.power],
     ['Built in', [v.plant, v.build_year && v.build_year !== v.year ? v.build_year : null].filter(Boolean).join(', ')], ['Plate', v.plate], ['Kept at', v.location]
   ].filter(x => x[1] != null && x[1] !== '');
   const own = [
@@ -2748,6 +2754,7 @@ function openVehicleForm(v, kind) {
         <div id="vin-msg" aria-live="polite"></div>
         <input type="hidden" name="specs_source" value="${esc(v.specs_source || '')}">
         <div class="two">${field('engine', 'Engine', 'text', v.engine)}${field('power', 'Power', 'text', v.power, { ph: '280 hp' })}</div>
+        <div class="fld"><label>Gearbox</label><div class="seg gbx" role="radiogroup" aria-label="Gearbox">${[['manual', 'Manual'], ['automatic', 'Automatic'], ['', 'Not set']].map(([k, t]) => `<label><input type="radio" name="gearbox" value="${k}"${(v.gearbox || '') === k ? ' checked' : ''}><span>${t}</span></label>`).join('')}</div></div>
         <div class="two">${field('transmission', 'Transmission', 'text', v.transmission, { ph: '6-speed manual' })}${field('drivetrain', 'Drivetrain', 'text', v.drivetrain, { ph: 'RWD' })}</div>
         <div class="two">${field('body', 'Body', 'text', v.body, { ph: 'Coupe' })}${field('series', 'Generation or series', 'text', v.series, { ph: '997.2, E82, Type 1…' })}</div>
         <div class="two">${field('plant', 'Built in', 'text', v.plant, { ph: 'Stuttgart, Germany' })}${field('build_year', 'Year of manufacture', 'text', v.build_year ?? '', { inputmode: 'numeric', help: 'Only if different from the model year.' })}</div>
@@ -2804,6 +2811,7 @@ function openVehicleForm(v, kind) {
       id, kind: f.kind, year: f.year ? +f.year : null, make: f.make.trim(), model: nz(f.model.trim()), currency: f.currency, meter: f.meter, hours: nMoney(f.hours), trim_level: nz(f.trim_level.trim()), nickname: nz(f.nickname.trim()),
       colour: nz(f.colour.trim()), vin: nz(f.vin.trim().toUpperCase()), engine: nz(f.engine.trim()), power: nz(f.power.trim()),
       transmission: nz(f.transmission.trim()), drivetrain: nz(f.drivetrain.trim()), plate: nz(f.plate.trim().toUpperCase()), location: nz(f.location.trim()),
+      gearbox: $('#v-form').querySelector('input[name=gearbox]:checked')?.value || null,
       body: nz(f.body.trim()), series: nz(f.series.trim()), plant: nz(f.plant.trim()), build_year: f.build_year.trim() ? +f.build_year.trim() : null, specs_source: nz(f.specs_source),
       odometer: nInt(f.odometer), odometer_unit: f.odometer_unit, odometer_date: nz(f.odometer_date),
       purchase_date: nz(f.purchase_date), purchase_price: nMoney(f.purchase_price), purchased_from: nz(f.purchased_from.trim()),
@@ -4206,6 +4214,9 @@ window.addEventListener('hashchange', () => {
 $('#acct-btn').onclick = openAccount;
 /* ---------- build sheet: public factory specs from year + make + model, top-trumps cards and a power curve ---------- */
 let VSHEET = null; // a sheet looked up while the vehicle form is open, saved with it
+const GEARBOX = { manual: 'Manual', automatic: 'Automatic' };
+// manual or automatic, from a transmission description ("6-speed manual", "7-speed PDK"…)
+const gearboxOf = t => /manual|stick|\bmt\b|mec[aâ]nic/i.test(t || '') ? 'manual' : /auto|dct|dsg|pdk|cvt|dual.?clutch|tiptronic|steptronic|smg|sequential/i.test(t || '') ? 'automatic' : '';
 const okN = x => typeof x === 'number' && isFinite(x) && x >= 0;
 async function specsLookup(q, refresh) {
   const { data, error } = await db.functions.invoke('vehicle-specs', { body: { garage_id: GID(), country: COUNTRY[gCountry()]?.name || '', refresh: !!refresh, ...q } });
@@ -4221,20 +4232,24 @@ const sheetFields = s => ({
 // vehicle form: look the specs up once year, make and model are in
 function wireSpecs(form, v) {
   VSHEET = null;
-  let t = null, lastQ = v.build_sheet?.query ? JSON.stringify([v.build_sheet.query.year, v.build_sheet.query.make, v.build_sheet.query.model, v.build_sheet.query.trim || '', v.build_sheet.query.kind]) : '';
+  let t = null, lastQ = v.build_sheet?.query ? JSON.stringify([v.build_sheet.query.year, v.build_sheet.query.make, v.build_sheet.query.model, v.build_sheet.query.trim || '', v.build_sheet.query.kind, v.build_sheet.query.gearbox || '']) : '';
   const box = $('#spec-msg');
   const go = async () => {
-    const q = { year: form.elements.year.value.trim(), make: form.elements.make.value.trim(), model: form.elements.model.value.trim(), trim: form.elements.trim_level.value.trim(), kind: form.elements.kind.value };
+    const gbx = () => form.querySelector('input[name=gearbox]:checked')?.value || '';
+    const q = { year: form.elements.year.value.trim(), make: form.elements.make.value.trim(), model: form.elements.model.value.trim(), trim: form.elements.trim_level.value.trim(), kind: form.elements.kind.value, gearbox: gbx() };
     if (!/^\d{4}$/.test(q.year) || !q.make || !q.model) return;
-    const sig = JSON.stringify([+q.year, q.make, q.model, q.trim, q.kind]); if (sig === lastQ) return; lastQ = sig;
+    const sig = JSON.stringify([+q.year, q.make, q.model, q.trim, q.kind, q.gearbox]); if (sig === lastQ) return; lastQ = sig;
     box.innerHTML = `<div class="fill-note"><div class="skel" style="height:10px;width:55%;margin-bottom:8px"></div><p class="hint" style="margin:0">Looking up the ${esc(q.year)} ${esc(q.make)} ${esc(q.model)}'s specs…</p></div>`;
     const res = await specsLookup(q);
-    if (JSON.stringify([+q.year, q.make, q.model, q.trim, q.kind]) !== lastQ) return; // changed meanwhile
+    if (JSON.stringify([+q.year, q.make, q.model, q.trim, q.kind, q.gearbox]) !== lastQ) return; // changed meanwhile
     if (!res.ok) { box.innerHTML = res.error === 'not_found' || res.error === 'limit' ? `<p class="hint">${esc(res.message)}</p>` : ''; if (res.error !== 'not_found' && res.error !== 'limit') lastQ = ''; return; }
     VSHEET = res.sheet;
+    // gearbox not chosen yet: take it from the specs, without starting another lookup
+    if (!gbx()) { const g = gearboxOf(res.sheet.transmission); if (g) { form.querySelector(`input[name=gearbox][value=${g}]`).checked = true; lastQ = JSON.stringify([+q.year, q.make, q.model, q.trim, q.kind, g]); } }
     applyFill(form, sheetFields(res.sheet), 'specs', { box, likely: true, note: 'The full build sheet (power, torque, performance and the power curve) is saved with the vehicle.' });
   };
   ['year', 'make', 'model', 'trim_level', 'kind'].forEach(n => form.elements[n].addEventListener('change', () => { clearTimeout(t); t = setTimeout(go, 250); }));
+  form.querySelectorAll('input[name=gearbox]').forEach(r => r.addEventListener('change', () => { clearTimeout(t); t = setTimeout(go, 250); }));
   ['year', 'make', 'model'].forEach(n => form.elements[n].addEventListener('input', () => { clearTimeout(t); t = setTimeout(go, 1200); }));
 }
 // units for the cards
@@ -4300,10 +4315,11 @@ function buildSheetSection(v) {
 }
 async function getBuildSheet(v, btn, refresh) {
   const label = btn.textContent; btn.disabled = true; btn.textContent = 'Looking up…';
-  const res = await specsLookup({ year: v.year, make: v.make, model: v.model, trim: v.trim_level || '', kind: v.kind }, refresh);
+  const res = await specsLookup({ year: v.year, make: v.make, model: v.model, trim: v.trim_level || '', kind: v.kind, gearbox: v.gearbox || '' }, refresh);
   if (!res.ok) { btn.disabled = false; btn.textContent = label; return toast(res.message || 'Couldn\'t look up the specs.', true); }
   const row = { build_sheet: res.sheet }, f = sheetFields(res.sheet);
   for (const k of Object.keys(f)) if (f[k] && !v[k]) row[k] = f[k];
+  if (!v.gearbox && gearboxOf(res.sheet.transmission)) row.gearbox = gearboxOf(res.sheet.transmission);
   if (Object.keys(row).length > 1 && !v.specs_source) row.specs_source = 'published specifications (AI lookup; check them)';
   const { data, error } = await db.from('vehicles').update(row).eq('id', v.id).select().single();
   if (error) { btn.disabled = false; btn.textContent = label; return toast('Couldn\'t save the build sheet: ' + error.message, true); }
