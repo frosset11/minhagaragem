@@ -4213,9 +4213,9 @@ function askMove(v, sel) {
   };
 }
 
-/* ---------- pick up new versions of the app: check every hour, reload when it changed and nothing is being edited ---------- */
+/* ---------- pick up new versions of the app: check every 30 minutes, reload when it changed and nothing is being edited ---------- */
 (() => {
-  const HOUR = 36e5; let stamp = null, pending = false, last = Date.now();
+  const HOUR = 18e5; let stamp = null, pending = false, last = Date.now();
   const version = async () => {
     try { const r = await fetch('/', { method: 'HEAD', cache: 'no-store' }); return r.ok ? (r.headers.get('etag') || r.headers.get('last-modified')) : null; } catch (e) { return null; }
   };
@@ -4229,7 +4229,7 @@ function askMove(v, sel) {
   };
   version().then(v => { stamp = v; });
   setInterval(check, HOUR);
-  // phones pause timers in the background: check on return if an hour has passed
+  // phones pause timers in the background: check on return if 30 minutes have passed
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && Date.now() - last >= HOUR) check(); });
   // an update was waiting for a form to close: reload once it has
   setInterval(() => { if (pending && !busy()) location.reload(); }, 15000);
