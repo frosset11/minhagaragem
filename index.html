@@ -685,6 +685,35 @@ input.fp-in:focus-visible~.pgal .pg-add,.pgal:has(+input.fp-in:focus-visible) .p
 .ob-go{width:100%;height:46px;margin-top:6px}
 .ob-row{display:flex;gap:10px;margin-top:6px}.ob-row .ob-go{flex:1;margin:0}.ob-row .btn:not(.ob-go){height:46px}
 .inv-msg{margin:12px 0 0;padding:14px 16px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--bg);font-size:14px;line-height:1.55;color:var(--fg2);user-select:text}
+/* build sheet */
+.bs-name{font-family:var(--serif,inherit);font-size:17px;margin:0}
+.bs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:0}
+.bs-c{margin:0;padding:14px 16px;border:1px solid var(--line);border-radius:var(--r);background:var(--s1);display:flex;flex-direction:column;gap:4px;min-width:0}
+.bs-c dt{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg3)}
+.bs-c dd{margin:0;font-family:var(--mono,inherit);font-size:24px;line-height:1.1;color:var(--fg)}
+.bs-c dd small{font-size:13px;color:var(--fg3);margin-left:2px}
+.bs-c.txt dd{font-family:inherit;font-size:15.5px;line-height:1.3;font-weight:500}
+.bs-c.hero{border-color:color-mix(in srgb,var(--accent) 55%,var(--line));background:color-mix(in srgb,var(--accent) 7%,var(--s1))}
+.bs-c.hero dd{font-size:30px;color:var(--accent)}
+.bs-c span{font-size:12.5px;color:var(--fg3)}
+.bs-curve{margin:16px 0 0;padding:14px 12px 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--s1)}
+.bs-curve svg{width:100%;height:auto;display:block}
+.bs-curve .g{stroke:var(--line);stroke-width:1}
+.bs-curve .ax{font-size:11px;fill:var(--fg3);font-family:var(--mono,inherit)}
+@media (max-width:720px){.bs-curve .ax{font-size:11.5px}.bs-curve{padding:12px 6px 10px}}
+.bs-curve .ax.p{fill:var(--accent)}.bs-curve .ax.t{fill:var(--fg2)}
+.bs-curve .ln{fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.bs-curve .ln.p{stroke:var(--accent)}.bs-curve .ln.t{stroke:var(--fg2);stroke-dasharray:6 5}
+.bs-curve .dot.p{fill:var(--accent)}.bs-curve .dot.t{fill:var(--fg2)}
+.bs-curve figcaption{display:flex;flex-wrap:wrap;gap:6px 18px;margin:8px 4px 0;font-size:13px}
+.bs-curve .lg{display:inline-flex;align-items:center;gap:8px;color:var(--fg2)}
+.bs-curve .lg::before{content:"";width:18px;height:0;border-top:2.6px solid var(--accent)}
+.bs-curve .lg.t::before{border-top:2.6px dashed var(--fg2)}
+.bs-curve figcaption .hint{flex-basis:100%;margin:2px 0 0}
+.bs-src{margin:12px 0 0}
+.bs-empty{padding:18px;border:1px dashed var(--line2);border-radius:var(--r);display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.bs-empty p{margin:0;max-width:52ch;color:var(--fg2)}
+@media (max-width:720px){.bs-grid{grid-template-columns:1fr 1fr}.bs-c.hero dd{font-size:26px}.bs-c dd{font-size:21px}}
 </style>
 </head>
 <body class="locked">
@@ -2048,9 +2077,10 @@ function viewVehicle(id) {
         <div class="actions">${S.user && !S.editor ? `<a class="btn" href="#/dossier/${v.id}">Dossier</a>` : ''}${S.editor ? `<button class="btn primary" type="button" data-scan="${v.id}">Scan invoices</button><button class="btn" type="button" data-add-r="${v.id}">${ICON.plus}Add service</button><button class="btn" type="button" data-log="${v.id}">${ICON.plus}Log reading</button><a class="btn" href="#/dossier/${v.id}">Dossier and share</a><button class="btn" type="button" data-edit-v="${v.id}">Edit details</button><button class="btn" type="button" data-import-v="${v.id}">Import spreadsheet</button>${vPhotos(v).length ? `<button class="btn" type="button" data-illus="${v.id}"${ILLUS.has(v.id) ? ' disabled' : ''}>${ILLUS.has(v.id) ? 'Drawing…' : vIllus(v) ? 'Redraw illustration' : 'Make illustration'}</button>` : ''}` : (S.user ? '' : lockNote())}</div>
       </div>
     </div>
-    ${(() => { const j = [['v-service', 'Service'], ['v-rem', S.user ? 'Reminders' : ''], ['v-value', S.user ? 'Value' : ''], ['v-specs', 'Specs'], ['v-story', 'Story'], ['v-miles', reads.length || S.editor ? (v.meter === 'hours' ? 'Hours' : 'Mileage') : '']].filter(x => x[1]); return `<nav class="jump" aria-label="On this page">${j.map(([id, t]) => `<button type="button" data-jump="${id}">${t}</button>`).join('')}</nav>`; })()}
+    ${(() => { const j = [['v-service', 'Service'], ['v-rem', S.user ? 'Reminders' : ''], ['v-value', S.user ? 'Value' : ''], ['v-build', v.build_sheet || S.editor ? 'Build sheet' : ''], ['v-specs', 'Specs'], ['v-story', 'Story'], ['v-miles', reads.length || S.editor ? (v.meter === 'hours' ? 'Hours' : 'Mileage') : '']].filter(x => x[1]); return `<nav class="jump" aria-label="On this page">${j.map(([id, t]) => `<button type="button" data-jump="${id}">${t}</button>`).join('')}</nav>`; })()}
     ${vehicleCharts(v)}
     <div id="v-value">${S.user ? marketSection(v) : ''}</div>
+    ${buildSheetSection(v)}
     <div class="section" id="v-specs"><h2>Specifications</h2>${dl(spec)}${v.specs_source ? `<p class="hint" style="margin:10px 0 0">Some details from ${esc(v.specs_source === 'NHTSA' ? FILL_SRC.nhtsa : v.specs_source)}.</p>` : ''}</div>
     <div class="section"><h2>Ownership</h2>${dl(own)}</div>
     <div id="v-story">${historySection(v)}</div>
@@ -2146,7 +2176,7 @@ function costsBody() {
 /* ---------- fill in a vehicle: VIN lookup, chassis decode, photo and document reads ---------- */
 const FILL_LABELS = { year: 'year', build_year: 'year of manufacture', make: 'make', model: 'model', trim_level: 'trim', series: 'series', colour: 'colour', vin: 'VIN', plate: 'plate',
   engine: 'engine', power: 'power', transmission: 'transmission', drivetrain: 'drivetrain', body: 'body', plant: 'where it was built' };
-const FILL_SRC = { get nhtsa() { return inUS() ? 'the NHTSA VIN database' : 'the VIN database'; }, chassis: 'an AI reading of the chassis number', document: 'the registration document', vin: 'the VIN plate', plate: 'the photo', car: 'the photo of the car' };
+const FILL_SRC = { specs: 'published specifications', get nhtsa() { return inUS() ? 'the NHTSA VIN database' : 'the VIN database'; }, chassis: 'an AI reading of the chassis number', document: 'the registration document', vin: 'the VIN plate', plate: 'the photo', car: 'the photo of the car' };
 async function vread(body) {
   const { data, error } = await db.functions.invoke('vehicle-read', { body: { garage_id: GID(), ...body } });
   let res = data; if (error) { try { res = await error.context.json(); } catch (e) { res = { message: 'The reader couldn\'t be reached. Check your connection and try again.' }; } }
@@ -2166,7 +2196,7 @@ function applyFill(form, fields, src, extra = {}) {
     else if (normTxt(el.value) !== normTxt(val) && !normTxt(el.value).includes(normTxt(val))) differ.push([k, val]);
   }
   const specFilled = filled.some(k => ['engine', 'power', 'transmission', 'drivetrain', 'body', 'plant', 'series'].includes(k));
-  if (specFilled && form.elements.specs_source) form.elements.specs_source.value = src === 'nhtsa' ? 'NHTSA' : 'an AI reading (likely; check it)';
+  if (specFilled && form.elements.specs_source) form.elements.specs_source.value = src === 'nhtsa' ? 'NHTSA' : src === 'specs' ? 'published specifications (AI lookup; check them)' : 'an AI reading (likely; check it)';
   const box = extra.box || $('#fill-msg');
   const warns = (fields.warnings || []).filter(Boolean);
   box.innerHTML = `<div class="fill-note${extra.likely ? ' likely' : ''}">
@@ -2711,6 +2741,7 @@ function openVehicleForm(v, kind) {
         <div class="two">${field('year', 'Year', 'text', v.year, { inputmode: 'numeric' })}${field('make', 'Make', 'text', v.make, { required: true, ph: 'BMW' })}</div>
         <div class="two">${field('model', 'Model', 'text', v.model, { ph: 'M3' })}${field('trim_level', 'Trim or version', 'text', v.trim_level)}</div>
         <div class="two">${field('nickname', 'Nickname', 'text', v.nickname)}${field('colour', 'Colour', 'text', v.colour)}</div>
+        <div id="spec-msg" aria-live="polite"></div>
       </fieldset>
       <fieldset><legend>Specifications</legend>
         ${field('vin', v.kind === 'bike' ? 'VIN / frame number' : 'VIN or chassis number', 'text', v.vin, { help: 'A 17-character VIN (1981 on) is looked up automatically. Older or other chassis numbers can be decoded by AI.' })}
@@ -2745,7 +2776,7 @@ function openVehicleForm(v, kind) {
   $('#f-status').onchange = e => $('#sold-f').hidden = e.target.value !== 'sold';
   startPhotos(v); renderPhotos();
   $('#f-photo').addEventListener('change', e => { addPhotoFile(e.target.files[0]); setTimeout(() => { e.target.value = ''; }, 0); }); // cleared, so the same photo can be added again
-  wireFill($('#v-form'), v);
+  wireFill($('#v-form'), v); wireSpecs($('#v-form'), v);
   if (!isNew) $('#del-v').onclick = () => {
     $('#del-box').innerHTML = `<div class="confirm"><p>Delete <b>${esc(vname(v))}</b> and its ${recsFor(v.id).length} service record${recsFor(v.id).length === 1 ? '' : 's'}? This can't be undone.</p>
       <button class="btn" type="button" id="del-no">Keep it</button> <button class="btn danger solid" type="button" id="del-yes">Delete ${esc(vshort(v))}</button></div>`;
@@ -2779,6 +2810,7 @@ function openVehicleForm(v, kind) {
       co_owners: nz(f.co_owners.trim()), status: f.status, estimated_value: nMoney(f.estimated_value), value_date: nz(f.value_date) || (f.estimated_value && f.estimated_value != (v.estimated_value ?? '') ? new Date().toISOString().slice(0, 10) : nz(f.value_date)), sold_date: f.status === 'sold' ? nz(f.sold_date) : null,
       sold_price: f.status === 'sold' ? nMoney(f.sold_price) : null, notes: nz(f.notes.trim())
     };
+    if (VSHEET) row.build_sheet = VSHEET;
     if (isNew) { row.garage_id = GID(); row.sort_order = S.vehicles.reduce((m, x) => Math.max(m, x.sort_order ?? 0), -1) + 1; }
     const mkIll = !!$('#f-mkill')?.checked && !$('#photo-choice').hidden, fresh = VPH.items.some(it => it.file);
     Object.assign(row, await savePhotos(id));
@@ -4131,6 +4163,7 @@ function wireView() {
   V.querySelectorAll('[data-rec]').forEach(b => b.onclick = () => openRecord(S.records.find(r => r.id === b.dataset.rec)));
   V.querySelectorAll('[data-signin]').forEach(b => b.onclick = openAccount);
   if ($('#v-garage')) $('#v-garage').onchange = e => askMove(vById(current().b), e.target);
+  V.querySelectorAll('[data-bs]').forEach(b => b.onclick = () => getBuildSheet(vById(b.dataset.bs), b, !!b.dataset.bsRefresh));
   V.querySelectorAll('[data-pic]').forEach(b => b.onclick = () => openPic(vById(current().b), +b.dataset.pic));
   V.querySelectorAll('[data-jump]').forEach(b => b.onclick = () => document.getElementById(b.dataset.jump)?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }));
   V.querySelectorAll('[data-more-reads]').forEach(b => b.onclick = () => { readLimit[b.dataset.moreReads] = 1e9; render(); });
@@ -4171,6 +4204,112 @@ window.addEventListener('hashchange', () => {
   $('#view').focus({ preventScroll: true });
 });
 $('#acct-btn').onclick = openAccount;
+/* ---------- build sheet: public factory specs from year + make + model, top-trumps cards and a power curve ---------- */
+let VSHEET = null; // a sheet looked up while the vehicle form is open, saved with it
+const okN = x => typeof x === 'number' && isFinite(x) && x >= 0;
+async function specsLookup(q, refresh) {
+  const { data, error } = await db.functions.invoke('vehicle-specs', { body: { garage_id: GID(), country: COUNTRY[gCountry()]?.name || '', refresh: !!refresh, ...q } });
+  let res = data; if (error) { try { res = await error.context.json(); } catch (e) { res = { message: 'The specs lookup couldn\'t be reached. Check your connection and try again.' }; } }
+  return res || { message: 'No answer. Try again.' };
+}
+// the vehicle fields a sheet can fill
+const sheetFields = s => ({
+  engine: s.engine || '',
+  power: okN(s.power_hp) && s.power_hp > 0 ? `${s.power_hp} hp${s.power_rpm ? ' at ' + s.power_rpm + ' rpm' : ''}` : '',
+  transmission: s.transmission || '', drivetrain: s.drivetrain || '', body: s.body || ''
+});
+// vehicle form: look the specs up once year, make and model are in
+function wireSpecs(form, v) {
+  VSHEET = null;
+  let t = null, lastQ = v.build_sheet?.query ? JSON.stringify([v.build_sheet.query.year, v.build_sheet.query.make, v.build_sheet.query.model, v.build_sheet.query.trim || '', v.build_sheet.query.kind]) : '';
+  const box = $('#spec-msg');
+  const go = async () => {
+    const q = { year: form.elements.year.value.trim(), make: form.elements.make.value.trim(), model: form.elements.model.value.trim(), trim: form.elements.trim_level.value.trim(), kind: form.elements.kind.value };
+    if (!/^\d{4}$/.test(q.year) || !q.make || !q.model) return;
+    const sig = JSON.stringify([+q.year, q.make, q.model, q.trim, q.kind]); if (sig === lastQ) return; lastQ = sig;
+    box.innerHTML = `<div class="fill-note"><div class="skel" style="height:10px;width:55%;margin-bottom:8px"></div><p class="hint" style="margin:0">Looking up the ${esc(q.year)} ${esc(q.make)} ${esc(q.model)}'s specs…</p></div>`;
+    const res = await specsLookup(q);
+    if (JSON.stringify([+q.year, q.make, q.model, q.trim, q.kind]) !== lastQ) return; // changed meanwhile
+    if (!res.ok) { box.innerHTML = res.error === 'not_found' || res.error === 'limit' ? `<p class="hint">${esc(res.message)}</p>` : ''; if (res.error !== 'not_found' && res.error !== 'limit') lastQ = ''; return; }
+    VSHEET = res.sheet;
+    applyFill(form, sheetFields(res.sheet), 'specs', { box, likely: true, note: 'The full build sheet (power, torque, performance and the power curve) is saved with the vehicle.' });
+  };
+  ['year', 'make', 'model', 'trim_level', 'kind'].forEach(n => form.elements[n].addEventListener('change', () => { clearTimeout(t); t = setTimeout(go, 250); }));
+  ['year', 'make', 'model'].forEach(n => form.elements[n].addEventListener('input', () => { clearTimeout(t); t = setTimeout(go, 1200); }));
+}
+// units for the cards
+const mph = kmh => kmh * 0.621371, lbft = nm => nm * 0.737562, lb = kg => kg * 2.20462;
+const fmtN = (x, d = 0) => (+x).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
+function buildCards(s, imperial) {
+  const c = [];
+  if (okN(s.power_hp) && s.power_hp) c.push(['Power', `${fmtN(s.power_hp)}<small> hp</small>`, [okN(s.power_kw) && s.power_kw ? fmtN(s.power_kw) + ' kW' : '', s.power_rpm ? 'at ' + s.power_rpm + ' rpm' : ''].filter(Boolean).join(' · '), 'hero']);
+  if (okN(s.torque_nm) && s.torque_nm) c.push(['Torque', imperial ? `${fmtN(lbft(s.torque_nm))}<small> lb-ft</small>` : `${fmtN(s.torque_nm)}<small> Nm</small>`, [imperial ? fmtN(s.torque_nm) + ' Nm' : fmtN(lbft(s.torque_nm)) + ' lb-ft', s.torque_rpm ? 'at ' + s.torque_rpm + ' rpm' : ''].filter(Boolean).join(' · '), 'hero']);
+  if (okN(s.zero_to_100_s) && s.zero_to_100_s) c.push([imperial ? '0–62 mph' : '0–100 km/h', `${fmtN(s.zero_to_100_s, 1)}<small> s</small>`, '']);
+  if (okN(s.top_speed_kmh) && s.top_speed_kmh) c.push(['Top speed', imperial ? `${fmtN(mph(s.top_speed_kmh))}<small> mph</small>` : `${fmtN(s.top_speed_kmh)}<small> km/h</small>`, imperial ? fmtN(s.top_speed_kmh) + ' km/h' : fmtN(mph(s.top_speed_kmh)) + ' mph']);
+  if (s.engine || s.layout) c.push(['Engine', esc(s.layout || s.engine), [okN(s.displacement_cc) && s.displacement_cc ? (s.displacement_cc >= 1000 ? fmtN(s.displacement_cc / 1000, 1) + ' L' : fmtN(s.displacement_cc) + ' cc') : '', s.aspiration].filter(Boolean).map(esc).join(' · '), 'txt']);
+  if (s.transmission) c.push(['Gearbox', esc(s.transmission), '', 'txt']);
+  if (s.drivetrain) c.push(['Drive', esc(s.drivetrain), '', 'txt']);
+  if (okN(s.weight_kg) && s.weight_kg) c.push(['Weight', imperial ? `${fmtN(lb(s.weight_kg))}<small> lb</small>` : `${fmtN(s.weight_kg)}<small> kg</small>`, imperial ? fmtN(s.weight_kg) + ' kg' : fmtN(lb(s.weight_kg)) + ' lb']);
+  if (okN(s.power_hp) && s.power_hp && okN(s.weight_kg) && s.weight_kg) c.push(['Power to weight', `${fmtN(s.power_hp / s.weight_kg * 1000)}<small> hp/t</small>`, `${fmtN(s.weight_kg / s.power_hp, 1)} kg per hp`]);
+  if (okN(s.redline_rpm) && s.redline_rpm) c.push(['Redline', `${fmtN(s.redline_rpm)}<small> rpm</small>`, '']);
+  if (s.fuel) c.push(['Fuel', esc(s.fuel), '', 'txt']);
+  if (s.production) c.push(['Made', esc(s.production), '', 'txt']);
+  return c.map(([k, v, sub, cls]) => `<div class="bs-c${cls ? ' ' + cls : ''}"><dt>${k}</dt><dd>${v}</dd>${sub ? `<span>${sub}</span>` : ''}</div>`).join('');
+}
+// power (hp) and torque against rpm, with the peaks marked
+function curveSvg(s, imperial) {
+  const pts = (s.curve || []).filter(p => okN(p.rpm) && okN(p.hp) && okN(p.nm)).sort((a, b) => a.rpm - b.rpm);
+  if (pts.length < 4) return '';
+  const tq = p => imperial ? lbft(p.nm) : p.nm, tU = imperial ? 'lb-ft' : 'Nm';
+  const W = PHONE.matches ? 380 : 640, H = PHONE.matches ? 250 : 300, L = 40, R = 44, T = 20, B = 30, w = W - L - R, h = H - T - B;
+  const r0 = Math.floor(pts[0].rpm / 1000) * 1000, r1 = Math.ceil(pts.at(-1).rpm / 1000) * 1000;
+  // 4 round steps (25, 50, 100…) that clear the peak
+  const nice = m => { const raw = m * 1.05 / 4, mag = 10 ** Math.floor(Math.log10(raw)); const st = [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 7, 8, 10].map(f => f * mag).find(x => x >= raw - 1e-9); return st * 4; };
+  const pMax = nice(Math.max(...pts.map(p => p.hp))), tMax = nice(Math.max(...pts.map(tq)));
+  const x = r => L + (r - r0) / (r1 - r0) * w, yP = v => T + h - v / pMax * h, yT = v => T + h - v / tMax * h;
+  const path = (f) => { const P = pts.map(p => [x(p.rpm), f(p)]); let d = `M${P[0][0].toFixed(1)},${P[0][1].toFixed(1)}`;
+    for (let i = 0; i < P.length - 1; i++) { const p0 = P[i - 1] || P[i], p1 = P[i], p2 = P[i + 1], p3 = P[i + 2] || p2;
+      const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6], c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+      d += ` C${c1[0].toFixed(1)},${c1[1].toFixed(1)} ${c2[0].toFixed(1)},${c2[1].toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`; } return d; };
+  const pk = pts.reduce((a, b) => b.hp > a.hp ? b : a), tk = pts.reduce((a, b) => tq(b) > tq(a) ? b : a);
+  const step = (r1 - r0) / 1000 > (PHONE.matches ? 6 : 10) ? 2000 : 1000, xt = []; for (let r = r0; r <= r1; r += step) xt.push(r);
+  const yt = [0, .25, .5, .75, 1];
+  return `<figure class="bs-curve"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Power and torque curve: ${fmtN(pk.hp)} hp at ${fmtN(pk.rpm)} rpm, ${fmtN(tq(tk))} ${tU} at ${fmtN(tk.rpm)} rpm">
+    ${yt.map(f => `<line x1="${L}" x2="${W - R}" y1="${(T + h - f * h).toFixed(1)}" y2="${(T + h - f * h).toFixed(1)}" class="g"/>`).join('')}
+    ${yt.map(f => `<text x="${L - 8}" y="${(T + h - f * h + 4).toFixed(1)}" class="ax p" text-anchor="end">${fmtN(f * pMax)}</text><text x="${W - R + 8}" y="${(T + h - f * h + 4).toFixed(1)}" class="ax t">${fmtN(f * tMax)}</text>`).join('')}
+    ${xt.map(r => `<text x="${x(r).toFixed(1)}" y="${H - 12}" class="ax" text-anchor="middle">${r >= 1000 ? fmtN(r / 1000, r % 1000 ? 1 : 0) + 'k' : r}</text>`).join('')}
+    <text x="${L}" y="${T - 6}" class="ax p">hp</text><text x="${W - R}" y="${T - 6}" class="ax t" text-anchor="end">${tU}</text>
+    <path d="${path(p => yT(tq(p)))}" class="ln t"/><path d="${path(p => yP(p.hp))}" class="ln p"/>
+    <circle cx="${x(pk.rpm).toFixed(1)}" cy="${yP(pk.hp).toFixed(1)}" r="4.5" class="dot p"/><circle cx="${x(tk.rpm).toFixed(1)}" cy="${yT(tq(tk)).toFixed(1)}" r="4.5" class="dot t"/>
+  </svg><figcaption><span class="lg p">Power · peak ${fmtN(pk.hp)} hp at ${fmtN(pk.rpm)} rpm</span><span class="lg t">Torque · peak ${fmtN(tq(tk))} ${tU} at ${fmtN(tk.rpm)} rpm</span>
+  <span class="hint">${esc(s.curve_note || 'Estimated from the published figures.')} A typical factory curve, not a dyno run of this vehicle.</span></figcaption></figure>`;
+}
+function buildSheetSection(v) {
+  const s = v.build_sheet, imperial = (v.odometer_unit || S.garage?.distance_unit) === 'mi';
+  if (!s) {
+    if (!S.editor) return '';
+    const ready = v.year && v.make && v.model;
+    return `<div class="section" id="v-build"><h2>Build sheet</h2><div class="bs-empty"><p>Power, torque, gearbox, performance and the power curve for the ${esc(vshort(v))}, from published specifications.</p>
+      ${ready ? `<button class="btn primary" type="button" data-bs="${v.id}">Get the build sheet</button>` : `<p class="hint">Add the year, make and model first.</p>`}</div></div>`;
+  }
+  return `<div class="section" id="v-build"><div class="section-head"><h2>Build sheet</h2>${S.editor ? `<button class="btn sm" type="button" data-bs="${v.id}" data-bs-refresh="1">Look up again</button>` : ''}</div>
+    ${s.name ? `<p class="bs-name">${esc(s.name)}</p>` : ''}${s.summary ? `<p class="hint" style="margin:2px 0 14px">${esc(s.summary)}</p>` : ''}
+    <dl class="bs-grid">${buildCards(s, imperial)}</dl>
+    ${curveSvg(s, imperial)}
+    <p class="hint bs-src">Published factory figures, looked up ${s.looked_up ? fdate(s.looked_up) : ''}${s.confidence ? ` · ${esc(s.confidence)} confidence` : ''}. Likely right; check anything that matters.</p></div>`;
+}
+async function getBuildSheet(v, btn, refresh) {
+  const label = btn.textContent; btn.disabled = true; btn.textContent = 'Looking up…';
+  const res = await specsLookup({ year: v.year, make: v.make, model: v.model, trim: v.trim_level || '', kind: v.kind }, refresh);
+  if (!res.ok) { btn.disabled = false; btn.textContent = label; return toast(res.message || 'Couldn\'t look up the specs.', true); }
+  const row = { build_sheet: res.sheet }, f = sheetFields(res.sheet);
+  for (const k of Object.keys(f)) if (f[k] && !v[k]) row[k] = f[k];
+  if (Object.keys(row).length > 1 && !v.specs_source) row.specs_source = 'published specifications (AI lookup; check them)';
+  const { data, error } = await db.from('vehicles').update(row).eq('id', v.id).select().single();
+  if (error) { btn.disabled = false; btn.textContent = label; return toast('Couldn\'t save the build sheet: ' + error.message, true); }
+  S.vehicles = S.vehicles.map(x => x.id === v.id ? data : x); render();
+  toast(refresh ? 'Build sheet updated' : 'Build sheet added');
+}
 /* ---------- garages shared with you while the app was open: show them without signing in again ---------- */
 async function checkNewGarages() {
   if (!db || !S.user) return;

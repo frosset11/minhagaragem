@@ -4,9 +4,9 @@ import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 export const MODEL = 'claude-sonnet-5-5';
 // Monthly AI allowance per garage, by plan
 export const LIMITS: Record<string, Record<string, number>> = {
-  free: { scan: 10, import: 2, illustrate: 3 },        // Free
-  pro: { scan: 50, import: 10, illustrate: 15 },        // Pro, US$5/month
-  concierge: { scan: 200, import: 30, illustrate: 50 }  // Concierge, US$20/month
+  free: { scan: 10, import: 2, illustrate: 3, specs: 25 },          // Free
+  pro: { scan: 50, import: 10, illustrate: 15, specs: 100 },         // Pro, US$5/month
+  concierge: { scan: 200, import: 30, illustrate: 50, specs: 400 }   // Concierge, US$20/month
 };
 export const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
 export const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
@@ -23,8 +23,8 @@ export const findKey = (): string | null => {
 };
 
 // Who's calling, can they write to this garage, and is there allowance left this month?
-export type Kind = 'scan' | 'import' | 'illustrate';
-const KIND_WORDS: Record<Kind, string> = { scan: 'invoice scans', import: 'spreadsheet imports', illustrate: 'illustrations' };
+export type Kind = 'scan' | 'import' | 'illustrate' | 'specs';
+const KIND_WORDS: Record<Kind, string> = { scan: 'invoice scans', import: 'spreadsheet imports', illustrate: 'illustrations', specs: 'spec lookups' };
 export async function gate(req: Request, garageId: unknown, kind: Kind, needsKey = true) {
   const auth = req.headers.get('Authorization') ?? '';
   const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: auth } } });
