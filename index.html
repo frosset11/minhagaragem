@@ -41,8 +41,8 @@
   --serif:'Libre Baskerville',Georgia,'Times New Roman',serif;
   --brand:'Montserrat','Inter',sans-serif;
   --mono:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
-  --ease:cubic-bezier(.2,.8,.2,1);
-  --t-fast:120ms; --t-med:220ms;
+  --ease:cubic-bezier(.16,1,.3,1);
+  --t-fast:150ms; --t-med:200ms;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
@@ -632,11 +632,12 @@ input.fp-in:focus-visible+.filepick{outline:2px solid var(--fg);outline-offset:2
 @media (pointer:fine){.arr-hint{display:none}}
 [data-arrange] [data-vid]{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 [data-arrange] img,[data-arrange] a{-webkit-user-drag:none}
-.arranging [data-vid]{animation:jiggle .28s ease-in-out infinite alternate;cursor:grab;touch-action:none}
+.arranging [data-vid]{animation:jiggle .3s ease-in-out infinite alternate;cursor:grab;touch-action:none}
 .arranging [data-vid]:nth-child(2n){animation-delay:-.14s;animation-direction:alternate-reverse}
-@keyframes jiggle{from{transform:rotate(-1.4deg)}to{transform:rotate(1.4deg)}}
-.arr-drag{position:fixed!important;z-index:70;pointer-events:none;animation:none!important;transform:scale(1.08)!important;filter:drop-shadow(0 14px 24px rgba(0,0,0,.45));cursor:grabbing}
-.arr-ph{opacity:.25;animation:none!important}
+@keyframes jiggle{from{transform:rotate(-.9deg)}to{transform:rotate(.9deg)}}
+.arr-drag{position:fixed!important;z-index:70;pointer-events:none;animation:none!important;will-change:transform;filter:drop-shadow(0 16px 28px rgba(0,0,0,.45));transition:filter 150ms ease-out;cursor:grabbing}
+.arr-drop{filter:drop-shadow(0 0 0 rgba(0,0,0,0))}
+.arr-ph{opacity:.22;animation:none!important;transition:opacity 150ms ease-out}
 .arr-ph *{visibility:hidden}.arr-ph .ic,.arr-ph.card{visibility:visible;border-style:dashed}
 .arrange-done{position:fixed;right:16px;bottom:calc(24px + env(safe-area-inset-bottom));z-index:65;box-shadow:0 8px 24px rgba(0,0,0,.35)}
 @media (max-width:720px){.arrange-done{bottom:calc(76px + env(safe-area-inset-bottom))}}
@@ -686,7 +687,7 @@ input.fp-in:focus-visible~.pgal .pg-add,.pgal:has(+input.fp-in:focus-visible) .p
 .ob-row{display:flex;gap:10px;margin-top:6px}.ob-row .ob-go{flex:1;margin:0}.ob-row .btn:not(.ob-go){height:46px}
 .inv-msg{margin:12px 0 0;padding:14px 16px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--bg);font-size:14px;line-height:1.55;color:var(--fg2);user-select:text}
 /* build sheet */
-.bs-name{font-family:var(--serif,inherit);font-size:17px;margin:0}
+.bs-name{font-family:var(--serif,inherit);font-size:17px;margin:0 0 14px}
 .bs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:0}
 .bs-c{margin:0;padding:14px 16px;border:1px solid var(--line);border-radius:var(--r);background:var(--s1);display:flex;flex-direction:column;gap:4px;min-width:0}
 .bs-c dt{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg3)}
@@ -720,6 +721,31 @@ input.fp-in:focus-visible~.pgal .pg-add,.pgal:has(+input.fp-in:focus-visible) .p
 .seg.gbx span{display:block;padding:8px 16px;border-radius:999px;font-size:14px;color:var(--fg2);min-height:36px;line-height:20px}
 .seg.gbx input:checked+span{background:var(--accent);color:var(--on-accent);font-weight:500}
 .seg.gbx input:focus-visible+span{outline:2px solid var(--fg);outline-offset:1px}
+.bs-curve{position:relative}
+.bs-curve svg{touch-action:pan-y;outline:none;-webkit-user-select:none;user-select:none}
+.bs-curve svg:focus-visible{outline:2px solid var(--fg);outline-offset:4px;border-radius:6px}
+.bs-curve .hitc{fill:transparent;cursor:crosshair}
+.bs-curve .scrub{opacity:0;transition:opacity 150ms ease-out;pointer-events:none}
+.bs-curve.scrubbing .scrub{opacity:1}
+.bs-curve .sx{stroke:var(--fg3);stroke-width:1;stroke-dasharray:3 3}
+.bs-curve .sp{fill:var(--accent);stroke:var(--s1);stroke-width:2}.bs-curve .st{fill:var(--fg2);stroke:var(--s1);stroke-width:2}
+.bs-curve .pk{transition:opacity 150ms ease-out}.bs-curve.scrubbing .pk{opacity:.35}
+.bs-read{position:absolute;top:10px;left:50%;transform:translate(-50%,-4px);display:flex;gap:10px;align-items:baseline;padding:6px 12px;border-radius:999px;background:var(--bg);border:1px solid var(--line2);font-family:var(--mono);font-size:13px;white-space:nowrap;opacity:0;transition:opacity 150ms ease-out,transform 150ms ease-out;pointer-events:none}
+.bs-curve.scrubbing .bs-read{opacity:1;transform:translate(-50%,0)}
+.bs-read b{font-weight:500;color:var(--fg)}.bs-read .rp{color:var(--accent)}.bs-read .rt{color:var(--fg2)}
+.bs-curve .rv{transform-box:fill-box;transform-origin:left center;transform:scaleX(0)}
+.bs-curve.in .rv{transform:scaleX(1);transition:transform 300ms cubic-bezier(.16,1,.3,1)}
+@media (prefers-reduced-motion:reduce){.bs-curve .rv{transform:none}.bs-curve.in .rv{transition:none}}
+/* page transitions */
+#view.route-in{animation:viewIn 200ms cubic-bezier(.16,1,.3,1) both}
+@keyframes viewIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.route-in .hb .b,.route-in .dvr .b{animation:growX 300ms cubic-bezier(.16,1,.3,1) both;transform-origin:left center}
+.route-in .dvr .half.neg .b{transform-origin:right center}
+.route-in .vb .bar{animation:growY 300ms cubic-bezier(.16,1,.3,1) both;transform-origin:center bottom}
+@keyframes growX{from{transform:scaleX(0)}}@keyframes growY{from{transform:scaleY(0)}}
+.route-in .lc svg{animation:viewIn 300ms cubic-bezier(.16,1,.3,1) both}
+html{scroll-behavior:auto}
+@media (prefers-reduced-motion:reduce){#view.route-in,.route-in .hb .b,.route-in .dvr .b,.route-in .vb .bar,.route-in .lc svg{animation:none}}
 </style>
 </head>
 <body class="locked">
@@ -2087,7 +2113,7 @@ function viewVehicle(id) {
     ${vehicleCharts(v)}
     <div id="v-value">${S.user ? marketSection(v) : ''}</div>
     ${buildSheetSection(v)}
-    <div class="section" id="v-specs"><h2>Specifications</h2>${dl(spec)}${v.specs_source ? `<p class="hint" style="margin:10px 0 0">Some details from ${esc(v.specs_source === 'NHTSA' ? FILL_SRC.nhtsa : v.specs_source)}.</p>` : ''}</div>
+    <div class="section" id="v-specs"><h2>Specifications</h2>${dl(spec)}</div>
     <div class="section"><h2>Ownership</h2>${dl(own)}</div>
     <div id="v-story">${historySection(v)}</div>
     <div id="v-rem">${S.user ? remindersSection(v.id) : ''}</div>
@@ -2152,7 +2178,7 @@ function viewLedger() {
       <div class="fld"><label for="lf-c">Category</label><select id="lf-c"><option value="">All categories</option>${Object.entries(CATEGORIES).map(([k, t]) => `<option value="${k}"${LF.c === k ? ' selected' : ''}>${t}</option>`).join('')}</select></div>
       <div class="fld"><label for="lf-y">Year</label><select id="lf-y"><option value="">All years</option>${years.map(y => `<option value="${y}"${LF.y === y ? ' selected' : ''}>${y === 'undated' ? 'Undated' : y}</option>`).join('')}</select></div>
     </div>
-    <p class="summary"><span><b>${list.length}</b> record${list.length === 1 ? '' : 's'}</span>${S.user ? `<span>Total <b>${msum(total, 1)}</b></span><span class="hint">Reais and dollars are totalled separately, never converted.</span>` : `<span class="hint">Amounts are private. ${lockNote().replace('Sign in to edit', 'Sign in to see them')}</span>`}${list.some(r => r.confidence === 'est') ? '<span class="hint">* estimated, not from a receipt</span>' : ''}</p>
+    <p class="summary"><span><b>${list.length}</b> record${list.length === 1 ? '' : 's'}</span>${S.user ? `<span>Total <b>${msum(total, 1)}</b></span>` : `<span class="hint">Amounts are private. ${lockNote().replace('Sign in to edit', 'Sign in to see them')}</span>`}${list.some(r => r.confidence === 'est') ? '<span class="hint">* estimated, not from a receipt</span>' : ''}</p>
     ${list.length ? rowsHtml(list, true) : `<div class="empty"><h2>No records match</h2><p>Try a different search or clear the filters.</p><button class="btn" type="button" id="lf-clear">Clear filters</button></div>`}`;
 }
 function costsBody() {
@@ -2207,7 +2233,7 @@ function applyFill(form, fields, src, extra = {}) {
   const warns = (fields.warnings || []).filter(Boolean);
   box.innerHTML = `<div class="fill-note${extra.likely ? ' likely' : ''}">
     ${extra.likely ? `<p class="fill-tag">Likely, check it${fields.confidence ? ` · ${esc(fields.confidence)} confidence` : ''}</p>` : ''}
-    <p>${filled.length ? `Filled <b>${filled.map(k => FILL_LABELS[k]).join(', ')}</b> from ${FILL_SRC[src]}. Check them before saving.` : `Nothing new from ${FILL_SRC[src]}: the fields it found are already filled.`}</p>
+    <p>${filled.length ? `Filled <b>${filled.map(k => FILL_LABELS[k]).join(', ')}</b> from ${FILL_SRC[src]}.` : `Nothing new from ${FILL_SRC[src]}.`}</p>
     ${fields.explanation ? `<p class="hint">${esc(fields.explanation)}</p>` : ''}
     ${extra.note ? `<p class="hint">${esc(extra.note)}</p>` : ''}
     ${warns.length ? `<ul class="hint">${warns.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}
@@ -3679,7 +3705,7 @@ function viewDashboard() {
   </dl>`;
   const gk = bikesOn() ? GF.k : 'all';
   const shown = owned.filter(v => gk === 'all' || v.kind === gk);
-  const garage = `<div class="garage-head"><h2>The garage${S.editor && shown.length > 1 ? `<span class="hint arr-hint">Press and hold to arrange</span>` : ''}</h2>${bikesOn() ? `<div class="seg sm" role="group" aria-label="Show">${[['all', 'All'], ['car', 'Cars'], ['bike', 'Bikes']].map(([k, l]) => `<button type="button" data-garage="${k}" aria-pressed="${GF.k === k}">${l}</button>`).join('')}</div>` : ''}</div>
+  const garage = `<div class="garage-head"><h2>The garage</h2>${bikesOn() ? `<div class="seg sm" role="group" aria-label="Show">${[['all', 'All'], ['car', 'Cars'], ['bike', 'Bikes']].map(([k, l]) => `<button type="button" data-garage="${k}" aria-pressed="${GF.k === k}">${l}</button>`).join('')}</div>` : ''}</div>
     <div class="garage" id="garage-grid">${shown.map(v => `<a class="app" data-vid="${v.id}" href="#/vehicle/${v.id}" title="${esc(vname(v))}"><span class="ic">${media(v.photo_url) ? `<img src="${esc(media(v.photo_url))}" alt="" loading="lazy"${ILLUS.has(v.id) ? ' class="dim"' : ''}>` : `<span class="mk" aria-hidden="true">${esc(((v.make || '?')[0] + ((v.model || '')[0] || '')).toUpperCase())}</span>`}</span><span class="lb">${esc(vshort(v))}</span><span class="lb2">${esc(v.year || '')}${v.colour && owned.filter(x => x.make === v.make && x.model === v.model).length > 1 ? ' · ' + esc(v.colour) : ''}</span></a>`).join('')}</div>`;
   // charts
   const unitSeg = `<div class="seg sm" role="group" aria-label="Distance unit">${['mi', 'km'].map(u => `<button type="button" data-unit="${u}" aria-pressed="${distUnit === u}">${u}</button>`).join('')}</div>`;
@@ -3849,7 +3875,7 @@ function viewPortfolio() {
   const sorted = valued.slice().sort((a, b) => b.pct - a.pct);
   if (!valued.length) return head(fxNote ? `<p class="sub">${esc(fxNote)}</p>` : '') + `<div class="empty" style="text-align:left;max-width:640px"><h2>Start valuing the collection</h2><p>Each vehicle needs a market value to compare with what you paid. Open a vehicle and, under Market value:</p>
     <ol class="hint" style="margin:0 0 20px;padding-left:20px;line-height:1.8"><li><b style="color:var(--fg)">Add comparable</b>: recent sales or listings of the same model, from auction results, classifieds or anywhere else; their median becomes the market value.</li>${inBR() ? '<li><b style="color:var(--fg)">Link FIPE model</b>: the FIPE reference price, used only when there are no comparables.</li>' : ''}<li><b style="color:var(--fg)">My estimate</b>: your own figure, for one-offs with no good comparables.</li></ol>
-    <a class="btn primary" href="#/cars">Go to cars</a></div>` + `<div class="section"><h2 style="font-size:22px;margin-bottom:6px">Costs</h2>${recCurs(S.records).length > 1 ? '<p class="hint" style="margin:0 0 20px">Each currency is shown separately, never converted.</p>' : ''}${costsBody()}</div>`;
+    <a class="btn primary" href="#/cars">Go to cars</a></div>` + `<div class="section"><h2 style="font-size:22px;margin-bottom:6px">Costs</h2>${recCurs(S.records).length > 1 ? '' : ''}${costsBody()}</div>`;
   const chart = valued.length ? chartCard('Return on purchase price', 'Blue is a gain, red a loss · market value vs. price paid',
     divBars(sorted.map(p => ({ label: vshort(p.v) + (p.v.colour && S.vehicles.filter(x => x.make === p.v.make && x.model === p.v.model).length > 1 ? ' ' + p.v.colour : ''), value: p.pct, href: '#/vehicle/' + p.v.id, tip: `${vname(p.v)}\nPaid ${money(p.pp, 0, p.cur)} · worth ${money(p.val.value, 0, p.cur)}\n${signMoney(p.gain, p.cur)} (${pctStr(p.pct)}) · ${p.val.label}` }))),
     [['Vehicle', 'Paid', 'Market value', 'Gain', 'Return'], ...sorted.map(p => [vname(p.v), money(p.pp, 0, p.cur), money(p.val.value, 0, p.cur), signMoney(p.gain, p.cur), pctStr(p.pct)])]) : '';
@@ -3861,7 +3887,7 @@ function viewPortfolio() {
     <tbody>${sorted.map(row).join('')}</tbody></table></div>
     ${unvalued.length ? `<details style="margin:14px 0 0"><summary class="hint" style="cursor:pointer">${unvalued.length} vehicle${unvalued.length === 1 ? '' : 's'} not valued yet</summary><p class="hint" style="margin:10px 0 0">${unvalued.map(p => `<a href="#/vehicle/${p.v.id}">${esc(vname(p.v))}</a>${!p.pp ? ' (no purchase price)' : ''}`).join(', ')}. Open a vehicle and add comparable sales or link its FIPE model.</p></details>` : ''}</div>`;
   return head(fxNote ? `<p class="sub">${esc(fxNote)}</p>` : '') + kpis + (chart ? `<div class="charts" style="grid-template-columns:1fr">${chart}</div>` : '') + table +
-    `<div class="section"><h2 style="font-size:22px;margin-bottom:6px">Costs</h2>${recCurs(S.records).length > 1 ? '<p class="hint" style="margin:0 0 20px">Each currency is shown separately, never converted.</p>' : ''}${costsBody()}</div>`;
+    `<div class="section"><h2 style="font-size:22px;margin-bottom:6px">Costs</h2>${recCurs(S.records).length > 1 ? '' : ''}${costsBody()}</div>`;
 }
 
 /* vehicle page: market value section */
@@ -4176,6 +4202,7 @@ function wireView() {
   V.querySelectorAll('[data-bs]').forEach(b => b.onclick = () => { const v = vById(b.dataset.bs); if (b.dataset.bsRefresh) fetchSheet(v, true); else { BS_TRIED.clear(); fetchSheet(v); } });
   V.querySelectorAll('[data-edit-v]').forEach(b => b.onclick = () => openVehicleForm(vById(b.dataset.editV)));
   if (current().a === 'vehicle') setTimeout(() => autoSheet(vById(current().b)), 0);
+  V.querySelectorAll('.bs-curve').forEach(wireCurve);
   V.querySelectorAll('[data-pic]').forEach(b => b.onclick = () => openPic(vById(current().b), +b.dataset.pic));
   V.querySelectorAll('[data-jump]').forEach(b => b.onclick = () => document.getElementById(b.dataset.jump)?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }));
   V.querySelectorAll('[data-more-reads]').forEach(b => b.onclick = () => { readLimit[b.dataset.moreReads] = 1e9; render(); });
@@ -4211,10 +4238,25 @@ window.addEventListener('hashchange', () => {
   if (location.hash === '#/install') { history.replaceState(null, '', S.user ? '#/dashboard' : location.pathname); render(); openInstall(false); return; }
   if ($('#panel').classList.contains('on')) closePanel();
   stopArrange();
+  const prevHash = lastHash; lastHash = location.hash;
   render();
-  const r = current().a; if (r !== lastRoute) { window.scrollTo(0, 0); lastRoute = r; }
+  const r = current().a, from = (prevHash || '').replace(/^#\/?/, '').split('/')[0];
+  // back from a vehicle to the list it came from: same scroll position; anything else new starts at the top
+  if (r !== lastRoute || prevHash !== location.hash) {
+    const keep = ['vehicle', 'dossier'].includes(from) && !['vehicle', 'dossier'].includes(r) && SCROLLS[location.hash] != null;
+    window.scrollTo(0, keep ? SCROLLS[location.hash] : 0); lastRoute = r;
+    if (prevHash !== location.hash) routeIn();
+  }
   $('#view').focus({ preventScroll: true });
 });
+let lastHash = location.hash;
+const SCROLLS = {};
+addEventListener('scroll', () => { SCROLLS[location.hash] = scrollY; }, { passive: true });
+// the new page fades in and its bars grow, once per visit (not on every refresh of the same page)
+function routeIn() {
+  const V = $('#view'); V.classList.remove('route-in'); void V.offsetWidth; V.classList.add('route-in');
+  clearTimeout(routeIn.t); routeIn.t = setTimeout(() => V.classList.remove('route-in'), 400);
+}
 $('#acct-btn').onclick = openAccount;
 /* ---------- build sheet: public factory specs from year + make + model, top-trumps cards and a power curve ---------- */
 let VSHEET = null; // a sheet looked up while the vehicle form is open, saved with it
@@ -4250,7 +4292,7 @@ function wireSpecs(form, v) {
     VSHEET = res.sheet;
     // gearbox not chosen yet: take it from the specs, without starting another lookup
     if (!gbx()) { const g = gearboxOf(res.sheet.transmission); if (g) { form.querySelector(`input[name=gearbox][value=${g}]`).checked = true; lastQ = JSON.stringify([+q.year, q.make, q.model, q.trim, q.kind, g]); } }
-    applyFill(form, sheetFields(res.sheet), 'specs', { box, likely: true, note: 'The full build sheet (power, torque, performance and the power curve) is saved with the vehicle.' });
+    applyFill(form, sheetFields(res.sheet), 'specs', { box });
   };
   ['year', 'make', 'model', 'trim_level', 'kind'].forEach(n => form.elements[n].addEventListener('change', () => { clearTimeout(t); t = setTimeout(go, 250); }));
   form.querySelectorAll('input[name=gearbox]').forEach(r => r.addEventListener('change', () => { clearTimeout(t); t = setTimeout(go, 250); }));
@@ -4276,6 +4318,7 @@ function buildCards(s, imperial) {
   return c.map(([k, v, sub, cls]) => `<div class="bs-c${cls ? ' ' + cls : ''}"><dt>${k}</dt><dd>${v}</dd>${sub ? `<span>${sub}</span>` : ''}</div>`).join('');
 }
 // power (hp) and torque against rpm, with the peaks marked
+const CURVES = {}; let curveN = 0;
 function curveSvg(s, imperial) {
   const pts = (s.curve || []).filter(p => okN(p.rpm) && okN(p.hp) && okN(p.nm)).sort((a, b) => a.rpm - b.rpm);
   if (pts.length < 4) return '';
@@ -4292,21 +4335,61 @@ function curveSvg(s, imperial) {
       d += ` C${c1[0].toFixed(1)},${c1[1].toFixed(1)} ${c2[0].toFixed(1)},${c2[1].toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`; } return d; };
   const pk = pts.reduce((a, b) => b.hp > a.hp ? b : a), tk = pts.reduce((a, b) => tq(b) > tq(a) ? b : a);
   const step = (r1 - r0) / 1000 > (PHONE.matches ? 6 : 10) ? 2000 : 1000, xt = []; for (let r = r0; r <= r1; r += step) xt.push(r);
-  const yt = [0, .25, .5, .75, 1];
-  return `<figure class="bs-curve"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Power and torque curve: ${fmtN(pk.hp)} hp at ${fmtN(pk.rpm)} rpm, ${fmtN(tq(tk))} ${tU} at ${fmtN(tk.rpm)} rpm">
+  const yt = [0, .25, .5, .75, 1], id = 'cv' + (++curveN);
+  CURVES[id] = { pts: pts.map(p => ({ rpm: p.rpm, hp: p.hp, t: tq(p) })), W, L, w, x, yP, yT, r0, r1, tU };
+  return `<figure class="bs-curve" id="${id}"><svg viewBox="0 0 ${W} ${H}" role="img" tabindex="0" aria-label="Power and torque curve: ${fmtN(pk.hp)} hp at ${fmtN(pk.rpm)} rpm, ${fmtN(tq(tk))} ${tU} at ${fmtN(tk.rpm)} rpm. Use the arrow keys to read values.">
+    <defs><clipPath id="${id}-c"><rect class="rv" x="${L}" y="0" width="${w + 6}" height="${H}"/></clipPath></defs>
     ${yt.map(f => `<line x1="${L}" x2="${W - R}" y1="${(T + h - f * h).toFixed(1)}" y2="${(T + h - f * h).toFixed(1)}" class="g"/>`).join('')}
     ${yt.map(f => `<text x="${L - 8}" y="${(T + h - f * h + 4).toFixed(1)}" class="ax p" text-anchor="end">${fmtN(f * pMax)}</text><text x="${W - R + 8}" y="${(T + h - f * h + 4).toFixed(1)}" class="ax t">${fmtN(f * tMax)}</text>`).join('')}
-    ${xt.map(r => `<text x="${x(r).toFixed(1)}" y="${H - 12}" class="ax" text-anchor="middle">${r >= 1000 ? fmtN(r / 1000, r % 1000 ? 1 : 0) + 'k' : r}</text>`).join('')}
-    <text x="${L}" y="${T - 6}" class="ax p">hp</text><text x="${W - R}" y="${T - 6}" class="ax t" text-anchor="end">${tU}</text>
-    <path d="${path(p => yT(tq(p)))}" class="ln t"/><path d="${path(p => yP(p.hp))}" class="ln p"/>
-    <circle cx="${x(pk.rpm).toFixed(1)}" cy="${yP(pk.hp).toFixed(1)}" r="4.5" class="dot p"/><circle cx="${x(tk.rpm).toFixed(1)}" cy="${yT(tq(tk)).toFixed(1)}" r="4.5" class="dot t"/>
-  </svg><figcaption><span class="lg p">Power · peak ${fmtN(pk.hp)} hp at ${fmtN(pk.rpm)} rpm</span><span class="lg t">Torque · peak ${fmtN(tq(tk))} ${tU} at ${fmtN(tk.rpm)} rpm</span>
-  <span class="hint">${esc(s.curve_note || 'Estimated from the published figures.')} A typical factory curve, not a dyno run of this vehicle.</span></figcaption></figure>`;
+    ${xt.map(r => `<text x="${x(r).toFixed(1)}" y="${H - 10}" class="ax" text-anchor="middle">${r >= 1000 ? fmtN(r / 1000, r % 1000 ? 1 : 0) + 'k' : r}</text>`).join('')}
+    <text x="${L}" y="${T - 7}" class="ax p">hp</text><text x="${W - R}" y="${T - 7}" class="ax t" text-anchor="end">${tU}</text>
+    <g clip-path="url(#${id}-c)"><path d="${path(p => yT(tq(p)))}" class="ln t"/><path d="${path(p => yP(p.hp))}" class="ln p"/>
+    <circle cx="${x(pk.rpm).toFixed(1)}" cy="${yP(pk.hp).toFixed(1)}" r="4" class="dot p pk"/><circle cx="${x(tk.rpm).toFixed(1)}" cy="${yT(tq(tk)).toFixed(1)}" r="4" class="dot t pk"/></g>
+    <g class="scrub" aria-hidden="true"><line class="sx" y1="${T}" y2="${T + h}"/><circle class="dot p sp" r="5"/><circle class="dot t st" r="5"/></g>
+    <rect class="hitc" x="${L}" y="${T}" width="${w}" height="${h}"/>
+  </svg>
+  <div class="bs-read" aria-live="polite"><b class="rr"></b><span class="rp"></span><span class="rt"></span></div>
+  <figcaption><span class="lg p">${fmtN(pk.hp)} hp at ${fmtN(pk.rpm)} rpm</span><span class="lg t">${fmtN(tq(tk))} ${tU} at ${fmtN(tk.rpm)} rpm</span><span class="hint">Estimated factory curve</span></figcaption></figure>`;
 }
+// read the curve at any rpm: drag a finger or move the mouse across it, or use the arrow keys
+function wireCurve(fig) {
+  const C = CURVES[fig.id]; if (!C || fig.dataset.wired) return; fig.dataset.wired = '1';
+  const svg = fig.querySelector('svg'), hit = svg.querySelector('.hitc'), rd = fig.querySelector('.bs-read');
+  const sx = svg.querySelector('.sx'), sp = svg.querySelector('.sp'), st = svg.querySelector('.st');
+  const at = rpm => { const P = C.pts; if (rpm <= P[0].rpm) return P[0]; if (rpm >= P.at(-1).rpm) return P.at(-1);
+    const i = P.findIndex(p => p.rpm >= rpm), a = P[i - 1], b = P[i], f = (rpm - a.rpm) / (b.rpm - a.rpm);
+    return { rpm, hp: a.hp + (b.hp - a.hp) * f, t: a.t + (b.t - a.t) * f }; };
+  let cur = null;
+  const show = rpm => {
+    rpm = Math.max(C.pts[0].rpm, Math.min(C.pts.at(-1).rpm, rpm)); cur = rpm;
+    const p = at(rpm), X = C.x(rpm);
+    sx.setAttribute('x1', X); sx.setAttribute('x2', X);
+    sp.setAttribute('cx', X); sp.setAttribute('cy', C.yP(p.hp)); st.setAttribute('cx', X); st.setAttribute('cy', C.yT(p.t));
+    rd.querySelector('.rr').textContent = fmtN(Math.round(rpm / 50) * 50) + ' rpm';
+    rd.querySelector('.rp').textContent = fmtN(p.hp) + ' hp'; rd.querySelector('.rt').textContent = fmtN(p.t) + ' ' + C.tU;
+    fig.classList.add('scrubbing');
+  };
+  const hide = () => { fig.classList.remove('scrubbing'); cur = null; };
+  const fromEvent = e => { const r = svg.getBoundingClientRect(), vx = (e.clientX - r.left) / r.width * C.W; return C.r0 + (vx - C.L) / C.w * (C.r1 - C.r0); };
+  hit.addEventListener('pointerdown', e => { show(fromEvent(e)); if (e.pointerType !== 'mouse') try { hit.setPointerCapture(e.pointerId); } catch (_) {} });
+  hit.addEventListener('pointermove', e => { if (e.pointerType === 'mouse' || hit.hasPointerCapture(e.pointerId)) show(fromEvent(e)); });
+  hit.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') hide(); });
+  hit.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') setTimeout(hide, 1200); });
+  hit.addEventListener('pointercancel', hide);
+  svg.addEventListener('keydown', e => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') { if (e.key === 'Escape') hide(); return; }
+    e.preventDefault(); const stepR = e.shiftKey ? 500 : 100;
+    show((cur ?? C.pts[0].rpm) + (e.key === 'ArrowRight' ? stepR : -stepR));
+  });
+  svg.addEventListener('blur', hide);
+  // draw the lines in the first time the chart scrolls into view
+  if ('IntersectionObserver' in window) { const io = new IntersectionObserver(es => { if (es.some(x => x.isIntersecting)) { fig.classList.add('in'); io.disconnect(); } }, { threshold: .35 }); io.observe(fig); }
+  else fig.classList.add('in');
+}
+
 function buildSheetSection(v) {
   const s = v.build_sheet, imperial = (v.odometer_unit || S.garage?.distance_unit) === 'mi';
   if (BS_BUSY.has(v.id) && !s) return `<div class="section" id="v-build"><h2>Build sheet</h2>
-    <p class="hint" style="margin:0 0 12px">Looking up the ${esc(vshort(v))}'s factory specs…</p>
     <div class="bs-grid">${'<div class="bs-c"><div class="skel" style="height:10px;width:50%;margin-bottom:10px"></div><div class="skel" style="height:22px;width:70%"></div></div>'.repeat(6)}</div></div>`;
   if (!s) {
     if (!S.editor) return '';
@@ -4315,10 +4398,10 @@ function buildSheetSection(v) {
       ${ready && BS_FAIL[v.id] ? `<button class="btn" type="button" data-bs="${v.id}">Try again</button>` : !ready ? `<button class="btn" type="button" data-edit-v="${v.id}">Add the details</button>` : ''}</div></div>`;
   }
   return `<div class="section" id="v-build"><div class="section-head"><h2>Build sheet</h2>${S.editor ? `<button class="btn sm" type="button" data-bs="${v.id}" data-bs-refresh="1"${BS_BUSY.has(v.id) ? ' disabled' : ''}>${BS_BUSY.has(v.id) ? 'Updating…' : 'Look up again'}</button>` : ''}</div>
-    ${s.name ? `<p class="bs-name">${esc(s.name)}</p>` : ''}${s.summary ? `<p class="hint" style="margin:2px 0 14px">${esc(s.summary)}</p>` : ''}
+    ${s.name ? `<p class="bs-name">${esc(s.name)}</p>` : ''}
     <dl class="bs-grid">${buildCards(s, imperial)}</dl>
     ${curveSvg(s, imperial)}
-    <p class="hint bs-src">Published factory figures, looked up ${s.looked_up ? fdate(s.looked_up) : ''}${s.confidence ? ` · ${esc(s.confidence)} confidence` : ''}. Likely right; check anything that matters.</p></div>`;
+    <p class="hint bs-src">Factory figures${s.looked_up ? ' · ' + fdate(s.looked_up) : ''}</p></div>`;
 }
 // fetch and save a vehicle's build sheet (quietly, without a button)
 const BS_BUSY = new Set(), BS_FAIL = {};
@@ -4493,48 +4576,73 @@ function wireArrange(grid) {
   grid.dataset.arrange = '1';
   if (arranging) grid.classList.add('arranging');
   const items = () => [...grid.children].filter(e => e.dataset.vid);
-  let timer = null, drag = null, sx = 0, sy = 0, swallow = false;
+  const EASE = 'cubic-bezier(.16,1,.3,1)', calm = matchMedia('(prefers-reduced-motion: reduce)');
+  let timer = null, drag = null, sx = 0, sy = 0, swallow = false, raf = 0;
+  // move the siblings to their new places, starting from wherever they are on screen right now (even mid-animation)
+  const flip = (els, change) => {
+    const before = new Map(els.map(x => [x, x.getBoundingClientRect()]));
+    els.forEach(x => x.getAnimations().forEach(a => { if (a.id === 'flip') a.cancel(); }));
+    change();
+    if (calm.matches) return;
+    els.forEach(x => { const a = before.get(x), b = x.getBoundingClientRect(), dx = a.left - b.left, dy = a.top - b.top;
+      if (dx || dy) x.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: 'none' }], { duration: 200, easing: EASE, id: 'flip' }); });
+  };
+  const frame = () => {
+    raf = 0; if (!drag) return;
+    const { it, ph, x, y } = drag;
+    it.style.transform = `translate3d(${x - drag.x0}px,${y - drag.y0}px,0) scale(1.06)`;
+    // the slot under the finger: nearest sibling centre, placeholder goes before or after it
+    const sib = items().filter(e => e !== it);
+    let best = null, bd = Infinity;
+    for (const e of sib) { const r = e.getBoundingClientRect(), d = Math.hypot(x - (r.left + r.width / 2), y - (r.top + r.height / 2)); if (d < bd) { bd = d; best = [e, r]; } }
+    const pr = ph.getBoundingClientRect(), pd = Math.hypot(x - (pr.left + pr.width / 2), y - (pr.top + pr.height / 2));
+    if (best && bd < pd && bd < Math.max(best[1].width, best[1].height) * 0.75) {
+      const [e, r] = best, list = [...grid.children], after = list.indexOf(ph) < list.indexOf(e);
+      const target = after ? e.nextSibling : e;
+      if (target !== ph && ph.nextSibling !== target) flip([...sib, ph], () => grid.insertBefore(ph, target));
+    }
+    // scroll near the top or bottom edge, faster the closer the finger is
+    const edge = 90, bottom = innerHeight - (PHONE.matches ? 80 : 0);
+    const v = y < edge ? -(edge - y) / edge * 14 : y > bottom - edge ? (y - (bottom - edge)) / edge * 14 : 0;
+    if (v) { scrollBy(0, v); raf = requestAnimationFrame(frame); }
+  };
+  const tick = () => { if (!raf) raf = requestAnimationFrame(frame); };
   grid.addEventListener('dragstart', e => { if (e.target.closest?.('[data-vid]')) e.preventDefault(); });
   grid.addEventListener('contextmenu', e => { if (e.target.closest('[data-vid]') && (timer || arranging)) e.preventDefault(); });
   grid.addEventListener('pointerdown', e => {
-    const it = e.target.closest('[data-vid]'); if (!it || e.button > 0) return;
+    const it = e.target.closest('[data-vid]'); if (!it || e.button > 0 || drag) return;
     sx = e.clientX; sy = e.clientY;
     const begin = () => {
       timer = null; if (!arranging) startArrange(grid);
       const r = it.getBoundingClientRect();
-      drag = { it, dx: sx - r.left, dy: sy - r.top, ph: null, id: e.pointerId };
-      const ph = it.cloneNode(true); ph.classList.add('arr-ph'); ph.removeAttribute('data-vid'); drag.ph = ph; it.after(ph);
+      const ph = it.cloneNode(true); ph.classList.add('arr-ph'); ph.removeAttribute('data-vid'); it.after(ph);
       it.classList.add('arr-drag'); Object.assign(it.style, { width: r.width + 'px', height: r.height + 'px', left: r.left + 'px', top: r.top + 'px' });
+      drag = { it, ph, x0: sx, y0: sy, x: sx, y: sy };
+      navigator.vibrate?.(8);
       try { grid.setPointerCapture(e.pointerId); } catch (_) {}
+      tick();
     };
-    if (arranging) { // already arranging: drag as soon as the finger moves
-      timer = 'arm';
-    } else timer = setTimeout(begin, 450);
-    drag = null; grid._begin = begin;
+    if (arranging) timer = 'arm'; // already arranging: drag as soon as the finger moves
+    else timer = setTimeout(begin, 420);
+    grid._begin = begin;
   });
   grid.addEventListener('pointermove', e => {
     if (timer === 'arm' && Math.hypot(e.clientX - sx, e.clientY - sy) > 6) { timer = null; grid._begin(); }
     else if (timer && timer !== 'arm' && Math.hypot(e.clientX - sx, e.clientY - sy) > 10) { clearTimeout(timer); timer = null; } // a scroll, not a hold
     if (!drag) return;
-    e.preventDefault();
-    const { it, ph } = drag;
-    it.style.left = (e.clientX - drag.dx) + 'px'; it.style.top = (e.clientY - drag.dy) + 'px';
-    // swap the placeholder with whichever icon is under the finger, animating the others into place
-    const over = document.elementsFromPoint(e.clientX, e.clientY).map(x => x.closest('[data-vid]')).find(x => x && x !== it && grid.contains(x));
-    if (!over) return;
-    const all = items().filter(x => x !== it), before = new Map(all.map(x => [x, x.getBoundingClientRect()]));
-    const list = [...grid.children], pi = list.indexOf(ph), oi = list.indexOf(over);
-    pi < oi ? over.after(ph) : over.before(ph);
-    all.forEach(x => { const a = before.get(x), b = x.getBoundingClientRect(); if (a.left !== b.left || a.top !== b.top) x.animate([{ transform: `translate(${a.left - b.left}px,${a.top - b.top}px)` }, { transform: 'none' }], { duration: 180, easing: 'cubic-bezier(.2,.8,.2,1)' }); });
-    // scroll the page when dragging near the top or bottom edge
-    const edge = 80; if (e.clientY < edge) scrollBy(0, -12); else if (e.clientY > innerHeight - edge - 70) scrollBy(0, 12);
+    e.preventDefault(); drag.x = e.clientX; drag.y = e.clientY; tick();
   }, { passive: false });
   const end = () => {
     if (timer && timer !== 'arm') clearTimeout(timer); timer = null;
     if (!drag) return;
-    const { it, ph } = drag; drag = null; swallow = true;
-    ph.replaceWith(it); it.classList.remove('arr-drag'); it.removeAttribute('style');
-    saveOrder(items().map(x => x.dataset.vid));
+    const { it, ph } = drag; drag = null; swallow = true; cancelAnimationFrame(raf); raf = 0;
+    // settle into the slot, then swap the placeholder for the vehicle
+    const a = it.getBoundingClientRect(), b = ph.getBoundingClientRect();
+    const done = () => { ph.replaceWith(it); it.classList.remove('arr-drag'); it.removeAttribute('style'); saveOrder(items().map(x => x.dataset.vid)); };
+    if (calm.matches) return done();
+    const anim = it.animate([{ transform: it.style.transform }, { transform: `translate3d(${b.left - parseFloat(it.style.left)}px,${b.top - parseFloat(it.style.top)}px,0) scale(1)` }], { duration: 200, easing: EASE, fill: 'forwards' });
+    it.classList.add('arr-drop');
+    anim.onfinish = () => { anim.cancel(); it.classList.remove('arr-drop'); done(); };
   };
   grid.addEventListener('pointerup', end); grid.addEventListener('pointercancel', end);
   // no opening a vehicle at the end of a hold or a drag, or while arranging
