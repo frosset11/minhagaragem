@@ -25,10 +25,18 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400&family=Manrope:wght@400..700&family=Montserrat:wght@600&display=swap" rel="stylesheet">
+<link rel="preload" href="/fonts/open-sauce-sans-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/open-sauce-sans-600.woff2" as="font" type="font/woff2" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400&family=Montserrat:wght@600&display=swap" rel="stylesheet">
 <script src="/vendor/supabase-2.45.4.js"></script>
+<script>try { if (localStorage.getItem('mg-lang') === 'pt') document.write('<script src="/lang/pt.js?v=1"><\/script>'); } catch (e) {}</script>
 <script>window.supabase || document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"><\/script>');</script>
 <style>
+/* Open Sauce Sans (SIL Open Font License, /fonts/OFL.txt), served from this site: the one face for text, headings and figures */
+@font-face{font-family:'Open Sauce Sans';font-style:normal;font-weight:400;font-display:swap;src:url(/fonts/open-sauce-sans-400.woff2) format('woff2')}
+@font-face{font-family:'Open Sauce Sans';font-style:normal;font-weight:500;font-display:swap;src:url(/fonts/open-sauce-sans-500.woff2) format('woff2')}
+@font-face{font-family:'Open Sauce Sans';font-style:normal;font-weight:600;font-display:swap;src:url(/fonts/open-sauce-sans-600.woff2) format('woff2')}
+@font-face{font-family:'Open Sauce Sans';font-style:normal;font-weight:700;font-display:swap;src:url(/fonts/open-sauce-sans-700.woff2) format('woff2')}
 :root{
   /* AUTODEX brand: navy base, champagne gold accent, warm white text */
   --bg:#111827; --s1:color-mix(in srgb,var(--bg),#a9b8d6 7%); --s2:color-mix(in srgb,var(--bg),#a9b8d6 10%); --s3:color-mix(in srgb,var(--bg),#a9b8d6 14%);
@@ -37,10 +45,11 @@
   --accent:#C7A668; --accent-h:#D4B67E; --on-accent:#111827;
   --danger:#D98378; --ok:#7DB89A; --warn:#D1A64F;
   --r:12px; --r-sm:8px;
-  --sans:'Manrope',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;
-  --serif:'Fraunces',Georgia,'Times New Roman',serif;
-  --brand:'Montserrat','Manrope',sans-serif;
-  --mono:'Manrope',ui-sans-serif,system-ui,sans-serif; /* figures: the text face with tabular digits */
+  --sans:'Open Sauce Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;
+  --serif:var(--sans); /* headings: the same face, semi-bold and slightly tight; the dossier keeps its serif (see .dos) */
+  --head-ls:-.02em;
+  --brand:'Montserrat','Open Sauce Sans',sans-serif;
+  --mono:var(--sans); /* figures: the text face, whose digits are all one width */
   --ease:cubic-bezier(.16,1,.3,1);
   --t-fast:150ms; --t-med:200ms;
   color-scheme:dark;
@@ -128,8 +137,8 @@ a{color:inherit}
 main{max-width:1240px;margin:0 auto;padding:40px 24px 96px}
 .head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:28px;flex-wrap:wrap}
 .eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg3);font-weight:500;margin:0 0 6px}
-h1{font-family:var(--serif);font-size:38px;line-height:1.1;letter-spacing:-.015em;font-weight:600;margin:0}
-h2{font-family:var(--serif);font-size:18px;letter-spacing:0;font-weight:600;margin:0 0 14px}
+h1{font-family:var(--serif);font-size:38px;line-height:1.1;letter-spacing:var(--head-ls);font-weight:600;margin:0}
+h2{font-family:var(--serif);font-size:18px;letter-spacing:calc(var(--head-ls) / 2);font-weight:600;margin:0 0 14px}
 .sub{color:var(--fg2);margin:8px 0 0}
 .hint{color:var(--fg3);font-size:13px}
 
@@ -141,6 +150,8 @@ h2{font-family:var(--serif);font-size:18px;letter-spacing:0;font-weight:600;marg
 .ph img{width:100%;height:100%;object-fit:cover;display:block}
 .ph .mk{position:absolute;inset:0;display:grid;place-items:center;color:var(--line2);font-weight:700;font-size:56px;letter-spacing:-.05em;user-select:none}
 .ph .st{position:absolute;top:12px;left:12px}
+.ph-add{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 16px;border-radius:999px;border:1px solid var(--line2);background:var(--bg);color:var(--fg);font-weight:500;font-size:14px;cursor:pointer;white-space:nowrap;transition:border-color var(--t-fast),background var(--t-fast)}
+.ph-add:hover{border-color:var(--accent)}.ph-add:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.ph-add svg{width:18px;height:18px}
 .ph img.illus{object-fit:contain;background:#e5e5e5}
 .ph img.dim{opacity:.35;filter:grayscale(.4)}
 .ill-prog{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(70%,320px);display:flex;flex-direction:column;gap:8px;align-items:center;text-align:center}
@@ -218,7 +229,7 @@ a.btn{text-decoration:none}
 .choice small{color:var(--fg3);font-size:12.5px}
 .card .body{padding:16px 18px 18px}
 .card .yr{font-family:var(--mono);font-size:12px;color:var(--fg3)}
-.card .nm{font-family:var(--serif);font-size:18px;font-weight:600;letter-spacing:0;line-height:1.25;margin:2px 0 0}
+.card .nm{font-family:var(--serif);font-size:18px;font-weight:600;letter-spacing:-.01em;line-height:1.25;margin:2px 0 0}
 .card .nick{color:var(--fg2);font-size:14px}
 .facts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
 .facts dt{font-size:11px;color:var(--fg3);text-transform:uppercase;letter-spacing:.08em}
@@ -249,7 +260,7 @@ button.tl-b{cursor:pointer}button.tl-b:hover,button.tl-b:focus-visible{backgroun
 .dos-tools.share{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;max-width:900px;margin:0 auto 18px}
 .dos-opts{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center}.dos-opts .check{margin:0}
 .dos-act{display:grid;gap:8px}.dos-act>.btn{justify-self:start}.dos-share{display:flex;gap:8px;flex-wrap:wrap}.dos-share input{flex:1;min-width:220px;font-family:var(--mono);font-size:13px}
-.dos{--p-fg:#111827;--p-fg2:#4b5563;--p-fg3:#6b7280;--p-line:#e5e0d6;--p-gold:#8a6d33;max-width:900px;margin:0 auto;background:#fffdf9;color:var(--p-fg);border-radius:var(--r);padding:44px 48px;box-shadow:0 1px 0 rgba(0,0,0,.2);color-scheme:light}
+.dos{--serif:'Fraunces',Georgia,'Times New Roman',serif;--head-ls:-.015em;--p-fg:#111827;--p-fg2:#4b5563;--p-fg3:#6b7280;--p-line:#e5e0d6;--p-gold:#8a6d33;max-width:900px;margin:0 auto;background:#fffdf9;color:var(--p-fg);border-radius:var(--r);padding:44px 48px;box-shadow:0 1px 0 rgba(0,0,0,.2);color-scheme:light}
 .dos h1,.dos h2{color:var(--p-fg)}.dos h1{font-size:34px}.dos h1 span{font-weight:400;color:var(--p-fg2)}
 .dos h2{font-size:17px;padding-bottom:8px;border-bottom:1px solid var(--p-line);margin:34px 0 14px}
 .dos a{color:var(--p-gold)}
@@ -258,6 +269,8 @@ button.tl-b{cursor:pointer}button.tl-b:hover,button.tl-b:focus-visible{backgroun
 .dos-eye{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--p-gold);margin:0 0 8px;font-weight:600}
 .dos-sub{margin:6px 0 0;color:var(--p-fg2);font-family:var(--serif);font-style:italic}
 .dos-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:22px 0 0}
+.dos-ph{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.dos-ph[data-n="1"]{grid-template-columns:minmax(0,62%)}.dos-ph[data-n="3"]{grid-template-columns:repeat(3,minmax(0,1fr))}
+.dos-p{display:block;aspect-ratio:4/3;border-radius:10px;background:#e5e5e5 center/cover no-repeat}.dos-pdf .dos-p{border-radius:6px}
 .dos-facts dt,.dos-spec dt{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--p-fg3)}.dos-facts dd{margin:2px 0 0;font-size:16px;font-weight:600}.dos-facts small,.dos-spec small{font-weight:400;color:var(--p-fg3)}
 .dos-spec{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 24px;margin:0}.dos-spec dd{margin:2px 0 0}
 .dos-note{color:var(--p-fg3);font-size:13px;margin:10px 0 0}
@@ -270,12 +283,15 @@ button.tl-b{cursor:pointer}button.tl-b:hover,button.tl-b:focus-visible{backgroun
 .dos-foot{display:flex;gap:10px;align-items:center;margin-top:40px;padding-top:14px;border-top:1px solid var(--p-line);color:var(--p-fg3);font-size:12px}.dos-foot img{width:22px;height:22px}
 .dos .empty{border-color:var(--p-line)}.dos .empty h2{border:0}
 body.share-mode .top,body.share-mode .login{display:none!important}body.share-mode main{padding-top:24px}
-@media (max-width:720px){.dos{padding:24px 18px}.dos-hero{grid-template-columns:1fr}.dos-img{max-width:200px}.dos h1{font-size:26px}
+@media (max-width:720px){.dos{padding:24px 18px}.dos-hero{grid-template-columns:1fr}.dos-img{max-width:200px}.dos-ph[data-n="1"]{grid-template-columns:1fr}.dos-ph[data-n="3"]{grid-template-columns:repeat(2,minmax(0,1fr))}.dos h1{font-size:26px}
   .dos-spec{grid-template-columns:repeat(2,minmax(0,1fr))}
   .dos-tbl,.dos-tbl tbody{display:block;width:100%}.dos-tbl thead{display:none}.dos-tbl tr{display:grid;grid-template-columns:minmax(0,1fr) auto;padding:8px 0;border-bottom:1px solid var(--p-line)}.dos-tbl td{border:0;padding:2px 0}.dos-tbl td:nth-child(3){grid-column:1/-1}.dos-tl li{grid-template-columns:1fr}.dos-tl-d{grid-row:auto}}
 /* the PDF copy: always the A4 layout, whatever the screen */
+/* the PDF maker places letter-spaced text unevenly (a VIN came out as "911 3300 1 23"), so the PDF copy has none */
+.dos-pdf,.dos-pdf *{letter-spacing:0!important}
 .dos.dos-pdf{max-width:none!important;width:760px!important;padding:0!important;border-radius:0!important;box-shadow:none!important;background:#fff!important}
 .dos-pdf .dos-hero{grid-template-columns:200px 1fr!important}.dos-pdf .dos-hero:not(:has(img)){grid-template-columns:1fr!important}.dos-pdf .dos-img{max-width:none!important}
+.dos-pdf .dos-ph{grid-template-columns:repeat(2,minmax(0,1fr))!important}.dos-pdf .dos-ph[data-n="1"]{grid-template-columns:minmax(0,62%)!important}.dos-pdf .dos-ph[data-n="3"]{grid-template-columns:repeat(3,minmax(0,1fr))!important}
 .dos-pdf h1{font-size:32px!important}.dos-pdf .dos-spec{grid-template-columns:repeat(3,minmax(0,1fr))!important}.dos-pdf .dos-facts{grid-template-columns:repeat(4,minmax(0,1fr))!important}
 .dos-pdf .dos-tbl{display:table!important}.dos-pdf .dos-tbl thead{display:table-header-group!important}.dos-pdf .dos-tbl tbody{display:table-row-group!important}.dos-pdf .dos-tbl tr{display:table-row!important;padding:0!important}
 .dos-pdf .dos-tbl td{display:table-cell!important;padding:9px 8px!important;border-bottom:1px solid var(--p-line)!important}
@@ -432,7 +448,7 @@ body.locked.panel-ok .scrim{display:block}
 .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin:0 0 44px}
 .kpis>div{background:var(--s1);padding:18px 20px 20px;min-width:0}
 .kpis dt{font-size:11px;color:var(--fg3);text-transform:uppercase;letter-spacing:.08em}
-.kpis dd{margin:8px 0 0;font-family:var(--serif);font-weight:600;font-size:24px;letter-spacing:0;line-height:1.2;overflow-wrap:anywhere}
+.kpis dd{margin:8px 0 0;font-family:var(--serif);font-weight:600;font-size:24px;letter-spacing:-.015em;line-height:1.2;overflow-wrap:anywhere}
 .kpis dd.sm{font-size:20px}
 .kpis small{display:block;font-family:var(--sans);font-size:12.5px;color:var(--fg3);margin-top:8px;letter-spacing:0;line-height:1.4}
 .garage-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
@@ -745,6 +761,10 @@ input.fp-in:focus-visible~.pgal .pg-add,.pgal:has(+input.fp-in:focus-visible) .p
 @keyframes growX{from{transform:scaleX(0)}}@keyframes growY{from{transform:scaleY(0)}}
 .route-in .lc svg{animation:viewIn 300ms cubic-bezier(.16,1,.3,1) both}
 html{scroll-behavior:auto}
+/* a vehicle's picture travelling between the garage and its page */
+::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}
+::view-transition-group(vpic){animation-duration:.34s;animation-timing-function:cubic-bezier(.16,1,.3,1)}
+::view-transition-old(vpic),::view-transition-new(vpic){width:100%;height:100%;object-fit:cover;overflow:clip;animation-duration:.2s}
 @media (prefers-reduced-motion:reduce){#view.route-in,.route-in .hb .b,.route-in .dvr .b,.route-in .vb .bar,.route-in .lc svg{animation:none}}
 </style>
 </head>
@@ -825,7 +845,7 @@ const COUNTRY_LIST = [
 ];
 const COUNTRY = Object.fromEntries(COUNTRY_LIST.map(([c, name, cur, unit, date]) => [c, { name, cur, unit, date }]));
 const CUR_CODES = [...new Set([...COUNTRY_LIST.map(x => x[2]), 'USD', 'EUR', 'GBP', 'CNY', 'HKD', 'SGD', 'INR', 'KRW', 'TRY', 'CZK', 'HUF', 'ILS', 'THB'])];
-const curName = c => { try { return new Intl.DisplayNames(['en'], { type: 'currency' }).of(c) || c; } catch (e) { return c; } };
+const curName = c => { try { const n = new Intl.DisplayNames([localStorage.getItem('mg-lang') === 'pt' && window.AUTODEX_PT ? 'pt-BR' : 'en'], { type: 'currency' }).of(c) || c; return n[0].toUpperCase() + n.slice(1); } catch (e) { return c; } };
 const CURRENCIES = Object.fromEntries(CUR_CODES.map(c => [c, `${curName(c)} (${c})`]).sort((a, b) => a[1].localeCompare(b[1])));
 const gCountry = () => S.garage?.country || null;
 const inBR = () => gCountry() === 'BR', inUS = () => gCountry() === 'US';
@@ -919,6 +939,72 @@ const ICON = {
 };
 const lockNote = () => `<span class="lock">${ICON.lock}View only</span>`;
 
+/* ---------- language: English or Portuguese (Brazil) ---------- */
+// The app is written in English. Portuguese is a layer on top: as text appears on the page it's looked up in /lang/pt.js
+// (loaded only when Portuguese is chosen) and swapped. Numbers and amounts are matched as {n}, so "3 records" finds "{n} records".
+// Anything missing from that file simply stays in English. The choice is kept on the account (mg_lang) and in this browser.
+const LANG = (() => { try { return localStorage.getItem('mg-lang') === 'pt' && window.AUTODEX_PT ? 'pt' : 'en'; } catch (e) { return 'en'; } })();
+const LANGS = { en: 'English', pt: 'Português (Brasil)' };
+async function setLang(l) {
+  if (!LANGS[l]) return;
+  try { localStorage.setItem('mg-lang', l); } catch (e) { return toast('This browser is blocking saved settings, so the language can\'t be changed here.', true); }
+  if (db && S.user) await db.auth.updateUser({ data: { mg_lang: l } }).catch(() => {});
+  location.reload();
+}
+// the language saved on the account wins over this browser's (one reload, once)
+function syncLang(user) {
+  const want = user?.user_metadata?.mg_lang, here = (() => { try { return localStorage.getItem('mg-lang') || 'en'; } catch (e) { return null; } })();
+  if (!here) return false;
+  if (LANGS[want] && want !== here) { try { localStorage.setItem('mg-lang', want); if (localStorage.getItem('mg-lang') === want) { location.reload(); return true; } } catch (e) {} return false; }
+  if (!want && here === 'pt' && db) db.auth.updateUser({ data: { mg_lang: 'pt' } }).catch(() => {});
+  return false;
+}
+const TR = (() => {
+  const P = window.AUTODEX_PT, MISS = window.__TRMISS; // __TRMISS: a Set the tests fill with text that has no translation yet
+  if (LANG !== 'pt' && !MISS) return null;
+  const D = P?.d || {}, RX = P?.rx || [], NUM = /(?:(?:[A-Z]{1,3})?\$[\s\u00a0]?|[€£¥][\s\u00a0]?)?\d+(?:[.,]\d+)*/g, cache = new Map(); // a figure, with its currency sign if it has one
+  const base = s => {
+    if (D[s] != null) return D[s];
+    const nums = [], k = s.replace(NUM, m => { nums.push(m); return '{n}'; });
+    if (nums.length && D[k] != null) { let i = 0; return D[k].replace(/\{n\}/g, () => nums[i++] ?? ''); }
+    for (const [re, to] of RX) if (re.test(s)) return s.replace(re, typeof to === 'function' ? (...a) => to(a, one) : to);
+    return null;
+  };
+  // whole text first; then its parts around " · " and a trailing ":" (labels joined with user text or figures)
+  const one = s => {
+    if (cache.has(s)) return cache.get(s);
+    let out = base(s);
+    if (out == null && s.includes(' · ')) { let hit = false; const parts = s.split(' · ').map(p => { const t = base(p.trim()); if (t != null) hit = true; return t ?? p; }); if (hit) out = parts.join(' · '); }
+    if (out == null && MISS && /[A-Za-z]{2}/.test(s)) MISS.add(s.replace(NUM, '{n}'));
+    cache.set(s, out); return out;
+  };
+  const ATTRS = ['placeholder', 'title', 'aria-label', 'alt'], SKIP = /^(SCRIPT|STYLE|TEXTAREA|CODE|PRE)$/, done = new WeakMap();
+  const off = n => { for (let e = n.nodeType === 1 ? n : n.parentElement; e; e = e.parentElement) if (SKIP.test(e.tagName) || e.hasAttribute('data-notr')) return true; return false; };
+  const text = n => {
+    const raw = n.nodeValue; if (done.get(n) === raw) return;
+    const core = raw.trim(); let v = raw;
+    if (core && /[A-Za-z]/.test(core)) { const t = one(core); if (t != null && t !== core && LANG === 'pt') v = raw.replace(core, () => t); }
+    done.set(n, v); if (v !== raw) n.nodeValue = v;
+  };
+  const attrs = e => { for (const a of ATTRS) { const v = e.getAttribute(a); if (v && /[A-Za-z]/.test(v)) { const t = one(v.trim()); if (t != null && t !== v && LANG === 'pt') e.setAttribute(a, t); } } };
+  const walk = root => {
+    if (root.nodeType === 3) { if (!off(root)) text(root); return; }
+    if (root.nodeType !== 1 || off(root)) return;
+    attrs(root);
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, { acceptNode: n => n.nodeType === 1 && (SKIP.test(n.tagName) || n.hasAttribute('data-notr')) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
+    for (let n = w.nextNode(); n; n = w.nextNode()) n.nodeType === 3 ? text(n) : attrs(n);
+  };
+  new MutationObserver(ms => { for (const m of ms) {
+    if (m.type === 'characterData') { if (!off(m.target)) text(m.target); }
+    else if (m.type === 'attributes') { if (!off(m.target)) attrs(m.target); }
+    else m.addedNodes.forEach(walk);
+  } }).observe(document.documentElement, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ATTRS });
+  if (LANG === 'pt') document.documentElement.lang = 'pt-BR';
+  walk(document.documentElement);
+  return one;
+})();
+// for the few texts that never pass through the page (a file name, a line drawn into the PDF)
+const T = s => (LANG === 'pt' && TR && TR(s)) || s;
 function toast(msg, bad) {
   const t = $('#toast'); t.textContent = msg; t.classList.toggle('bad', !!bad); t.classList.add('on');
   clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('on'), 2800);
@@ -1112,6 +1198,7 @@ async function refreshAuth(session) {
     clearCaches();
     showLogin(pendingLoginMsg); pendingLoginMsg = null; return;
   }
+  if (syncLang(S.user)) return;
   $('#acct-btn').textContent = 'Account';
   if (prev !== S.user.id || !S.garage) {
     await db.rpc('accept_invites').then(r => { if (r.data > 0) pendingToast = r.data === 1 ? 'You joined a garage you were invited to' : `You joined ${r.data} garages you were invited to`; }, () => {});
@@ -1207,7 +1294,9 @@ function showLogin(msg) {
     </form>
     <p style="text-align:center;margin:10px 0 0" id="login-install"${canInstall() ? '' : ' hidden'}><button type="button" class="linkbtn" id="login-install-b">Add AUTODEX to your home screen</button></p>
     <p style="text-align:center;margin:18px 0 0"><button type="button" class="linkbtn" id="login-mode">${up ? 'Already have an account? Sign in' : 'New here? Create an account'}</button></p>
+    <p style="text-align:center;margin:10px 0 0" data-notr><button type="button" class="linkbtn" id="login-lang" lang="${LANG === 'pt' ? 'en' : 'pt-BR'}">${LANG === 'pt' ? 'English' : 'Português'}</button></p>
   </div>`;
+  $('#login-lang').onclick = () => setLang(LANG === 'pt' ? 'en' : 'pt');
   $('#login-mode').onclick = () => { loginMode = up ? 'in' : 'up'; showLogin(); };
   $('#login-install-b').onclick = installApp;
   openPendingInstall();
@@ -1407,6 +1496,7 @@ async function openAccount() {
     <fieldset><legend>Preferences</legend>
       ${PUSH.supported || isIOS() ? `<div class="fld"><label>Phone alerts on this device</label><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">${PUSH.on ? '<span class="chip bs-ok">On</span><button class="btn sm" type="button" id="pref-push-off">Turn off</button>' : PUSH.supported ? '<button class="btn sm" type="button" id="pref-push-on">Turn on</button>' : '<a class="btn sm" href="#/install" data-close-acct>Add to home screen first</a>'}</div><span class="help">A notification when a reminder is due: two weeks before, on the day, then weekly while overdue.</span></div>` : ''}
       <div class="two"><div class="fld"><label for="pref-first">First name</label><input id="pref-first" type="text" autocomplete="given-name" value="${esc(meta().first_name || '')}"></div><div class="fld"><label for="pref-last">Last name</label><input id="pref-last" type="text" autocomplete="family-name" value="${esc(meta().last_name || '')}"></div></div>
+      <div class="fld"><label for="pref-lang">Language</label><select id="pref-lang" data-notr>${Object.entries(LANGS).map(([k, n]) => `<option value="${k}"${LANG === k ? ' selected' : ''}>${n}</option>`).join('')}</select><span class="help">Just for you, everywhere you sign in. Names, notes and records stay as they were typed.</span></div>
       <div class="fld"><label for="pref-date">Date format</label><select id="pref-date">${Object.entries(DATE_FMTS).map(([k, f]) => `<option value="${k}"${dateFmt() === k ? ' selected' : ''}>${f.ph} · ${f.name}, like ${f.ex}</option>`).join('')}</select><span class="help">Just for you, everywhere you sign in. Other people in your garages keep their own.</span></div>
     </fieldset>
     <fieldset><legend>Your garages</legend>
@@ -1439,6 +1529,7 @@ async function openAccount() {
     const { error } = await db.auth.updateUser({ data }); if (error) return toast('Couldn\'t save your name: ' + error.message, true);
     S.user.user_metadata = { ...meta(), ...data }; toast('Name saved'); };
   $('#pref-first').onchange = saveName; $('#pref-last').onchange = saveName;
+  $('#pref-lang').onchange = e => setLang(e.target.value);
   $('#pref-date').onchange = e => { setDateFmt(e.target.value); render(); toast(`Dates now show as ${DATE_FMTS[dateFmt()].ph}`); };
   $('#g-new-btn').onclick = () => {
     if (ownedGarages() >= S.garageLimit) return openLimit('garage');
@@ -1599,14 +1690,37 @@ const moneyRule = (label) => v => v && !/^\$?[\d,]*\.?\d{0,2}$/.test(v.trim()) ?
 /* ---------- uploads ---------- */
 // Largest file anyone can add (photos, invoices, PDFs, spreadsheets); the storage bucket allows the same
 const MAX_FILE_MB = 20, MAX_FILE = MAX_FILE_MB * 1024 * 1024;
-async function shrinkImage(file, max = 1800) {
+// tidy: for vehicle photos only (never invoices or documents) — see tidyPhoto
+async function shrinkImage(file, max = 1800, tidy = false) {
   if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return file;
-  const img = await createImageBitmap(file);
+  const img = await createImageBitmap(file, { imageOrientation: 'from-image' }).catch(() => createImageBitmap(file)); // upright, as the camera held it
   const k = Math.min(1, max / Math.max(img.width, img.height));
   const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  c.getContext('2d', tidy ? { willReadFrequently: true } : undefined).drawImage(img, 0, 0, c.width, c.height);
+  if (tidy) try { tidyPhoto(c); } catch (e) { console.warn('Photo left as taken', e); }
   const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.86));
   return new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
+}
+// Evens out a vehicle photo's exposure so the pictures in a garage sit well together: dull, dark or washed-out
+// shots get their black and white points and mid-tones nudged; a well-exposed photo is left alone.
+// One curve for all three colour channels, so colours (the paint!) don't shift. Returns what it did, for tests.
+function tidyPhoto(canvas) {
+  const g = canvas.getContext('2d'), w = canvas.width, h = canvas.height, im = g.getImageData(0, 0, w, h), d = im.data;
+  const hist = new Uint32Array(256), step = Math.max(1, Math.round(Math.sqrt(w * h / 60000))) * 4; let n = 0;
+  for (let y = 0; y < h; y += step / 4) for (let i = y * w * 4, e = i + w * 4; i < e; i += step) { hist[(d[i] * 54 + d[i + 1] * 183 + d[i + 2] * 19) >> 8]++; n++; }
+  const at = q => { let a = 0; for (let v = 0; v < 256; v++) { a += hist[v]; if (a >= n * q) return v; } return 255; };
+  // black and white points: 60% of the way to the 0.5% tails and never far in, so shadows keep their detail and night shots and white cars stay themselves
+  const lo = Math.round(Math.min(at(0.005) * 0.6, 40)), hi = Math.round(Math.max(255 - (255 - at(0.995)) * 0.6, 208)), mid = at(0.5);
+  const m = (mid - lo) / Math.max(1, hi - lo);
+  // mid-tones half-way toward the middle, and only when they're clearly off
+  const gamma = m > 0.02 && m < 0.98 ? Math.min(1.2, Math.max(0.8, Math.log(0.5) / Math.log(m))) : 1;
+  let gm = 1 + (gamma - 1) * 0.5; if (Math.abs(gm - 1) < 0.05) gm = 1;
+  if (lo < 8 && hi > 247 && gm === 1) return { changed: false, lo, hi, gamma: 1 };
+  const lut = new Uint8ClampedArray(256);
+  for (let v = 0; v < 256; v++) lut[v] = Math.round(255 * Math.pow(Math.min(1, Math.max(0, (v - lo) / (hi - lo))), gm));
+  for (let i = 0; i < d.length; i += 4) { d[i] = lut[d[i]]; d[i + 1] = lut[d[i + 1]]; d[i + 2] = lut[d[i + 2]]; }
+  g.putImageData(im, 0, 0);
+  return { changed: true, lo, hi, gamma: gm };
 }
 async function upload(file, prefix) {
   if (file.size > MAX_FILE) throw new Error(`That file is over ${MAX_FILE_MB} MB. Choose a smaller one, or save without it.`);
@@ -1650,6 +1764,7 @@ function renderPhotos() {
   });
   const fresh = P.items.some(it => it.file), ch = $('#photo-choice');
   if (ch) ch.hidden = !(fresh && !P.illus);
+  if ($('#photo-tidy')) $('#photo-tidy').hidden = !fresh;
   $('#pgal-hint').textContent = P.items.length + (P.illus ? 1 : 0) > 1 ? 'Tap a picture to use it as the icon in the garage.' : `Add up to ${MAX_PHOTOS} photos. Front three-quarter views work best.`;
 }
 function addPhotoFile(file) {
@@ -1663,7 +1778,8 @@ function addPhotoFile(file) {
 // save the edited photos: upload new ones, return the columns to write
 async function savePhotos(id) {
   const P = VPH, urls = [];
-  for (const it of P.items) urls.push(it.url || await upload(await shrinkImage(it.file), `vehicles/${id}`));
+  const tidy = $('#f-tidy') ? $('#f-tidy').checked : true;
+  for (const it of P.items) urls.push(it.url || await upload(await shrinkImage(it.file, 1800, tidy), `vehicles/${id}`));
   return { photos: urls, illus_url: P.illus || null, photo_url: P.cover === 'illus' ? P.illus : (urls[P.cover] ?? urls[0] ?? P.illus ?? null) };
 }
 // files no longer used by a vehicle after a save
@@ -2044,7 +2160,7 @@ function aiLimitPanel(msg) {
 function photo(v, eager) {
   const mk = esc(((v.make || '?')[0] + ((v.model || '')[0] || '')).toUpperCase());
   const src = media(v.photo_url);
-  return `<div class="ph">${src ? `<img src="${esc(src)}" alt="${esc(vname(v))}" ${eager ? '' : 'loading="lazy"'}${isIllus(v) || ILLUS.has(v.id) ? ` class="${[isIllus(v) ? 'illus' : '', ILLUS.has(v.id) ? 'dim' : ''].join(' ').trim()}"` : ''}>` : `<div class="mk" aria-hidden="true">${mk}</div>`}${v.status && v.status !== 'owned' ? `<span class="st chip light">${esc(STATUS[v.status])}</span>` : ''}${ILLUS.has(v.id) ? progHtml(v.id) : ''}</div>`;
+  return `<div class="ph">${src ? `<img src="${esc(src)}" alt="${esc(vname(v))}" ${eager ? '' : 'loading="lazy"'}${isIllus(v) || ILLUS.has(v.id) ? ` class="${[isIllus(v) ? 'illus' : '', ILLUS.has(v.id) ? 'dim' : ''].join(' ').trim()}"` : ''}>` : `<div class="mk" aria-hidden="true">${mk}</div>${eager && S.editor ? `<button class="ph-add" type="button" data-edit-v="${v.id}" data-focus="photos">${FP_ICON}<span>Add a photo</span></button>` : ''}`}${v.status && v.status !== 'owned' ? `<span class="st chip light">${esc(STATUS[v.status])}</span>` : ''}${ILLUS.has(v.id) ? progHtml(v.id) : ''}</div>`;
 }
 function viewList(kind) {
   const list = S.vehicles.filter(v => v.kind === kind);
@@ -2558,12 +2674,14 @@ function openHistForm(h, vehicleId) {
 
 /* ---------- dossier: one page per vehicle, printable to PDF, shareable read-only ---------- */
 // What the owner can leave out. Specs and service history are always in.
-const DOS_OPTS = [['vin', 'VIN or chassis number', true], ['amounts', 'Amounts spent', false], ['price', 'Purchase price, value and who it was bought from', false], ['receipts', 'Links to the receipts', false], ['plate', 'Licence plate', false], ['notes', 'Vehicle notes', false]];
+const DOS_OPTS = [['photos', 'Photos', true], ['vin', 'VIN or chassis number', true], ['amounts', 'Amounts spent', false], ['price', 'Purchase price, value and who it was bought from', false], ['receipts', 'Links to the receipts', false], ['plate', 'Licence plate', false], ['notes', 'Vehicle notes', false]];
+// the address sent to other people: /s/<token> carries the car's name and photo for message previews, then opens #/share/<token>
+const shareLink = token => /^https?:$/.test(location.protocol) && !/^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? `${location.origin}/s/${token}` : `${location.origin}/#/share/${token}`;
 function dosOpts(vid) {
   let o = {}; try { o = JSON.parse(localStorage.getItem('mg-dos-' + vid) || '{}'); } catch (e) {}
   return Object.fromEntries(DOS_OPTS.map(([k, , d]) => [k, o[k] ?? d]));
 }
-// d = { v, recs, reads, hist, photo, invoiceOf(rec) }; o = options; used in the app, in the PDF and on the share link
+// d = { v, recs, reads, hist, photo, photos (the other pictures), invoiceOf(rec) }; o = options; used in the app, in the PDF and on the share link
 function dossierHtml(d, o) {
   const v = d.v, unit = v.odometer_unit || 'km', cur = v.currency || 'USD';
   const recs = d.recs.slice().sort((a, b) => (!a.date) - (!b.date) || (b.date || '').localeCompare(a.date || ''));
@@ -2598,6 +2716,7 @@ function dossierHtml(d, o) {
         </dl>
       </div>
     </header>
+    ${o.photos !== false && d.photos?.length ? `<section><h2>Photographs</h2><div class="dos-ph" data-n="${d.photos.length}">${d.photos.map((u, i) => `<a class="dos-p" href="${esc(u)}" target="_blank" rel="noopener" role="img" aria-label="Photo ${i + 1} of ${d.photos.length}" style="background-image:url('${esc(encodeURI(decodeURI(u)))}')"></a>`).join('')}</div></section>` : ''}
     ${specs.length ? `<section><h2>Specifications</h2><dl class="dos-spec">${specs.map(([k, val, m]) => `<div><dt>${esc(k)}</dt><dd${m ? ' class="mono"' : ''}>${esc(val)}</dd></div>`).join('')}</dl>${v.specs_source ? `<p class="dos-note">Some specifications from ${esc(v.specs_source === 'NHTSA' ? FILL_SRC.nhtsa.replace(/^the /, 'a ') : v.specs_source)}.</p>` : ''}</section>` : ''}
     ${tl.length ? `<section><h2>History and provenance</h2><ol class="dos-tl">${tl.map(x => `<li><span class="dos-tl-d">${esc(x.d ? fdate(x.d) : x.txt || '')}</span><span class="dos-tl-k">${esc(x.k)}</span><b>${esc(x.t)}</b>${x.n ? `<span class="dos-tl-n">${esc(x.n)}</span>` : ''}</li>`).join('')}</ol></section>` : ''}
     <section><h2>Service history</h2>
@@ -2623,7 +2742,7 @@ function viewDossier(id) {
   const v = vById(id);
   if (!v) return `<a class="back" href="#/cars">${ICON.back}Back</a><div class="empty"><h2>This vehicle isn't here</h2></div>`;
   const o = dosOpts(id), share = (S.shares || []).find(x => x.vehicle_id === id);
-  const link = share ? `${location.origin}/#/share/${share.token}` : '';
+  const link = share ? shareLink(share.token) : '';
   const tools = `<div class="dos-tools">
     <a class="back" href="#/vehicle/${id}" style="margin:0">${ICON.back}${esc(vshort(v))}</a>
     <div class="dos-opts" role="group" aria-label="Include in the dossier"><span class="hint">Include:</span>${DOS_OPTS.map(([k, l]) => `<label class="check"><input type="checkbox" data-dos-opt="${k}"${o[k] ? ' checked' : ''}> ${l}</label>`).join('')}<span class="hint">Specs, history and service records are always in.</span></div>
@@ -2634,7 +2753,7 @@ function viewDossier(id) {
         : `<button class="btn" type="button" id="dos-make">Create a share link</button><p class="hint" style="margin:6px 0 0">A private link to send to a buyer or insurer. It shows this page read-only, with what's ticked above, and you can turn it off any time.</p>`) : ''}
     </div>
   </div>`;
-  const doc = dossierHtml({ v, recs: recsFor(id), reads: readsFor(id), hist: histFor(id), photo: media(v.photo_url), invoiceOf: r => o.receipts ? media(r.invoice_url) : '' }, o);
+  const doc = dossierHtml({ v, recs: recsFor(id), reads: readsFor(id), hist: histFor(id), photo: media(v.photo_url), photos: vPhotos(v).filter(u => !samePic(u, v.photo_url)).map(media).filter(Boolean), invoiceOf: r => o.receipts ? media(r.invoice_url) : '' }, o);
   return tools + doc;
 }
 function wireDossier(id) {
@@ -2652,7 +2771,7 @@ function wireDossier(id) {
     const r = await db.from('vehicle_shares').insert({ vehicle_id: id, opts: dosOpts(id), created_by: S.user.id }).select().single();
     if (r.error) { toast('Couldn\'t create the link: ' + r.error.message, true); e.currentTarget.disabled = false; return; }
     S.shares = [...(S.shares || []), r.data]; render();
-    const link = `${location.origin}/#/share/${r.data.token}`;
+    const link = shareLink(r.data.token);
     try { await navigator.clipboard.writeText(link); toast('Share link created and copied'); } catch (x) { toast('Share link created'); }
   };
   if ($('#dos-copy')) $('#dos-copy').onclick = async () => { const el = $('#dos-link'); try { await navigator.clipboard.writeText(el.value); toast('Link copied'); } catch (e) { el.select(); document.execCommand('copy'); toast('Link copied'); } };
@@ -2683,11 +2802,12 @@ async function dossierPdf(btn, title) {
     const el = src.cloneNode(true); el.classList.add('dos-pdf'); host.appendChild(el); document.body.appendChild(host);
     await document.fonts?.ready;
     await Promise.all([...el.querySelectorAll('img')].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
+    await Promise.all([...el.querySelectorAll('.dos-p')].map(a => new Promise(r => { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = i.onerror = r; i.src = a.href; })));
     const top = el.getBoundingClientRect().top;
     const y = n => n.getBoundingClientRect().top - top;
     // places a page may end: between rows, list items, spec cells and sections; never just under a heading
     const heads = [...el.querySelectorAll('h2')].map(h => [y(h), y(h) + h.offsetHeight + 48]);
-    const breaks = [...el.querySelectorAll('h2, .dos-tbl tbody tr, .dos-tl li, .dos-spec > div, section > p, .dos-foot, .dos-facts')].map(y)
+    const breaks = [...el.querySelectorAll('h2, .dos-tbl tbody tr, .dos-tl li, .dos-spec > div, .dos-p, section > p, .dos-foot, .dos-facts')].map(y)
       .filter(b => !heads.some(([a, z]) => b > a + 1 && b < z)).sort((a, b) => a - b);
     const links = [...el.querySelectorAll('a[href^="http"]')].map(a => { const r = a.getBoundingClientRect(); return { url: a.href, x: r.left - el.getBoundingClientRect().left, y: r.top - top, w: r.width, h: r.height }; });
     const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: window.innerWidth, logging: false });
@@ -2735,11 +2855,11 @@ async function showShare(token) {
   let res;
   try { const { data, error } = await db.functions.invoke('dossier', { body: { token } }); res = data; if (error) { try { res = await error.context.json(); } catch (e) { res = null; } } } catch (e) { res = null; }
   if (!res?.ok) { V.innerHTML = `<div class="dos"><div class="empty"><h2>This dossier isn't available</h2><p>${esc(res?.message || 'It couldn\'t be loaded. Check your connection and try again.')}</p></div><footer class="dos-foot"><img src="/icons/mark-navy.svg?v=2" alt=""><span>AUTODEX</span></footer></div>`; return; }
-  const o = { vin: res.opts.vin !== false, amounts: !!res.opts.amounts, price: !!res.opts.price, receipts: !!res.opts.receipts, plate: !!res.opts.plate, notes: !!res.opts.notes };
+  const o = { photos: res.opts.photos !== false, vin: res.opts.vin !== false, amounts: !!res.opts.amounts, price: !!res.opts.price, receipts: !!res.opts.receipts, plate: !!res.opts.plate, notes: !!res.opts.notes };
   const v = res.vehicle;
   document.title = `${[v.year, v.make, v.model].filter(Boolean).join(' ')} · dossier`;
   V.innerHTML = `<div class="dos-tools share"><span class="hint">Shared by the owner, read-only.</span><button class="btn primary" type="button" id="dos-pdf">Download PDF</button></div>` +
-    dossierHtml({ v, recs: res.records, reads: res.readings, hist: res.history, photo: v.photo, invoiceOf: r => r.invoice || '' }, o);
+    dossierHtml({ v, recs: res.records, reads: res.readings, hist: res.history, photo: v.photo, photos: v.photos || [], invoiceOf: r => r.invoice || '' }, o);
   $('#dos-pdf').onclick = e => dossierPdf(e.currentTarget, [v.year, v.make, v.model].filter(Boolean).join(' '));
 }
 
@@ -2766,6 +2886,7 @@ function openVehicleForm(v, kind) {
         <div class="pgal" id="pgal"></div>
         <input id="f-photo" type="file" accept="image/jpeg,image/png,image/webp" class="vh fp-in" aria-label="Add a photo">
         <div id="photo-plate" aria-live="polite"></div>
+        <label class="chk" id="photo-tidy" hidden><input type="checkbox" id="f-tidy" checked><span><b>Tidy up new photos</b><small>Turns them upright and evens out dark or washed-out exposure, so the pictures sit well together. Colours aren't changed.</small></span></label>
         <label class="chk" id="photo-choice" hidden><input type="checkbox" id="f-mkill"${vPhotos(v).length ? '' : ' checked'}><span><b>Also draw an illustration</b><small>Made from the icon photo in a clean vector style, in about a minute, and used as the icon. The photos stay.</small></span></label>
       </fieldset>
       <fieldset><legend>Basics</legend>
@@ -3879,6 +4000,12 @@ function viewPortfolio() {
   const chart = valued.length ? chartCard('Return on purchase price', 'Blue is a gain, red a loss · market value vs. price paid',
     divBars(sorted.map(p => ({ label: vshort(p.v) + (p.v.colour && S.vehicles.filter(x => x.make === p.v.make && x.model === p.v.model).length > 1 ? ' ' + p.v.colour : ''), value: p.pct, href: '#/vehicle/' + p.v.id, tip: `${vname(p.v)}\nPaid ${money(p.pp, 0, p.cur)} · worth ${money(p.val.value, 0, p.cur)}\n${signMoney(p.gain, p.cur)} (${pctStr(p.pct)}) · ${p.val.label}` }))),
     [['Vehicle', 'Paid', 'Market value', 'Gain', 'Return'], ...sorted.map(p => [vname(p.v), money(p.pp, 0, p.cur), money(p.val.value, 0, p.cur), signMoney(p.gain, p.cur), pctStr(p.pct)])]) : '';
+  const alloc = valued.map(p => ({ p, x: toCur(p.val.value, p.cur, PCUR) })).filter(a => a.x > 0).sort((a, b) => b.x - a.x);
+  const allocT = alloc.reduce((a, b) => a + b.x, 0);
+  const share = x => (x / allocT * 100).toFixed(x / allocT < 0.1 ? 1 : 0) + '%';
+  const chart2 = alloc.length > 1 ? chartCard('Where the value sits', `Each vehicle's share of the ${money(allocT, 0, PCUR)} market value${alloc.length > 10 ? ' · top 10 shown' : ''}`,
+    hbars(alloc.slice(0, 10).map(a => ({ label: vshort(a.p.v) + (a.p.v.colour && S.vehicles.filter(x => x.make === a.p.v.make && x.model === a.p.v.model).length > 1 ? ' ' + a.p.v.colour : ''), value: a.x, href: '#/vehicle/' + a.p.v.id, tip: `${vname(a.p.v)}\n${money(a.x, 0, PCUR)} · ${share(a.x)} of the collection\n${a.p.val.label}` })), share),
+    [['Vehicle', 'Market value', 'Share'], ...alloc.map(a => [vname(a.p.v), money(a.x, 0, PCUR), share(a.x)])]) : '';
   const chip = s => `<span class="chip">${s === 'comps' ? 'Comps' : s === 'fipe' ? 'FIPE' : s === 'manual' ? 'Estimate' : '—'}</span>`;
   const row = p => `<tr><td><a href="#/vehicle/${p.v.id}">${esc(vname(p.v))}</a></td><td>${chip(p.val.source)}</td><td class="n">${money(p.pp, 0, p.cur)}</td><td class="n">${p.val.value != null ? money(p.val.value, 0, p.cur) : '—'}</td>
     <td class="n" style="color:${p.gain == null ? 'inherit' : p.gain >= 0 ? GAIN : LOSS}">${signMoney(p.gain, p.cur)}</td><td class="n">${pctStr(p.pct)}</td><td class="n">${p.cagr != null ? pctStr(p.cagr) + '/yr' : '—'}</td><td class="n">${p.years != null ? p.years.toFixed(1) + ' yrs' : '—'}</td></tr>`;
@@ -3886,7 +4013,7 @@ function viewPortfolio() {
     <thead><tr><th scope="col">Vehicle</th><th scope="col">Value from</th><th scope="col" class="n">Paid</th><th scope="col" class="n">Market value</th><th scope="col" class="n">Gain / loss</th><th scope="col" class="n">Return</th><th scope="col" class="n">Annualized</th><th scope="col" class="n">Held</th></tr></thead>
     <tbody>${sorted.map(row).join('')}</tbody></table></div>
     ${unvalued.length ? `<details style="margin:14px 0 0"><summary class="hint" style="cursor:pointer">${unvalued.length} vehicle${unvalued.length === 1 ? '' : 's'} not valued yet</summary><p class="hint" style="margin:10px 0 0">${unvalued.map(p => `<a href="#/vehicle/${p.v.id}">${esc(vname(p.v))}</a>${!p.pp ? ' (no purchase price)' : ''}`).join(', ')}. Open a vehicle and add comparable sales or link its FIPE model.</p></details>` : ''}</div>`;
-  return head(fxNote ? `<p class="sub">${esc(fxNote)}</p>` : '') + kpis + (chart ? `<div class="charts" style="grid-template-columns:1fr">${chart}</div>` : '') + table +
+  return head(fxNote ? `<p class="sub">${esc(fxNote)}</p>` : '') + kpis + (chart ? `<div class="charts"${chart2 ? '' : ' style="grid-template-columns:1fr"'}>${chart}${chart2}</div>` : '') + table +
     `<div class="section"><h2 style="font-size:22px;margin-bottom:6px">Costs</h2>${recCurs(S.records).length > 1 ? '' : ''}${costsBody()}</div>`;
 }
 
@@ -3908,8 +4035,11 @@ function marketSection(v) {
   const manC = comps.filter(c => !c.auto);
   const list = manC.length ? `<div class="rows">${manC.map(c => `<button class="row" type="button" data-comp="${c.id}" style="${c.include ? '' : 'opacity:.5'}"><span class="d">${fdate(c.date)}</span><span class="tm"><span class="t" style="display:block">${esc(c.title || SRC[c.source])}</span><span class="m" style="display:block">${esc(SRC[c.source])} · ${c.kind === 'sold' ? 'Sold' : 'Asking'}${c.mileage != null ? ' · ' + num(c.mileage) + ' ' + c.mileage_unit : ''}${c.include ? '' : ' · excluded'}</span></span><span class="mi">${c.currency !== cur && S.fx ? '≈ ' + money(toCur(+c.price, c.currency, cur), 0, cur) : ''}</span><span class="a">${money(c.price, 0, c.currency)}</span></button>`).join('')}</div>`
     : `<p class="none">None yet. Use Add comparable for recent sales or listings of the same model, from auction results, classifieds or anywhere else.</p>`;
+  // what the market paid over time: the included comparables, in this vehicle's currency
+  const cpts = comps.filter(c => c.include && c.date && +c.price).map(c => ({ d: c.date, o: Math.round(toCur(+c.price, c.currency, cur) ?? NaN) })).filter(x => isFinite(x.o)).sort((a, b) => a.d.localeCompare(b.d));
+  const trend = cpts.length > 1 ? `<div class="charts" style="grid-template-columns:1fr;margin:0 0 22px">${chartCard('Comparable prices over time', `${cpts.length} sales and listings counted in the value${p.pp ? ` · you paid ${money(p.pp, 0, cur)}` : ''}`, lineChart(cpts, n => SYM[cur] + short(n), SYM[cur]), [['Date', `Price (${SYM[cur]})`], ...cpts.slice().reverse().map(x => [fdate(x.d), money(x.o, 0, cur)])])}</div>` : '';
   return `<div class="section"><div class="section-head"><h2>Market value</h2>${S.editor ? `<button class="btn sm" type="button" data-add-comp="${v.id}">${ICON.plus}Add comparable</button>` : ''}</div>
-    ${tiles}${mode}<h3 style="font-size:14px;margin:22px 0 10px">Comparable sales</h3>${list}${fipe ? `<div style="margin-top:22px">${fipe}</div>` : ''}</div>`;
+    ${tiles}${mode}${trend}<h3 style="font-size:14px;margin:22px 0 10px">Comparable sales</h3>${list}${fipe ? `<div style="margin-top:22px">${fipe}</div>` : ''}</div>`;
 }
 function openCompForm(v, c) {
   const isNew = !c;
@@ -4194,13 +4324,12 @@ function wireView() {
   wireHelp();
   V.querySelectorAll('[data-import-v]').forEach(b => b.onclick = () => openImport(vById(b.dataset.importV)?.kind, { vehicleId: b.dataset.importV, scope: 'single' }));
   V.querySelectorAll('[data-illus]').forEach(b => b.onclick = () => illustrate(vById(b.dataset.illus)));
-  V.querySelectorAll('[data-edit-v]').forEach(b => b.onclick = () => openVehicleForm(vById(b.dataset.editV)));
+  V.querySelectorAll('[data-edit-v]').forEach(b => b.onclick = () => { openVehicleForm(vById(b.dataset.editV)); if (b.dataset.focus === 'photos') setTimeout(() => $('#pgal')?.scrollIntoView({ block: 'center' }), 60); });
   V.querySelectorAll('[data-add-r]').forEach(b => b.onclick = () => openRecordForm(null, b.dataset.addR));
   V.querySelectorAll('[data-rec]').forEach(b => b.onclick = () => openRecord(S.records.find(r => r.id === b.dataset.rec)));
   V.querySelectorAll('[data-signin]').forEach(b => b.onclick = openAccount);
   if ($('#v-garage')) $('#v-garage').onchange = e => askMove(vById(current().b), e.target);
   V.querySelectorAll('[data-bs]').forEach(b => b.onclick = () => { const v = vById(b.dataset.bs); if (b.dataset.bsRefresh) fetchSheet(v, true); else { BS_TRIED.clear(); fetchSheet(v); } });
-  V.querySelectorAll('[data-edit-v]').forEach(b => b.onclick = () => openVehicleForm(vById(b.dataset.editV)));
   if (current().a === 'vehicle') setTimeout(() => autoSheet(vById(current().b)), 0);
   V.querySelectorAll('.bs-curve').forEach(wireCurve);
   V.querySelectorAll('[data-pic]').forEach(b => b.onclick = () => openPic(vById(current().b), +b.dataset.pic));
@@ -4239,16 +4368,33 @@ window.addEventListener('hashchange', () => {
   if ($('#panel').classList.contains('on')) closePanel();
   stopArrange();
   const prevHash = lastHash; lastHash = location.hash;
-  render();
-  const r = current().a, from = (prevHash || '').replace(/^#\/?/, '').split('/')[0];
-  // back from a vehicle to the list it came from: same scroll position; anything else new starts at the top
-  if (r !== lastRoute || prevHash !== location.hash) {
-    const keep = ['vehicle', 'dossier'].includes(from) && !['vehicle', 'dossier'].includes(r) && SCROLLS[location.hash] != null;
-    window.scrollTo(0, keep ? SCROLLS[location.hash] : 0); lastRoute = r;
-    if (prevHash !== location.hash) routeIn();
-  }
-  $('#view').focus({ preventScroll: true });
+  morphRoute(prevHash, location.hash, () => {
+    render();
+    const r = current().a, from = (prevHash || '').replace(/^#\/?/, '').split('/')[0];
+    // back from a vehicle to the list it came from: same scroll position; anything else new starts at the top
+    if (r !== lastRoute || prevHash !== location.hash) {
+      const keep = ['vehicle', 'dossier'].includes(from) && !['vehicle', 'dossier'].includes(r) && SCROLLS[location.hash] != null;
+      window.scrollTo(0, keep ? SCROLLS[location.hash] : 0); lastRoute = r;
+      if (prevHash !== location.hash) routeIn();
+    }
+    $('#view').focus({ preventScroll: true });
+  });
 });
+// Opening a vehicle from the garage or a list: its picture grows into the page's main picture, and shrinks back on return.
+// Only where the browser can do it (View Transitions) and the person hasn't asked for less motion; otherwise the page just changes.
+const vidOf = h => (/^#\/vehicle\/([\w-]+)$/.exec(h || '') || [])[1];
+const vPicEl = id => id ? document.querySelector(`#view [data-vid="${CSS.escape(id)}"] .ic, #view [data-vid="${CSS.escape(id)}"] .ph`) : $('#view .hero .ph');
+function morphRoute(prev, next, go) {
+  const to = vidOf(next), from = vidOf(prev);
+  if (!document.startViewTransition || !!to === !!from || document.hidden || matchMedia('(prefers-reduced-motion: reduce)').matches) return go();
+  const a = vPicEl(to || null), r = a?.getBoundingClientRect();
+  if (!a || r.bottom < 0 || r.top > innerHeight) return go();
+  a.style.viewTransitionName = 'vpic';
+  let b = null;
+  const t = document.startViewTransition(() => { a.style.viewTransitionName = ''; go(); b = vPicEl(to ? null : from); if (b) b.style.viewTransitionName = 'vpic'; });
+  t.ready.catch(() => {}); t.updateCallbackDone.catch(() => {}); // a resize or a second tap mid-way just skips the animation
+  t.finished.catch(() => {}).then(() => { if (b) b.style.viewTransitionName = ''; });
+}
 let lastHash = location.hash;
 const SCROLLS = {};
 addEventListener('scroll', () => { SCROLLS[location.hash] = scrollY; }, { passive: true });

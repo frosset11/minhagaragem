@@ -41,6 +41,10 @@
   ],
   "rewrites": [
     {
+      "source": "/s/:token",
+      "destination": "/api/share?token=:token"
+    },
+    {
       "source": "/sb/:path*",
       "destination": "https://ovthmjsyjxjlimcxgqmo.supabase.co/:path*"
     },

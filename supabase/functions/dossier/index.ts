@@ -10,11 +10,20 @@ const pathOf = (u?: string | null) => { const m = /\/object\/(?:public|sign|auth
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   try {
-    const { token } = await req.json().catch(() => ({})) as { token?: string };
+    const { token, meta } = await req.json().catch(() => ({})) as { token?: string; meta?: boolean };
     if (typeof token !== 'string' || !/^[0-9a-f]{36}$/.test(token)) return json({ error: 'not_found', message: 'This link isn\'t valid.' }, 404);
     const { data: share } = await admin.from('vehicle_shares').select('*').eq('token', token).maybeSingle();
     if (!share) return json({ error: 'not_found', message: 'This link has been turned off by the owner, or it\'s wrong.' }, 404);
     const o = share.opts || {};
+    // meta: just the name and icon picture, for the message preview of a share link (/s/<token>); not counted as a view
+    if (meta) {
+      const { data: mv } = await admin.from('vehicles').select('year,make,model,trim_level,photo_url,photos').eq('id', share.vehicle_id).maybeSingle();
+      if (!mv) return json({ error: 'not_found', message: 'This vehicle is no longer in AUTODEX.' }, 404);
+      const mp = pathOf(mv.photo_url) || pathOf((mv.photos || [])[0]);
+      let photo: string | null = null;
+      if (mp) { const { data } = await admin.storage.from('media').createSignedUrl(mp, 7 * 24 * 3600); photo = data?.signedUrl || null; }
+      return json({ ok: true, title: [mv.year, mv.make, mv.model, mv.trim_level].filter(Boolean).join(' '), photo });
+    }
     const [{ data: v }, { data: recs }, { data: reads }, { data: hist }] = await Promise.all([
       admin.from('vehicles').select('*').eq('id', share.vehicle_id).single(),
       admin.from('service_records').select('id,date,title,items,shop,category,mileage,mileage_approx,hours,amount,currency,confidence,invoice_url').eq('vehicle_id', share.vehicle_id).order('date', { ascending: false, nullsFirst: false }),
@@ -24,8 +33,9 @@ Deno.serve(async (req) => {
     if (!v) return json({ error: 'not_found', message: 'This vehicle is no longer in AUTODEX.' }, 404);
     admin.from('vehicle_shares').update({ views: (share.views || 0) + 1, last_viewed: new Date().toISOString() }).eq('token', token).then(() => {});
 
-    // signed links (7 days) for the photo and, if ticked, the receipts
-    const want = [pathOf(v.photo_url), ...(o.receipts ? (recs || []).map(r => pathOf(r.invoice_url)) : [])].filter(Boolean) as string[];
+    // signed links (7 days) for the icon picture, the other photos (unless unticked) and, if ticked, the receipts
+    const more = o.photos !== false ? ((v.photos || []) as string[]).filter(p => pathOf(p) && pathOf(p) !== pathOf(v.photo_url)) : [];
+    const want = [pathOf(v.photo_url), ...more.map(pathOf), ...(o.receipts ? (recs || []).map(r => pathOf(r.invoice_url)) : [])].filter(Boolean) as string[];
     const signed: Record<string, string> = {};
     if (want.length) { const { data } = await admin.storage.from('media').createSignedUrls([...new Set(want)], 7 * 24 * 3600); (data || []).forEach(d => { if (d.path && d.signedUrl) signed[d.path] = d.signedUrl; }); }
     const sign = (u?: string | null) => { const p = pathOf(u); return p ? signed[p] || null : null; };
@@ -35,7 +45,7 @@ Deno.serve(async (req) => {
       ...pick(['id', 'kind', 'year', 'build_year', 'make', 'model', 'trim_level', 'nickname', 'colour', 'series', 'body', 'engine', 'power', 'transmission', 'drivetrain', 'plant', 'specs_source', 'meter', 'odometer', 'odometer_unit', 'odometer_date', 'hours', 'currency', 'purchase_date', 'status', 'sold_date']),
       vin: o.vin !== false ? v.vin : null, plate: o.plate ? v.plate : null, notes: o.notes ? v.notes : null,
       purchase_price: o.price ? v.purchase_price : null, estimated_value: o.price ? v.estimated_value : null, value_date: o.price ? v.value_date : null, sold_price: o.price ? v.sold_price : null, purchased_from: o.price ? v.purchased_from : null,
-      photo: sign(v.photo_url)
+      photo: sign(v.photo_url), photos: more.map(sign).filter(Boolean)
     };
     const records = (recs || []).map(r => ({ ...r, amount: o.amounts ? r.amount : null, invoice_url: undefined, invoice: o.receipts ? sign(r.invoice_url) : null, has_invoice: !!r.invoice_url }));
     return json({ ok: true, opts: o, vehicle, records, readings: reads || [], history: hist || [], shared_at: share.created_at });
