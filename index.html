@@ -321,6 +321,8 @@ body.share-mode .top,body.share-mode .login{display:none!important}body.share-mo
 .hero .ph{border-radius:var(--r);border:1px solid var(--line)}
 .hero h1{font-size:44px}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}
+.va .btn svg{width:18px;height:18px;flex:none}
+@media (max-width:720px){.va{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.va .btn{width:100%;min-height:48px;justify-content:center;padding:0 8px;gap:6px;font-size:14px;white-space:nowrap;overflow:hidden}.va .va-more{grid-column:1/-1}}
 .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-top:24px}
 .stats div{background:var(--s1);padding:14px 16px}
 .stats dt{font-size:11px;color:var(--fg3);text-transform:uppercase;letter-spacing:.08em}
@@ -2187,6 +2189,20 @@ function viewList(kind) {
       </div>
     </a>`).join('')}</div>`;
 }
+// Vehicle page actions: the four everyday ones as even buttons, the occasional ones behind "More" (a sheet on phones)
+const VA_ICON = (I => ({ more: I('<circle cx="5.5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18.5" cy="12" r="1.3"/>'), edit: I('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'), sheet: I('<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M4 15h16M10 4v16"/>'), draw: I('<path d="M4 17l4.5-5 3.5 3.5 3-3.5 5 5"/><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="8.5" r="1.3"/>') }))(d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`);
+function openVehicleMore(v) {
+  if (!v) return;
+  const drawing = ILLUS.has(v.id);
+  openPanel('More', `<div class="more">
+    ${moreRow('vm-edit', VA_ICON.edit, 'Edit details', 'Photos, specs, purchase and value')}
+    ${moreRow('vm-import', VA_ICON.sheet, 'Import spreadsheet', 'Bring in this vehicle\'s history from a file')}
+    ${vPhotos(v).length ? moreRow('vm-illus', VA_ICON.draw, drawing ? 'Drawing…' : vIllus(v) ? 'Redraw illustration' : 'Make illustration', 'Drawn from the icon photo, in about a minute') : ''}
+  </div>`, '');
+  $('#vm-edit').onclick = () => { closePanel(); openVehicleForm(vById(v.id)); };
+  $('#vm-import').onclick = () => { closePanel(); openImport(v.kind, { vehicleId: v.id, scope: 'single' }); };
+  if ($('#vm-illus')) { $('#vm-illus').disabled = drawing; $('#vm-illus').onclick = () => { closePanel(); illustrate(vById(v.id)); }; }
+}
 function viewVehicle(id) {
   const v = vById(id);
   if (!v) return `<a class="back" href="#/cars">${ICON.back}Back to cars</a><div class="empty"><h2>This vehicle isn't here</h2><p>It may have been deleted, or the link is wrong.</p><a class="btn" href="#/cars">Go to cars</a></div>`;
@@ -2223,7 +2239,7 @@ function viewVehicle(id) {
           <div><dt>Owned</dt><dd>${owned != null ? (owned >= 365 ? (owned / 365).toFixed(1) + ' <small>yrs</small>' : owned + ' <small>days</small>') : '—'}</dd></div>
           <div><dt>Records</dt><dd>${recs.length}</dd></div>
         </dl>
-        <div class="actions">${S.user && !S.editor ? `<a class="btn" href="#/dossier/${v.id}">Dossier</a>` : ''}${S.editor ? `<button class="btn primary" type="button" data-scan="${v.id}">Scan invoices</button><button class="btn" type="button" data-add-r="${v.id}">${ICON.plus}Add service</button><button class="btn" type="button" data-log="${v.id}">${ICON.plus}Log reading</button><a class="btn" href="#/dossier/${v.id}">Dossier and share</a><button class="btn" type="button" data-edit-v="${v.id}">Edit details</button><button class="btn" type="button" data-import-v="${v.id}">Import spreadsheet</button>${vPhotos(v).length ? `<button class="btn" type="button" data-illus="${v.id}"${ILLUS.has(v.id) ? ' disabled' : ''}>${ILLUS.has(v.id) ? 'Drawing…' : vIllus(v) ? 'Redraw illustration' : 'Make illustration'}</button>` : ''}` : (S.user ? '' : lockNote())}</div>
+        <div class="actions${S.editor ? ' va' : ''}">${S.user && !S.editor ? `<a class="btn" href="#/dossier/${v.id}">Dossier</a>` : ''}${S.editor ? `<button class="btn primary" type="button" data-scan="${v.id}">${FP_ICON}Scan invoices</button><button class="btn" type="button" data-add-r="${v.id}">${ICON.plus}Add service</button><button class="btn" type="button" data-log="${v.id}">${ICON.plus}Log reading</button><a class="btn" href="#/dossier/${v.id}">${ICON.file}Dossier and share</a><button class="btn va-more" type="button" data-vmore="${v.id}" aria-haspopup="dialog">${VA_ICON.more}More</button>` : (S.user ? '' : lockNote())}</div>
       </div>
     </div>
     ${(() => { const j = [['v-service', 'Service'], ['v-rem', S.user ? 'Reminders' : ''], ['v-value', S.user ? 'Value' : ''], ['v-build', v.build_sheet || S.editor ? 'Build sheet' : ''], ['v-specs', 'Specs'], ['v-story', 'Story'], ['v-miles', reads.length || S.editor ? (v.meter === 'hours' ? 'Hours' : 'Mileage') : '']].filter(x => x[1]); return `<nav class="jump" aria-label="On this page">${j.map(([id, t]) => `<button type="button" data-jump="${id}">${t}</button>`).join('')}</nav>`; })()}
@@ -4403,6 +4419,7 @@ function wireView() {
   V.querySelectorAll('[data-complete]').forEach(b => b.onclick = () => openCompleteForm(vById(b.dataset.complete)));
   V.querySelectorAll('[data-pcur]').forEach(b => b.onclick = () => { PCUR = b.dataset.pcur; try { localStorage.setItem('mg-pcur', PCUR); } catch (e) {} render(); });
   V.querySelectorAll('[data-add-comp]').forEach(b => b.onclick = () => openCompForm(vById(b.dataset.addComp)));
+  V.querySelectorAll('[data-vmore]').forEach(b => b.onclick = () => openVehicleMore(vById(b.dataset.vmore)));
   V.querySelectorAll('[data-find-comps]').forEach(b => b.onclick = () => findComps(vById(b.dataset.findComps)));
   V.querySelectorAll('[data-comp]').forEach(b => b.onclick = () => { const c = S.comps.find(x => x.id === b.dataset.comp); if (S.editor) openCompForm(vById(c.vehicle_id), c); });
   V.querySelectorAll('[data-fipe]').forEach(b => b.onclick = () => openFipeForm(vById(b.dataset.fipe)));
