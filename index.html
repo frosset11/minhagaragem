@@ -151,6 +151,7 @@ h2{font-family:var(--serif);font-size:18px;letter-spacing:calc(var(--head-ls) / 
 .ph .mk{position:absolute;inset:0;display:grid;place-items:center;color:var(--line2);font-weight:700;font-size:56px;letter-spacing:-.05em;user-select:none}
 .ph .st{position:absolute;top:12px;left:12px}
 .ph-add{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 16px;border-radius:999px;border:1px solid var(--line2);background:var(--bg);color:var(--fg);font-weight:500;font-size:14px;cursor:pointer;white-space:nowrap;transition:border-color var(--t-fast),background var(--t-fast)}
+.fc-wait{display:grid;gap:10px;padding:8px 0}.fc-wait p{margin:0}.fc-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:start;padding:12px 4px;border-bottom:1px solid var(--line)}.fc-row .check{margin:2px 0 0}.fc-row .tm{display:grid;gap:2px;min-width:0}.fc-row .t{font-weight:500;overflow-wrap:anywhere}.fc-row .m{color:var(--fg3);font-size:13px}.fc-row .a{text-align:right;white-space:nowrap}.fc-row .a small{display:block;color:var(--fg3);font-size:12px}
 .ph-add:hover{border-color:var(--accent)}.ph-add:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.ph-add svg{width:18px;height:18px}
 .ph img.illus{object-fit:contain;background:#e5e5e5}
 .ph img.dim{opacity:.35;filter:grayscale(.4)}
@@ -4038,8 +4039,56 @@ function marketSection(v) {
   // what the market paid over time: the included comparables, in this vehicle's currency
   const cpts = comps.filter(c => c.include && c.date && +c.price).map(c => ({ d: c.date, o: Math.round(toCur(+c.price, c.currency, cur) ?? NaN) })).filter(x => isFinite(x.o)).sort((a, b) => a.d.localeCompare(b.d));
   const trend = cpts.length > 1 ? `<div class="charts" style="grid-template-columns:1fr;margin:0 0 22px">${chartCard('Comparable prices over time', `${cpts.length} sales and listings counted in the value${p.pp ? ` · you paid ${money(p.pp, 0, cur)}` : ''}`, lineChart(cpts, n => SYM[cur] + short(n), SYM[cur]), [['Date', `Price (${SYM[cur]})`], ...cpts.slice().reverse().map(x => [fdate(x.d), money(x.o, 0, cur)])])}</div>` : '';
-  return `<div class="section"><div class="section-head"><h2>Market value</h2>${S.editor ? `<button class="btn sm" type="button" data-add-comp="${v.id}">${ICON.plus}Add comparable</button>` : ''}</div>
+  return `<div class="section"><div class="section-head"><h2>Market value</h2>${S.editor ? `<span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm primary" type="button" data-find-comps="${v.id}">Find comparables</button><button class="btn sm" type="button" data-add-comp="${v.id}">${ICON.plus}Add comparable</button></span>` : ''}</div>
     ${tiles}${mode}${trend}<h3 style="font-size:14px;margin:22px 0 10px">Comparable sales</h3>${list}${fipe ? `<div style="margin-top:22px">${fipe}</div>` : ''}</div>`;
+}
+// Find comparables: the web is searched for recent sales and listings of the same model (find-comps function, one scan).
+// Nothing is added until the owner ticks what really compares.
+let FOUND = null; // { vid, list, note } from the last search, so closing the panel by mistake doesn't cost another scan
+async function findComps(v, again) {
+  if (!v) return;
+  const name = [v.year, v.make, v.model, v.trim_level].filter(Boolean).join(' ');
+  if (!v.make || !v.model) { toast('Add the make and model first, so there is something to search for.', true); return; }
+  if (!again && FOUND?.vid === v.id) return showFound(v);
+  openPanel('Find comparables', `<p class="hint" style="margin:0 0 14px">${esc(name)}</p><div class="fc-wait" role="status"><div class="ill-bar"><i id="fc-bar" style="width:4%"></i></div><p id="fc-msg">Searching recent sales and listings…</p><p class="hint">This takes about half a minute. It uses one scan from this month's allowance.</p></div>`, `<button class="btn" type="button" id="fc-cancel">Cancel</button>`);
+  let live = true; $('#fc-cancel').onclick = () => { live = false; closePanel(); };
+  const t0 = Date.now(), steps = [[9, 'Reading the results…'], [20, 'Checking which ones really compare…'], [34, 'Almost there…']];
+  const tick = setInterval(() => { const s = (Date.now() - t0) / 1000, bar = $('#fc-bar'), msg = $('#fc-msg'); if (!bar) return clearInterval(tick); bar.style.width = Math.round(95 * (1 - Math.exp(-s / 16))) + '%'; const st = steps.filter(x => s >= x[0]).pop(); if (st) msg.textContent = st[1]; }, 500);
+  let res;
+  try { const { data, error } = await db.functions.invoke('find-comps', { body: { garage_id: GID(), vehicle_id: v.id } }); res = data; if (error) { try { res = await error.context.json(); } catch (e) { res = { message: 'The search couldn\'t be reached. Check your connection and try again.' }; } } }
+  catch (e) { res = { message: 'The search couldn\'t be reached. Check your connection and try again.' }; }
+  clearInterval(tick);
+  if (!live || !$('#fc-bar')) { if (res?.ok) FOUND = { vid: v.id, list: res.comparables || [], note: res.note || '' }; return; } // cancelled or closed meanwhile: kept for next time
+  if (!res?.ok) { if (res?.error === 'limit') return aiLimitPanel(res.message); openPanel('Find comparables', `<div class="form-err" role="alert">${esc(res?.message || 'No answer. Try again.')}</div>`, `<button class="btn" type="button" id="fc-x">Close</button><span class="sp"></span><button class="btn primary" type="button" id="fc-re">Try again</button>`); $('#fc-x').onclick = closePanel; $('#fc-re').onclick = () => findComps(v, true); return; }
+  FOUND = { vid: v.id, list: res.comparables || [], note: res.note || '' };
+  showFound(v);
+}
+function showFound(v) {
+  const cur = v.currency || 'USD', have = new Set(compsFor(v.id).map(c => (c.url || '').replace(/[/?#]+$/, '').toLowerCase()).filter(Boolean));
+  const list = FOUND.list.filter(c => !have.has(c.url.replace(/[/?#]+$/, '').toLowerCase()));
+  const host = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return ''; } };
+  if (!list.length) {
+    openPanel('Find comparables', `<div class="empty" style="margin:0"><h2>${FOUND.list.length ? 'Nothing new found' : 'No close matches found'}</h2><p>${esc(FOUND.note || 'The search didn\'t turn up sales or listings that match this vehicle closely enough.')}</p><p class="hint">Rare cars often have few public sales. Add one yourself with Add comparable, or use My estimate.</p></div>`,
+      `<button class="btn" type="button" id="fc-x">Close</button><span class="sp"></span><button class="btn" type="button" id="fc-re">Search again</button>`);
+    $('#fc-x').onclick = closePanel; $('#fc-re').onclick = () => { FOUND = null; findComps(v, true); }; return;
+  }
+  openPanel('Find comparables', `${FOUND.note ? `<p style="margin:0 0 6px">${esc(FOUND.note)}</p>` : ''}<p class="hint" style="margin:0 0 14px">Found on the web just now. Open each one to check it, and untick any that don't really compare. The ticked ones are added to this vehicle's comparable sales.</p>
+    <div class="rows fc-list">${list.map((c, i) => `<div class="fc-row"><label class="check"><input type="checkbox" data-fc="${i}" checked aria-label="Add ${esc(c.title)}"></label>
+      <span class="tm"><a class="t" href="${esc(c.url)}" target="_blank" rel="noopener" data-notr>${esc(c.title || host(c.url))}</a><span class="m">${esc(host(c.url))} · ${c.kind === 'sold' ? 'Sold' : 'Asking'} · ${fdate(c.date)}${c.mileage != null ? ' · ' + num(c.mileage) + ' ' + c.mileage_unit : ''}</span>${c.why ? `<span class="m" data-notr>${esc(c.why)}</span>` : ''}</span>
+      <span class="a mono">${money(c.price, 0, c.currency)}${c.currency !== cur && S.fx && toCur(+c.price, c.currency, cur) != null ? `<small>≈ ${money(toCur(+c.price, c.currency, cur), 0, cur)}</small>` : ''}</span></div>`).join('')}</div>`,
+    `<button class="btn" type="button" id="fc-x">Cancel</button><span class="sp"></span><button class="btn primary" type="button" id="fc-add">Add comparables</button>`);
+  const boxes = () => [...document.querySelectorAll('[data-fc]')], sync = () => { const n = boxes().filter(b => b.checked).length; $('#fc-add').disabled = !n; $('#fc-add').textContent = n === 1 ? 'Add 1 comparable' : `Add ${n} comparables`; };
+  boxes().forEach(b => b.onchange = sync); sync();
+  $('#fc-x').onclick = closePanel;
+  $('#fc-add').onclick = async e => {
+    const pick = boxes().filter(b => b.checked).map(b => list[+b.dataset.fc]); if (!pick.length) return;
+    e.currentTarget.disabled = true; e.currentTarget.textContent = 'Saving…';
+    const rows = pick.map(c => ({ vehicle_id: v.id, url: c.url, source: srcFromUrl(c.url), title: c.title || null, price: c.price, currency: c.currency, kind: c.kind, date: c.date, mileage: c.mileage, mileage_unit: c.mileage_unit || v.odometer_unit || 'km', include: true, notes: ['Found by web search.', c.why].filter(Boolean).join(' ') }));
+    const r = await db.from('market_comps').insert(rows).select();
+    if (r.error) { sync(); return toast('Couldn\'t save: ' + r.error.message, true); }
+    S.comps = [...(r.data || []), ...S.comps]; FOUND = null;
+    closePanel(); toast(rows.length === 1 ? '1 comparable added' : `${rows.length} comparables added`); render();
+  };
 }
 function openCompForm(v, c) {
   const isNew = !c;
@@ -4354,6 +4403,7 @@ function wireView() {
   V.querySelectorAll('[data-complete]').forEach(b => b.onclick = () => openCompleteForm(vById(b.dataset.complete)));
   V.querySelectorAll('[data-pcur]').forEach(b => b.onclick = () => { PCUR = b.dataset.pcur; try { localStorage.setItem('mg-pcur', PCUR); } catch (e) {} render(); });
   V.querySelectorAll('[data-add-comp]').forEach(b => b.onclick = () => openCompForm(vById(b.dataset.addComp)));
+  V.querySelectorAll('[data-find-comps]').forEach(b => b.onclick = () => findComps(vById(b.dataset.findComps)));
   V.querySelectorAll('[data-comp]').forEach(b => b.onclick = () => { const c = S.comps.find(x => x.id === b.dataset.comp); if (S.editor) openCompForm(vById(c.vehicle_id), c); });
   V.querySelectorAll('[data-fipe]').forEach(b => b.onclick = () => openFipeForm(vById(b.dataset.fipe)));
   V.querySelectorAll('[data-vsrc]').forEach(b => b.onclick = async () => { const v = vById(current().b); const u = await db.from('vehicles').update({ value_source: b.dataset.vsrc }).eq('id', v.id).select().single(); if (u.error) return toast('Couldn\'t save: ' + u.error.message, true); S.vehicles = S.vehicles.map(x => x.id === v.id ? { ...x, ...u.data } : x); render(); if (b.dataset.vsrc === 'manual' && u.data.estimated_value == null) openVehicleForm(vById(v.id)); });
