@@ -326,6 +326,7 @@ body.share-mode .top,body.share-mode .login{display:none!important}body.share-mo
 .hero .ph{border-radius:var(--r);border:1px solid var(--line)}
 .hero h1{font-size:44px}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}
+.comps-dd{margin:22px 0 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.comps-dd summary{display:flex;align-items:center;gap:10px;min-height:48px;cursor:pointer;list-style:none;font-weight:600;font-size:14px}.comps-dd summary::-webkit-details-marker{display:none}.comps-dd summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}.comps-n{min-width:22px;height:22px;padding:0 7px;border-radius:999px;background:var(--line);color:var(--fg2);font-size:12px;font-weight:500;display:inline-grid;place-items:center}.comps-ar{width:20px;height:20px;margin-left:auto;color:var(--fg2);transition:transform var(--t-fast)}.comps-dd[open] .comps-ar{transform:rotate(180deg)}.comps-body{padding:0 0 14px}
 .mv-head h2{white-space:nowrap}.mv-act{display:flex;gap:8px;flex:none}
 @media (max-width:720px){.mv-head{flex-wrap:wrap;row-gap:10px}.mv-act .btn.sm{height:44px}.mv-act .mv-add{width:44px;padding:0;flex:none}.mv-add span{display:none}}
 .va .btn svg{width:18px;height:18px;flex:none}
@@ -4050,7 +4051,7 @@ function marketSection(v) {
   const cpts = comps.filter(c => c.include && c.date && +c.price).map(c => ({ d: c.date, o: Math.round(toCur(+c.price, c.currency, cur) ?? NaN) })).filter(x => isFinite(x.o)).sort((a, b) => a.d.localeCompare(b.d));
   const trend = cpts.length > 1 ? `<div class="charts" style="grid-template-columns:1fr;margin:0 0 22px">${chartCard('Comparable prices over time', `${cpts.length} sales and listings counted in the value${p.pp ? ` · you paid ${money(p.pp, 0, cur)}` : ''}`, lineChart(cpts, n => SYM[cur] + short(n), SYM[cur]), [['Date', `Price (${SYM[cur]})`], ...cpts.slice().reverse().map(x => [fdate(x.d), money(x.o, 0, cur)])])}</div>` : '';
   return `<div class="section"><div class="section-head mv-head"><h2>Market value</h2>${S.editor ? `<span class="mv-act"><button class="btn sm primary" type="button" data-find-comps="${v.id}">Find comparables</button><button class="btn sm mv-add" type="button" data-add-comp="${v.id}" aria-label="Add comparable" title="Add comparable">${ICON.plus}<span>Add comparable</span></button></span>` : ''}</div>
-    ${tiles}${mode}${trend}<h3 style="font-size:14px;margin:22px 0 10px">Comparable sales</h3>${list}${fipe ? `<div style="margin-top:22px">${fipe}</div>` : ''}</div>`;
+    ${tiles}${mode}${trend}<details class="comps-dd"><summary><span>Comparable sales</span>${comps.length ? `<span class="comps-n">${comps.length}</span>` : ''}<svg class="comps-ar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary><div class="comps-body">${list}</div></details>${fipe ? `<div style="margin-top:22px">${fipe}</div>` : ''}</div>`;
 }
 // Find comparables: the web is searched for recent sales and listings of the same model (find-comps function, one scan).
 // Nothing is added until the owner ticks what really compares.
