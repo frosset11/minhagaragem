@@ -323,6 +323,8 @@ body.share-mode .top,body.share-mode .login{display:none!important}body.share-mo
 .hero .ph{border-radius:var(--r);border:1px solid var(--line)}
 .hero h1{font-size:44px}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}
+.mv-head h2{white-space:nowrap}.mv-act{display:flex;gap:8px;flex:none}
+@media (max-width:720px){.mv-head{flex-wrap:wrap;row-gap:10px}.mv-act .btn.sm{height:44px}.mv-act .mv-add{width:44px;padding:0;flex:none}.mv-add span{display:none}}
 .va .btn svg{width:18px;height:18px;flex:none}
 @media (max-width:720px){.va{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.va .btn{width:100%;min-height:48px;justify-content:center;padding:0 8px;gap:6px;font-size:14px;white-space:nowrap;overflow:hidden}.va .va-more{grid-column:1/-1}}
 .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-top:24px}
@@ -4055,7 +4057,7 @@ function marketSection(v) {
   // what the market paid over time: the included comparables, in this vehicle's currency
   const cpts = comps.filter(c => c.include && c.date && +c.price).map(c => ({ d: c.date, o: Math.round(toCur(+c.price, c.currency, cur) ?? NaN) })).filter(x => isFinite(x.o)).sort((a, b) => a.d.localeCompare(b.d));
   const trend = cpts.length > 1 ? `<div class="charts" style="grid-template-columns:1fr;margin:0 0 22px">${chartCard('Comparable prices over time', `${cpts.length} sales and listings counted in the value${p.pp ? ` · you paid ${money(p.pp, 0, cur)}` : ''}`, lineChart(cpts, n => SYM[cur] + short(n), SYM[cur]), [['Date', `Price (${SYM[cur]})`], ...cpts.slice().reverse().map(x => [fdate(x.d), money(x.o, 0, cur)])])}</div>` : '';
-  return `<div class="section"><div class="section-head"><h2>Market value</h2>${S.editor ? `<span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm primary" type="button" data-find-comps="${v.id}">Find comparables</button><button class="btn sm" type="button" data-add-comp="${v.id}">${ICON.plus}Add comparable</button></span>` : ''}</div>
+  return `<div class="section"><div class="section-head mv-head"><h2>Market value</h2>${S.editor ? `<span class="mv-act"><button class="btn sm primary" type="button" data-find-comps="${v.id}">Find comparables</button><button class="btn sm mv-add" type="button" data-add-comp="${v.id}" aria-label="Add comparable" title="Add comparable">${ICON.plus}<span>Add comparable</span></button></span>` : ''}</div>
     ${tiles}${mode}${trend}<h3 style="font-size:14px;margin:22px 0 10px">Comparable sales</h3>${list}${fipe ? `<div style="margin-top:22px">${fipe}</div>` : ''}</div>`;
 }
 // Find comparables: the web is searched for recent sales and listings of the same model (find-comps function, one scan).
