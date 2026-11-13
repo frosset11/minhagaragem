@@ -2001,7 +2001,7 @@ const helpData = () => [
     ['What does the VIN decoder do?', `Type or paste a 17-character VIN (cars from 1981 on) and it\'s looked up in ${inUS() ? 'the NHTSA database' : 'a VIN database'} for free: year, make, model, body, engine, transmission, drivetrain and where it was built. For classics and other chassis numbers, press Decode with AI; the result is marked Likely, check it, with how the number was read.`],
     ['How do reminders work?', `Add a reminder on a vehicle\'s page, the Service page or the Dashboard: service by date and/or by odometer (e.g. every 12 months or 10,000 km), ${inBR() ? 'IPVA, licenciamento' : 'vehicle tax, registration renewal'}, insurance, inspection, or anything else. Distance reminders follow the vehicle\'s latest odometer reading. Press Done and a repeating reminder moves to its next date and distance.`],
     ['Can I get a notification on my phone?', 'Yes. Press Turn on phone alerts (next to Reminders, or Account → Preferences) and allow notifications. You\'ll get one two weeks before a reminder\'s date, on the day, and weekly while it\'s overdue. On iPhone, add AUTODEX to the home screen first and turn alerts on from there.'],
-    ['What is the dossier?', 'A clean document for each vehicle: specs, history and provenance, the full service history and mileage. Open it from the vehicle\'s page (Dossier and share), tick what to include (amounts, purchase price and value, receipts, VIN, plate, notes) and press Download PDF. Add previous owners, restorations, events and awards under History and provenance to tell its story.'],
+    ['What is the dossier?', 'A clean document for each vehicle: specs, history and provenance, the full service history and mileage. Open it from the vehicle\'s page (Dossier and share), tick what to include (amounts, purchase price and value, receipts, VIN, plate, notes) and press Download PDF.'],
     ['How does the share link work?', 'On the dossier, press Create a share link and send it to a buyer or insurer. It opens the dossier read-only, without signing in, showing only what you ticked; where the car is kept and anything else in your garage are never shown. You can see how often it was opened, and Stop sharing turns the link off at once.']]],
   ['Sharing and your account', [
     ['How do I invite someone?', 'Account → People. Enter their email and choose Editor (can add and change vehicles and records) or Viewer (can only look). They join when they sign up or sign in with that email.'],
@@ -2237,13 +2237,12 @@ function viewVehicle(id) {
         <div class="actions${S.editor ? ' va' : ''}">${S.user && !S.editor ? `<a class="btn" href="#/dossier/${v.id}">Dossier</a>` : ''}${S.editor ? `<button class="btn primary" type="button" data-scan="${v.id}">${FP_ICON}Scan invoices</button><button class="btn" type="button" data-add-r="${v.id}">${ICON.plus}Add service</button><button class="btn" type="button" data-log="${v.id}">${ICON.plus}Log reading</button><a class="btn" href="#/dossier/${v.id}">${ICON.file}Dossier and share</a><button class="btn va-more" type="button" data-import-v="${v.id}">${VA_ICON.sheet}Import spreadsheet</button>` : (S.user ? '' : lockNote())}</div>
       </div>
     </div>
-    ${(() => { const j = [['v-service', 'Service'], ['v-rem', S.user ? 'Reminders' : ''], ['v-value', S.user ? 'Value' : ''], ['v-build', v.build_sheet || S.editor ? 'Build sheet' : ''], ['v-specs', 'Specs'], ['v-story', 'Story'], ['v-miles', reads.length || S.editor ? (v.meter === 'hours' ? 'Hours' : 'Mileage') : '']].filter(x => x[1]); return `<nav class="jump" aria-label="On this page">${j.map(([id, t]) => `<button type="button" data-jump="${id}">${t}</button>`).join('')}</nav>`; })()}
+    ${(() => { const j = [['v-service', 'Service'], ['v-rem', S.user ? 'Reminders' : ''], ['v-value', S.user ? 'Value' : ''], ['v-build', v.build_sheet || S.editor ? 'Build sheet' : ''], ['v-specs', 'Specs'], ['v-miles', reads.length || S.editor ? (v.meter === 'hours' ? 'Hours' : 'Mileage') : '']].filter(x => x[1]); return `<nav class="jump" aria-label="On this page">${j.map(([id, t]) => `<button type="button" data-jump="${id}">${t}</button>`).join('')}</nav>`; })()}
     ${vehicleCharts(v)}
     <div id="v-value">${S.user ? marketSection(v) : ''}</div>
     ${buildSheetSection(v)}
     <div class="section" id="v-specs"><h2>Specifications</h2>${dl(spec)}</div>
     <div class="section"><h2>Ownership</h2>${dl(own)}</div>
-    <div id="v-story">${historySection(v)}</div>
     <div id="v-rem">${S.user ? remindersSection(v.id) : ''}</div>
     ${v.notes ? `<div class="section"><h2>Notes</h2><p class="notes">${esc(v.notes)}</p></div>` : ''}
     <div class="section" id="v-service">
