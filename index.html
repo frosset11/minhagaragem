@@ -459,9 +459,9 @@ body.locked.panel-ok .scrim{display:block}
 .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin:0 0 44px}
 .kpis>div{background:var(--s1);padding:18px 20px 20px;min-width:0}
 .kpis dt{font-size:11px;color:var(--fg3);text-transform:uppercase;letter-spacing:.08em}
-.kpis dd{margin:8px 0 0;font-family:var(--serif);font-weight:600;font-size:24px;letter-spacing:-.015em;line-height:1.2;overflow-wrap:anywhere}
+.kpis dd{margin:8px 0 0;font-family:var(--serif);font-weight:600;font-size:24px;letter-spacing:-.015em;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}.kpis dd .u{font-size:.6em;color:var(--fg3);font-weight:500}.kpis dd.long{font-size:20px}
 .kpis dd.sm{font-size:20px}
-.kpis small{display:block;font-family:var(--sans);font-size:12.5px;color:var(--fg3);margin-top:8px;letter-spacing:0;line-height:1.4}
+.kpis small{display:block;font-family:var(--sans);font-size:12.5px;color:var(--fg3);margin-top:6px;letter-spacing:0;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .garage-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
 .garage-head h2{margin:0}
 .seg.sm{margin:0;padding:2px;display:inline-flex}
@@ -527,7 +527,7 @@ body.locked.panel-ok .scrim{display:block}
   .charts{grid-template-columns:1fr}
 }
 @media (max-width:720px){
-  .kpis dd{font-size:20px}.kpis dd.sm{font-size:16px}
+  .kpis dd{font-size:20px}.kpis dd.sm{font-size:16px}.kpis dd.long{font-size:17px}
   .kpis>div{padding:14px 14px 16px}
   .garage{grid-template-columns:repeat(4,minmax(0,1fr));gap:18px 12px}
   .app .ic .mk{font-size:20px}
@@ -3848,13 +3848,16 @@ function viewDashboard() {
   const ySpend = sumBy(yRecs);
   const driven = owned.map(v => ({ v, d: drivenIn(v, YEAR, distUnit) })).filter(x => x.d >= 1).sort((a, b) => b.d - a.d);
   const totalDriven = driven.reduce((a, x) => a + x.d, 0);
+  // one figure per tile, in the garage's currency (other currencies converted at today's rate; the split is in the tooltip)
+  const one = m => { const cur = gCur(), ks = Object.keys(m).filter(k => m[k]); if (!ks.length) return { t: '—', tip: '' }; let s = 0; for (const k of ks) { const x = toCur(m[k], k, cur); if (x == null) return { t: msum(m).split(' + ')[0], tip: msum(m) }; s += x; } return { t: money(s, 0, cur), tip: ks.length > 1 ? msum(m) + ' (converted at today\'s rate)' : '' }; };
+  const tile = (label, val, note, tip) => `<div><dt>${label}</dt><dd${String(val).replace(/<[^>]+>/g, '').length > 11 ? ' class="long"' : ''}${tip ? ` title="${esc(tip)}"` : ''}>${val}</dd><small>${note}</small></div>`;
+  const pl = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+  const vT = one(value), sT = one(ySpend);
   const kpis = `<dl class="kpis">
-    <div><dt>Vehicles</dt><dd>${owned.length}</dd><small>${cars} car${cars === 1 ? '' : 's'}${bikesOn() || bikes ? ` · ${bikes} bike${bikes === 1 ? '' : 's'}` : ''}</small></div>
-    ${S.user ? `<div><dt>Collection value</dt><dd class="sm">${msum(value).replace(' + ', '<br>')}</dd><small>${valued ? `${valued} at market value, ${owned.length - valued} at purchase price · <a href="#/portfolio">Portfolio</a>` : 'At purchase price — add market data on each vehicle'}</small></div>
-    <div><dt>Service in ${YEAR}</dt><dd class="sm">${msum(ySpend).replace(' + ', '<br>')}</dd><small>${yRecs.length} record${yRecs.length === 1 ? '' : 's'}</small></div>`
-    : `<div><dt>Collection value</dt><dd class="sm" style="color:var(--fg3)">Private</dd><small>${lockNote().replace('to edit', 'to see values')}</small></div>
-    <div><dt>Service in ${YEAR}</dt><dd>${yRecs.length}</dd><small>record${yRecs.length === 1 ? '' : 's'} logged this year</small></div>`}
-    <div><dt>Driven in ${YEAR}</dt><dd>${Math.round(totalDriven).toLocaleString('en-US')} <span style="font-size:.6em;color:var(--fg3)">${distUnit}</span></dd><small>${driven.length} vehicle${driven.length === 1 ? '' : 's'} with readings this year</small></div>
+    ${tile('Vehicles', owned.length, bikesOn() || bikes ? `${pl(cars, 'car')} · ${pl(bikes, 'bike')}` : pl(cars, 'car'))}
+    ${S.user ? tile('Value', vT.t, valued ? `${valued} of ${owned.length} valued` : 'At purchase price', vT.tip) + tile(`Service ${YEAR}`, sT.t, pl(yRecs.length, 'record'), sT.tip)
+      : tile('Value', '<span style="color:var(--fg3)">Private</span>', 'Members only') + tile(`Service ${YEAR}`, yRecs.length, pl(yRecs.length, 'record').replace(/^\d+ /, ''))}
+    ${tile(`Driven ${YEAR}`, `${Math.round(totalDriven).toLocaleString('en-US')} <span class="u">${distUnit}</span>`, pl(driven.length, 'vehicle'))}
   </dl>`;
   const gk = bikesOn() ? GF.k : 'all';
   const shown = owned.filter(v => gk === 'all' || v.kind === gk);
